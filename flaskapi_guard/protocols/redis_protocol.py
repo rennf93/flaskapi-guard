@@ -1,0 +1,19 @@
+# flaskapi_guard/protocols/redis_protocol.py
+from collections.abc import Generator
+from typing import Any, Protocol, runtime_checkable
+
+from redis import Redis
+
+
+@runtime_checkable
+class RedisHandlerProtocol(Protocol):
+    """Protocol for Redis handlers."""
+
+    def get_key(self, namespace: str, key: str) -> Any: ...
+    def set_key(
+        self, namespace: str, key: str, value: Any, ttl: int | None = None
+    ) -> bool | None: ...
+    def delete(self, namespace: str, key: str) -> int | None: ...
+    def keys(self, pattern: str) -> list[str] | None: ...
+    def initialize(self) -> None: ...
+    def get_connection(self) -> Generator[Redis, None, None]: ...

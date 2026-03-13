@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'compose.yml'
+      - 'data/**'
+      - 'Dockerfile'
+      - 'examples/**'
+      - 'flaskapi_guard/**'
+      - '.pre-commit-config.yaml'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'tests/**'
+  pull_request_target:
+    branches:
+      - master
+    paths:
+      - 'compose.yml'
+      - 'data/**'
+      - 'Dockerfile'
+      - 'examples/**'
+      - 'flaskapi_guard/**'
+      - '.pre-commit-config.yaml'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - run: pip install uv
+      - run: uv sync --extra dev
+      - run: uv run pre-commit run --all-files
+
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    permissions:
+      pull-requests: write
+
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # - name: Send Initial Slack Message
+      #   id: send_initial_slack_ci
+      #   uses: rennf93/good-comms@master
+      #   with:
+      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
+      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+      #     STATUS: 'Started'
+      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
+      #     AUTHOR_NAME: 'Flask API Guard - CI & Tests - Py${{ matrix.python-version }}'
+      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
+      #     AUTHOR_ICON: ':test_tube:'
+      #     TITLE: 'CI & Tests Started - Py${{ matrix.python-version }}'
+      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
+      #     MESSAGE: |
+      #       .
+      #       *CI & TESTS TRIGGERED!*
+
+      #       .
+      #       Matrix:
+      #         Python: ${{ matrix.python-version }}
+
+      #       Docs version:
+      #         ${{ secrets.DOCS_VERSION }}
+
+      #       Commit:
+      #         ${{ github.event.head_commit.message }}
+      #       .
+      #     COLOR: warning
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev
+
+      - name: Run tests
+        run: |
+          IPINFO_TOKEN='${{ secrets.IPINFO_TOKEN }}' REDIS_URL='redis://localhost:6379' REDIS_PREFIX='test:flaskapi_guard:' uv run pytest -v --cov=flaskapi_guard
+
+      # - name: Notify Success on Slack Channel
+      #   uses: rennf93/good-comms@master
+      #   with:
+      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
+      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+      #     STATUS: 'Success'
+      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
+      #     AUTHOR_NAME: 'Flask API Guard - CI & Tests - Py${{ matrix.python-version }}'
+      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
+      #     AUTHOR_ICON: ':gem:'
+      #     TITLE: 'CI & Tests Successful - Py${{ matrix.python-version }}'
+      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
+      #     MESSAGE: |
+      #       .
+      #       Matrix:
+      #         Python: ${{ matrix.python-version }}
+
+      #       Docs version:
+      #         ${{ secrets.DOCS_VERSION }}
+
+      #       Commit message:
+      #         ${{ github.event.head_commit.message }}
+
+      #       Commit URL:
+      #         ${{ github.event.head_commit.url }}
+      #       .
+      #     COLOR: good
+      #     SLACK_THREAD_TS: ${{ steps.send_initial_slack_ci.outputs.SLACK_THREAD_TS }}
+
+      # - name: Send Failure Notification to Slack
+      #   if: failure()
+      #   uses: rennf93/good-comms@master
+      #   with:
+      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
+      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+      #     STATUS: 'Failed'
+      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
+      #     AUTHOR_NAME: 'Flask API Guard - CI & Tests - Py${{ matrix.python-version }}'
+      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
+      #     AUTHOR_ICON: ':skull:'
+      #     TITLE: 'CI & Tests Failed - Py${{ matrix.python-version }}'
+      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
+      #     MESSAGE: |
+      #       .
+      #       Matrix:
+      #         Python: ${{ matrix.python-version }}
+
+      #       Docs version:
+      #         ${{ secrets.DOCS_VERSION }}
+
+      #       CI & Tests failed for commit:
+      #         ${{ github.event.head_commit.message }}
+
+      #       Commit URL:
+      #         ${{ github.event.head_commit.url }}
+
+      #       Please check the logs for more details.
+      #       .
+      #     COLOR: danger
+      #     SLACK_THREAD_TS: ${{ steps.send_initial_slack_ci.outputs.SLACK_THREAD_TS }}

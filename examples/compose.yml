@@ -1,0 +1,26 @@
+services:
+  flaskapi-guard-example:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: gunicorn main:app --bind 0.0.0.0:8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - REDIS_PREFIX=${REDIS_PREFIX:-"flaskapi_guard:"}
+      - IPINFO_TOKEN=${IPINFO_TOKEN:-"test_token"}
+    volumes:
+      - ./:/app:z
+    depends_on:
+      redis:
+        condition: service_started
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+volumes:
+  redis-data:

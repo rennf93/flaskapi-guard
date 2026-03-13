@@ -1,0 +1,3 @@
+include flaskapi_guard/py.typed
+include LICENSE
+include README.md

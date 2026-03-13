@@ -1,0 +1,17 @@
+# flaskapi_guard/protocols/geo_ip_protocol.py
+from typing import Protocol, runtime_checkable
+
+from flaskapi_guard.protocols.agent_protocol import AgentHandlerProtocol
+from flaskapi_guard.protocols.redis_protocol import RedisHandlerProtocol
+
+
+@runtime_checkable
+class GeoIPHandler(Protocol):
+    """Protocol for geographical IP handler."""
+
+    @property
+    def is_initialized(self) -> bool: ...
+    def initialize(self) -> None: ...
+    def initialize_redis(self, redis_handler: RedisHandlerProtocol) -> None: ...
+    def initialize_agent(self, agent_handler: AgentHandlerProtocol) -> None: ...
+    def get_country(self, ip: str) -> str | None: ...

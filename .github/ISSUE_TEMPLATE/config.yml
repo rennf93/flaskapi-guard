@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Flask API Guard Documentation
+    url: https://rennf93.github.io/flaskapi-guard/
+    about: Check the documentation for usage information and tutorials
+  - name: Usage Questions
+    url: https://github.com/rennf93/flaskapi-guard/discussions
+    about: Please ask and answer questions in GitHub Discussions
