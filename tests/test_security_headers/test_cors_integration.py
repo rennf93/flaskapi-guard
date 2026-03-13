@@ -109,7 +109,6 @@ def test_get_cors_headers_invalid_config() -> None:
     """Test CORS headers with invalid configuration."""
     manager = SecurityHeadersManager()
 
-    # Invalid origins type (not a list)
     manager.cors_config = {
         "origins": "https://example.com",
         "allow_methods": ["GET"],
@@ -118,7 +117,6 @@ def test_get_cors_headers_invalid_config() -> None:
     headers = manager.get_cors_headers("https://example.com")
     assert headers == {}
 
-    # Invalid allow_methods type
     manager.cors_config = {
         "origins": ["https://example.com"],
         "allow_methods": "GET",
@@ -126,10 +124,8 @@ def test_get_cors_headers_invalid_config() -> None:
     }
 
     headers = manager.get_cors_headers("https://example.com")
-    # Should use default methods
     assert "GET, POST" in headers["Access-Control-Allow-Methods"]
 
-    # Invalid allow_headers type
     manager.cors_config = {
         "origins": ["https://example.com"],
         "allow_methods": ["GET"],
@@ -137,7 +133,6 @@ def test_get_cors_headers_invalid_config() -> None:
     }
 
     headers = manager.get_cors_headers("https://example.com")
-    # Should use default headers
     assert "*" in headers["Access-Control-Allow-Headers"]
 
 
@@ -145,16 +140,12 @@ def test_cors_wildcard_with_credentials_blocked() -> None:
     """Test that wildcard origin with credentials is blocked."""
     manager = SecurityHeadersManager()
 
-    # Configure CORS with wildcard and credentials (should be blocked)
     manager.configure(cors_origins=["*"], cors_allow_credentials=True)
 
-    # Verify credentials are disabled
     assert manager.cors_config is not None
     assert manager.cors_config["allow_credentials"] is False
 
-    # Test get_cors_headers now blocks credentials but still returns headers
     headers = manager.get_cors_headers("https://example.com")
-    # Should return headers but without credentials
     assert "Access-Control-Allow-Origin" in headers
     assert "Access-Control-Allow-Credentials" not in headers
 
@@ -165,22 +156,17 @@ def test_cors_wildcard_runtime_credential_blocking(
     """Test runtime blocking when wildcard origin has credentials enabled."""
     manager = SecurityHeadersManager()
 
-    # Manually set up CORS config with wildcard and credentials
-    # (simulating a configuration that bypassed the configure() validation)
     manager.cors_config = {
         "origins": ["*"],
-        "allow_credentials": True,  # This should trigger runtime blocking
+        "allow_credentials": True,
         "allow_methods": ["GET", "POST"],
         "allow_headers": ["*"],
     }
 
-    # Test get_cors_headers blocks and logs warning
     headers = manager.get_cors_headers("https://example.com")
 
-    # Should return empty dict (blocked)
     assert headers == {}
 
-    # Should log warning
     assert (
         "Credentials cannot be used with wildcard origin - blocking CORS" in caplog.text
     )
@@ -192,11 +178,9 @@ def test_cors_specific_origin_with_credentials_allowed() -> None:
 
     manager.configure(cors_origins=["https://trusted.com"], cors_allow_credentials=True)
 
-    # Verify configuration is accepted
     assert manager.cors_config is not None
     assert manager.cors_config["allow_credentials"] is True
 
-    # Test get_cors_headers returns proper headers
     headers = manager.get_cors_headers("https://trusted.com")
     assert headers["Access-Control-Allow-Origin"] == "https://trusted.com"
     assert headers["Access-Control-Allow-Credentials"] == "true"
@@ -211,11 +195,9 @@ def test_cors_multiple_origins_validation() -> None:
         cors_allow_credentials=True,
     )
 
-    # Test allowed origin
     headers = manager.get_cors_headers("https://site1.com")
     assert headers["Access-Control-Allow-Origin"] == "https://site1.com"
     assert headers["Access-Control-Allow-Credentials"] == "true"
 
-    # Test disallowed origin
     headers = manager.get_cors_headers("https://evil.com")
     assert headers == {}

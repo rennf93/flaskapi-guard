@@ -1,4 +1,3 @@
-# flaskapi_guard/protocols/geo_ip_protocol.py
 from typing import Protocol, runtime_checkable
 
 from flaskapi_guard.protocols.agent_protocol import AgentHandlerProtocol

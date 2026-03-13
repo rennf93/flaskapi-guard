@@ -1,4 +1,3 @@
-# flaskapi_guard/models.py
 from collections.abc import Callable
 from datetime import datetime
 from ipaddress import ip_address, ip_network
@@ -241,22 +240,21 @@ class SecurityConfig(BaseModel):
         If True, all HTTP requests will be redirected to HTTPS.
     """
 
-    # Security Headers Configuration
     security_headers: dict[str, Any] | None = Field(
         default_factory=lambda: {
             "enabled": True,
             "hsts": {
-                "max_age": 31536000,  # 1 year
+                "max_age": 31536000,
                 "include_subdomains": True,
                 "preload": False,
             },
-            "csp": None,  # Content Security Policy directives
+            "csp": None,
             "frame_options": "SAMEORIGIN",
             "content_type_options": "nosniff",
             "xss_protection": "1; mode=block",
             "referrer_policy": "strict-origin-when-cross-origin",
             "permissions_policy": "geolocation=(), microphone=(), camera=()",
-            "custom": None,  # Additional custom headers
+            "custom": None,
         },
         description="Security headers configuration",
     )
@@ -430,7 +428,6 @@ class SecurityConfig(BaseModel):
         default=None,
         description="IPInfo API token for IP geolocation. Deprecated. "
         "Create a custom `geo_ip_handler` instead.",
-        # NOTE: deprecated=True,
     )
     """
     str | None:
@@ -444,7 +441,6 @@ class SecurityConfig(BaseModel):
         default=Path("data/ipinfo/country_asn.mmdb"),
         description="Path to the IPInfo database file. Deprecated. "
         "Create a custom `geo_ip_handler` instead.",
-        # NOTE: deprecated=True,
     )
     """
     Path | None:
@@ -452,7 +448,6 @@ class SecurityConfig(BaseModel):
         The path to the IPInfo database file.
     """
 
-    # Agent configuration
     enable_agent: bool = Field(
         default=False, description="Enable FastAPI Guard Agent telemetry and monitoring"
     )
@@ -559,7 +554,6 @@ class SecurityConfig(BaseModel):
         from the SaaS platform.
     """
 
-    # Emergency mode fields (used by dynamic rules)
     emergency_mode: bool = Field(
         default=False, description="Emergency lockdown mode (set by dynamic rules)"
     )
@@ -579,7 +573,6 @@ class SecurityConfig(BaseModel):
         These IPs are allowed even in emergency mode.
     """
 
-    # Endpoint-specific rate limiting (used by dynamic rules)
     endpoint_rate_limits: dict[str, tuple[int, int]] = Field(
         default_factory=dict,
         description="Per-endpoint rate limits set by dynamic rules",
@@ -591,7 +584,6 @@ class SecurityConfig(BaseModel):
         Example: {"/api/sensitive": (5, 60)} allows 5 requests per 60 seconds.
     """
 
-    # Detection engine configuration
     detection_compiler_timeout: float = Field(
         default=2.0,
         description="Timeout for pattern compilation and matching (seconds)",
@@ -743,7 +735,6 @@ class SecurityConfig(BaseModel):
         if self.geo_ip_handler is None and (
             self.blocked_countries or self.whitelist_countries
         ):
-            # Backwards compatibility with old config
             if self.ipinfo_token:
                 from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
 
@@ -796,7 +787,6 @@ class SecurityConfig(BaseModel):
                 retry_attempts=self.agent_retry_attempts,
             )
         except ImportError:
-            # guard_agent is not installed
             return None
 
 
@@ -805,7 +795,6 @@ class DynamicRules(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    # Rule metadata
     rule_id: str = Field(description="Unique rule ID")
     version: int = Field(description="Rule version number")
     timestamp: datetime = Field(description="Rule creation/update timestamp")
@@ -814,12 +803,10 @@ class DynamicRules(BaseModel):
     )
     ttl: int = Field(default=300, description="Cache TTL in seconds")
 
-    # IP management rules
     ip_blacklist: list[str] = Field(default_factory=list, description="IPs to ban")
     ip_whitelist: list[str] = Field(default_factory=list, description="IPs to allow")
     ip_ban_duration: int = Field(default=3600, description="Ban duration in seconds")
 
-    # Country/geo rules
     blocked_countries: list[str] = Field(
         default_factory=list, description="Countries to block"
     )
@@ -827,7 +814,6 @@ class DynamicRules(BaseModel):
         default_factory=list, description="Countries to allow"
     )
 
-    # Rate limiting rules
     global_rate_limit: int | None = Field(default=None, description="Global rate limit")
     global_rate_window: int | None = Field(
         default=None, description="Global rate window"
@@ -837,22 +823,18 @@ class DynamicRules(BaseModel):
         description="Per-endpoint rate limits {endpoint: (requests, window)}",
     )
 
-    # Cloud provider rules
     blocked_cloud_providers: set[str] = Field(
         default_factory=set, description="Cloud providers to block"
     )
 
-    # User agent rules
     blocked_user_agents: list[str] = Field(
         default_factory=list, description="User agents to block"
     )
 
-    # Pattern rules
     suspicious_patterns: list[str] = Field(
         default_factory=list, description="Additional suspicious patterns"
     )
 
-    # Feature toggles
     enable_penetration_detection: bool | None = Field(
         default=None, description="Override penetration detection setting"
     )
@@ -863,7 +845,6 @@ class DynamicRules(BaseModel):
         default=None, description="Override rate limiting setting"
     )
 
-    # Emergency controls
     emergency_mode: bool = Field(default=False, description="Emergency lockdown mode")
     emergency_whitelist: list[str] = Field(
         default_factory=list, description="Emergency whitelist IPs"

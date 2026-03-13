@@ -1,4 +1,3 @@
-# flaskapi_guard/core/responses/factory.py
 from collections.abc import Callable
 
 from flask import Request, Response
@@ -42,10 +41,8 @@ class ErrorResponseFactory:
         )
         response = Response(custom_message, status=status_code)
 
-        # Add security headers to error responses
         response = self.apply_security_headers(response)
 
-        # Apply custom response modifier if configured
         response = self.apply_modifier(response)
 
         return response
@@ -67,7 +64,6 @@ class ErrorResponseFactory:
             headers={"Location": https_url},
         )
 
-        # Apply custom response modifier if configured
         return self.apply_modifier(redirect_response)
 
     def apply_security_headers(
@@ -146,25 +142,20 @@ class ErrorResponseFactory:
         Returns:
             Processed response with headers, metrics collected, and modifier applied
         """
-        # Process behavioral rules after response (if callback provided)
         if route_config and route_config.behavior_rules and process_behavioral_rules:
             client_ip = extract_client_ip(
                 request, self.context.config, self.context.agent_handler
             )
             process_behavioral_rules(request, response, client_ip, route_config)
 
-        # Collect request metrics
         self.context.metrics_collector.collect_request_metrics(
             request, response_time, response.status_code
         )
 
-        # Add security headers if enabled
         response = self.apply_security_headers(response, request.path)
 
-        # Add CORS headers if origin is present
         origin = request.headers.get("origin")
         if origin:
             response = self.apply_cors_headers(response, origin)
 
-        # Apply custom response modifier
         return self.apply_modifier(response)

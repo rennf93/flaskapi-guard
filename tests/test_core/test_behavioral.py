@@ -98,7 +98,6 @@ class TestBehavioralProcessor:
         processor.context.guard_decorator = None
         route_config = RouteConfig()
 
-        # Should return early without error
         processor.process_usage_rules(mock_request, "1.2.3.4", route_config)
 
     def test_process_usage_rules_no_threshold_exceeded(
@@ -110,7 +109,6 @@ class TestBehavioralProcessor:
 
         processor.process_usage_rules(mock_request, "1.2.3.4", route_config)
 
-        # Should track usage but not apply action
         processor.context.guard_decorator.behavior_tracker.track_endpoint_usage.assert_called_once()
         processor.context.guard_decorator.behavior_tracker.apply_action.assert_not_called()
 
@@ -118,7 +116,6 @@ class TestBehavioralProcessor:
         self, processor: Mock, mock_request: Mock, mock_event_bus: Mock
     ) -> None:
         """Test process_usage_rules when usage threshold exceeded."""
-        # Mock threshold exceeded
         processor.context.guard_decorator.behavior_tracker.track_endpoint_usage = (
             MagicMock(return_value=True)
         )
@@ -128,7 +125,6 @@ class TestBehavioralProcessor:
 
         processor.process_usage_rules(mock_request, "1.2.3.4", route_config)
 
-        # Should send event and apply action
         mock_event_bus.send_middleware_event.assert_called_once()
         call_kwargs = mock_event_bus.send_middleware_event.call_args[1]
         assert call_kwargs["event_type"] == "decorator_violation"
@@ -152,7 +148,6 @@ class TestBehavioralProcessor:
 
         processor.process_usage_rules(mock_request, "1.2.3.4", route_config)
 
-        # Should process frequency rules same as usage
         processor.context.guard_decorator.behavior_tracker.track_endpoint_usage.assert_called_once()
         processor.context.guard_decorator.behavior_tracker.apply_action.assert_called_once()
 
@@ -168,7 +163,6 @@ class TestBehavioralProcessor:
 
         processor.process_usage_rules(mock_request, "1.2.3.4", route_config)
 
-        # Should process both rules
         assert (
             processor.context.guard_decorator.behavior_tracker.track_endpoint_usage.call_count
             == 2
@@ -181,7 +175,6 @@ class TestBehavioralProcessor:
         processor.context.guard_decorator = None
         route_config = create_route_config_with_rules([])
 
-        # Should return early without error
         processor.process_return_rules(
             mock_request, mock_response, "1.2.3.4", route_config
         )
@@ -203,7 +196,6 @@ class TestBehavioralProcessor:
             mock_request, mock_response, "1.2.3.4", route_config
         )
 
-        # Should track pattern but not apply action
         processor.context.guard_decorator.behavior_tracker.track_return_pattern.assert_called_once()
         processor.context.guard_decorator.behavior_tracker.apply_action.assert_not_called()
 
@@ -215,7 +207,6 @@ class TestBehavioralProcessor:
         mock_event_bus: Mock,
     ) -> None:
         """Test process_return_rules when return pattern threshold exceeded."""
-        # Mock pattern detected
         processor.context.guard_decorator.behavior_tracker.track_return_pattern = (
             MagicMock(return_value=True)
         )
@@ -233,7 +224,6 @@ class TestBehavioralProcessor:
             mock_request, mock_response, "1.2.3.4", route_config
         )
 
-        # Should send event and apply action
         mock_event_bus.send_middleware_event.assert_called_once()
         call_kwargs = mock_event_bus.send_middleware_event.call_args[1]
         assert call_kwargs["event_type"] == "decorator_violation"
@@ -248,7 +238,7 @@ class TestBehavioralProcessor:
     ) -> None:
         """Test process_return_rules ignores non-return_pattern rules."""
         rule = BehaviorRule(
-            rule_type="usage",  # Not return_pattern
+            rule_type="usage",
             threshold=5,
             window=60,
             action="log",
@@ -259,7 +249,6 @@ class TestBehavioralProcessor:
             mock_request, mock_response, "1.2.3.4", route_config
         )
 
-        # Should not track return patterns for non-return_pattern rules
         processor.context.guard_decorator.behavior_tracker.track_return_pattern.assert_not_called()
 
     def test_get_endpoint_id_with_route(

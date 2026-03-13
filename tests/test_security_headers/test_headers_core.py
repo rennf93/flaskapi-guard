@@ -283,15 +283,12 @@ def test_headers_caching() -> None:
         csp={"default-src": ["'self'"]},
     )
 
-    # First call should generate headers
     headers1 = manager.get_headers("/test")
     assert "Content-Security-Policy" in headers1
 
-    # Second call should use cache
     headers2 = manager.get_headers("/test")
     assert headers1 == headers2
 
-    # Different path should generate new headers
     headers3 = manager.get_headers("/different")
     assert "Content-Security-Policy" in headers3
 
@@ -302,7 +299,6 @@ def test_new_default_security_headers() -> None:
 
     headers = manager.get_headers()
 
-    # Check all new headers are present
     assert "X-Permitted-Cross-Domain-Policies" in headers
     assert headers["X-Permitted-Cross-Domain-Policies"] == "none"
 
@@ -325,7 +321,6 @@ def test_original_headers_still_present() -> None:
 
     headers = manager.get_headers()
 
-    # Check original headers
     assert headers["X-Content-Type-Options"] == "nosniff"
     assert headers["X-Frame-Options"] == "SAMEORIGIN"
     assert headers["X-XSS-Protection"] == "1; mode=block"

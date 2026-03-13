@@ -1,4 +1,3 @@
-# flaskapi_guard/core/validation/__init__.py
 """Request validation module."""
 
 from flaskapi_guard.core.validation.context import ValidationContext

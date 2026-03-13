@@ -24,7 +24,7 @@ def advanced_decorator_app(security_config: SecurityConfig) -> Flask:
         return {"message": "Business hours access"}
 
     @app.route("/night-hours")
-    @decorator.time_window("22:00", "06:00", "UTC")  # Night hours
+    @decorator.time_window("22:00", "06:00", "UTC")
     def night_hours_endpoint() -> dict[str, str]:
         return {"message": "Night hours access"}
 
@@ -75,10 +75,8 @@ def test_time_window_restrictions(
     """Test time window restrictions."""
     from datetime import datetime, timezone
 
-    # Mock datetime.now to return a specific hour
     mock_datetime = datetime(2024, 1, 1, mock_hour, 0, 0, tzinfo=timezone.utc)
 
-    # Patch datetime at both locations where it's used
     with patch(
         "flaskapi_guard.core.checks.implementations.time_window.datetime"
     ) as mock_dt:
@@ -95,7 +93,6 @@ def test_time_window_restrictions(
 
 def test_suspicious_detection_enabled(advanced_decorator_app: Flask) -> None:
     """Test that suspicious detection decorator is applied correctly."""
-    # Find the route and verify decorator was applied
     for endpoint_name, view_func in advanced_decorator_app.view_functions.items():
         if endpoint_name == "suspicious_enabled_endpoint":
             assert hasattr(view_func, "_guard_route_id")
@@ -111,7 +108,6 @@ def test_suspicious_detection_enabled(advanced_decorator_app: Flask) -> None:
 
 def test_suspicious_detection_disabled(advanced_decorator_app: Flask) -> None:
     """Test that suspicious detection disabled decorator is applied correctly."""
-    # Find the route and verify decorator was applied
     for endpoint_name, view_func in advanced_decorator_app.view_functions.items():
         if endpoint_name == "suspicious_disabled_endpoint":
             assert hasattr(view_func, "_guard_route_id")
@@ -128,14 +124,12 @@ def test_suspicious_detection_disabled(advanced_decorator_app: Flask) -> None:
 def test_suspicious_endpoints_response(advanced_decorator_app: Flask) -> None:
     """Test calling suspicious endpoints and their responses."""
     with advanced_decorator_app.test_client() as client:
-        # Test suspicious enabled endpoint
         response = client.get(
             "/suspicious-enabled", headers={"X-Forwarded-For": "8.8.8.8"}
         )
         assert response.status_code == 200
         assert response.get_json()["message"] == "Suspicious detection enabled"
 
-        # Test suspicious disabled endpoint
         response = client.get(
             "/suspicious-disabled", headers={"X-Forwarded-For": "8.8.8.8"}
         )
@@ -165,8 +159,6 @@ def test_honeypot_detection_configuration(
     description: str,
 ) -> None:
     """Test that honeypot detection decorators are configured correctly."""
-    # Find the route and verify decorator was applied
-    # Map endpoint path to Flask endpoint name
     endpoint_map = {
         "/form-honeypot": "form_honeypot_endpoint",
         "/json-honeypot": "json_honeypot_endpoint",
@@ -184,7 +176,6 @@ def test_honeypot_detection_configuration(
     assert route_config is not None
     assert len(route_config.custom_validators) == 1, "Should have one custom validator"
 
-    # Verify the validator is a honeypot validator by checking its closure
     validator = route_config.custom_validators[0]
     assert hasattr(validator, "__code__")
     assert "trap_fields" in validator.__code__.co_freevars
@@ -195,7 +186,6 @@ def test_honeypot_detection_basic_functionality(
 ) -> None:
     """Test basic honeypot detection functionality - clean requests should pass."""
     with advanced_decorator_app.test_client() as client:
-        # Test clean form data passes
         response = client.post(
             "/form-honeypot",
             data={"name": "John", "email": "john@example.com"},
@@ -206,7 +196,6 @@ def test_honeypot_detection_basic_functionality(
         )
         assert response.status_code == 200
 
-        # Test clean JSON data passes
         response = client.post(
             "/json-honeypot",
             json={"name": "Jane", "message": "Hello"},

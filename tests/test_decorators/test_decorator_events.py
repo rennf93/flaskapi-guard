@@ -1,5 +1,4 @@
-# tests/test_decorators/test_decorator_events.py
-"""Tests for BaseSecurityDecorator event methods in flaskapi_guard/decorators/base.py."""
+"""Tests for BaseSecurityDecorator event methods."""
 
 import sys
 import types
@@ -12,9 +11,6 @@ from flaskapi_guard.decorators.base import BaseSecurityDecorator
 from flaskapi_guard.models import SecurityConfig
 
 
-# ---------------------------------------------------------------------------
-# Helpers: mock guard_agent module
-# ---------------------------------------------------------------------------
 def _install_mock_guard_agent() -> types.ModuleType:
     mock_module = types.ModuleType("guard_agent")
 
@@ -50,11 +46,6 @@ def app() -> Flask:
 def decorator() -> BaseSecurityDecorator:
     config = SecurityConfig(enable_redis=False)
     return BaseSecurityDecorator(config)
-
-
-# =========================================================================
-# Tests
-# =========================================================================
 
 
 class TestDecoratorEvents:
@@ -101,7 +92,6 @@ class TestDecoratorEvents:
         with app.test_request_context("/test"):
             from flask import request
 
-            # Should return immediately without error
             decorator.send_decorator_event(
                 event_type="test",
                 request=request,
@@ -121,7 +111,6 @@ class TestDecoratorEvents:
         with app.test_request_context("/test"):
             from flask import request
 
-            # Should not raise
             decorator.send_decorator_event(
                 event_type="test",
                 request=request,

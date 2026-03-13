@@ -20,16 +20,13 @@ def test_redis_basic_operations(security_config_redis: SecurityConfig) -> None:
     handler = redis_handler(security_config_redis)
     handler.initialize()
 
-    # Test set and get
     handler.set_key("test", "key1", "value1")
     value = handler.get_key("test", "key1")
     assert value == "value1"
 
-    # Test exists
     exists = handler.exists("test", "key1")
     assert exists is True
 
-    # Test delete
     handler.delete("test", "key1")
     exists = handler.exists("test", "key1")
     assert exists is False
@@ -71,7 +68,6 @@ def test_redis_connection_retry(
     handler = redis_handler(security_config_redis)
     handler.initialize()
 
-    # Mock the Redis get method
     mock_get = MagicMock(side_effect=ConnectionError("Test connection error"))
     if handler._redis:
         mocker.patch.object(handler._redis, "get", mock_get)
@@ -85,12 +81,10 @@ def test_redis_ttl_operations(security_config_redis: SecurityConfig) -> None:
     handler = redis_handler(security_config_redis)
     handler.initialize()
 
-    # Test set with TTL
     handler.set_key("test", "ttl_key", "value", ttl=1)
     value = handler.get_key("test", "ttl_key")
     assert value == "value"
 
-    # Wait for TTL to expire
     time.sleep(1.1)
     value = handler.get_key("test", "ttl_key")
     assert value is None
@@ -105,19 +99,16 @@ def test_redis_increment_operations(
     handler = redis_handler(security_config_redis)
     handler.initialize()
 
-    # Clean up stale keys from previous test runs
     with handler.get_connection() as conn:
         prefix = security_config_redis.redis_prefix
         conn.delete(f"{prefix}test:counter")
         conn.delete(f"{prefix}test:ttl_counter")
 
-    # Test increment without TTL
     value = handler.incr("test", "counter")
     assert value == 1
     value = handler.incr("test", "counter")
     assert value == 2
 
-    # Test increment with TTL
     value = handler.incr("test", "ttl_counter", ttl=1)
     assert value == 1
     time.sleep(1.1)
@@ -147,7 +138,6 @@ def test_redis_connection_context_get_error(
 
 def test_redis_connection_failures(security_config_redis: SecurityConfig) -> None:
     """Test Redis connection failure scenarios"""
-    # Test initialization failure
     bad_config = SecurityConfig(
         **{
             **security_config_redis.model_dump(),
@@ -159,16 +149,13 @@ def test_redis_connection_failures(security_config_redis: SecurityConfig) -> Non
         handler.initialize()
     assert handler._redis is None
 
-    # Test with valid config but force connection failure
     handler = redis_handler(security_config_redis)
     handler.initialize()
 
-    # Test operation after connection drop
     handler.close()
     with pytest.raises(InternalServerError):
         handler.get_key("test", "key")
 
-    # Test safe_operation with null connection
     handler._redis = None
     with pytest.raises(InternalServerError):
         handler.safe_operation(lambda conn: conn.get("test:key"))
@@ -179,7 +166,6 @@ def test_redis_disabled_operations(security_config_redis: SecurityConfig) -> Non
     security_config_redis.enable_redis = False
     handler = redis_handler(security_config_redis)
 
-    # All operations should return None when Redis is disabled
     assert handler.get_key("test", "key") is None
     assert handler.set_key("test", "key", "value") is None
     assert handler.incr("test", "counter") is None

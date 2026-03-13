@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/behavior_handler.py
 import json
 import logging
 import re
@@ -20,7 +19,7 @@ class BehaviorRule:
         self,
         rule_type: Literal["usage", "return_pattern", "frequency"],
         threshold: int,
-        window: int = 3600,  # 1 hour default
+        window: int = 3600,
         pattern: str | None = None,
         action: Literal["ban", "log", "throttle", "alert"] = "log",
         custom_action: Callable | None = None,
@@ -80,20 +79,16 @@ class BehaviorTracker:
         current_time = time.time()
         window_start = current_time - rule.window
 
-        # Redis implementation
         if self.redis_handler:
             key = f"behavior:usage:{endpoint_id}:{client_ip}"
 
-            # Add current timestamp
             self.redis_handler.set_key(
                 "behavior_usage", f"{key}:{current_time}", "1", ttl=rule.window
             )
 
-            # Count entries in window
             pattern = f"behavior_usage:{key}:*"
             keys = self.redis_handler.keys(pattern)
 
-            # Filter keys within time window
             valid_count = 0
             for key_name in keys:
                 try:
@@ -105,13 +100,10 @@ class BehaviorTracker:
 
             return valid_count > rule.threshold
 
-        # In-memory fallback
         timestamps = self.usage_counts[endpoint_id][client_ip]
 
-        # Clean old timestamps
         timestamps[:] = [ts for ts in timestamps if ts >= window_start]
 
-        # Add current timestamp
         timestamps.append(current_time)
 
         return len(timestamps) > rule.threshold
@@ -137,26 +129,21 @@ class BehaviorTracker:
         current_time = time.time()
         window_start = current_time - rule.window
 
-        # Extract response content for analysis
         pattern_matched = self._check_response_pattern(response, rule.pattern)
 
         if not pattern_matched:
             return False
 
-        # Redis implementation
         if self.redis_handler:
             key = f"behavior:return:{endpoint_id}:{client_ip}:{rule.pattern}"
 
-            # Add timestamp for pattern match
             self.redis_handler.set_key(
                 "behavior_returns", f"{key}:{current_time}", "1", ttl=rule.window
             )
 
-            # Count pattern matches in window
             pattern_key = f"behavior_returns:{key}:*"
             keys = self.redis_handler.keys(pattern_key)
 
-            # Filter keys within time window
             valid_count = 0
             for key_name in keys:
                 try:
@@ -168,14 +155,11 @@ class BehaviorTracker:
 
             return valid_count > rule.threshold
 
-        # In-memory fallback
         pattern_key = f"{endpoint_id}:{rule.pattern}"
         timestamps = self.return_patterns[pattern_key][client_ip]
 
-        # Clean old timestamps
         timestamps[:] = [ts for ts in timestamps if ts >= window_start]
 
-        # Add current timestamp
         timestamps.append(current_time)
 
         return len(timestamps) > rule.threshold
@@ -191,17 +175,14 @@ class BehaviorTracker:
         - Status code matching
         """
         try:
-            # Status code pattern
             if pattern.startswith("status:"):
                 expected_status = int(pattern.split(":", 1)[1])
                 return response.status_code == expected_status
 
-            # Get response body
             body_data = response.get_data(as_text=False)
             if body_data:
                 body_str = body_data.decode("utf-8")
 
-                # JSON pattern matching
                 if pattern.startswith("json:"):
                     json_pattern = pattern.split(":", 1)[1]
                     try:
@@ -210,12 +191,10 @@ class BehaviorTracker:
                     except json.JSONDecodeError:
                         return False
 
-                # Regex pattern matching
                 if pattern.startswith("regex:"):
                     regex_pattern = pattern.split(":", 1)[1]
                     return bool(re.search(regex_pattern, body_str, re.IGNORECASE))
 
-                # Simple string matching
                 return pattern.lower() in body_str.lower()
 
             return False
@@ -245,7 +224,7 @@ class BehaviorTracker:
         Returns:
             True if any array item matches expected value
         """
-        part = part[:-2]  # Remove [] suffix
+        part = part[:-2]
 
         if not isinstance(current, dict) or part not in current:
             return False
@@ -280,25 +259,21 @@ class BehaviorTracker:
         - "items[].type==rare"
         """
         try:
-            # Parse the pattern
             parsed = self._parse_pattern(pattern)
             if not parsed:
                 return False
 
             path, expected = parsed
 
-            # Handle array matching
             current = data
             for part in path.split("."):
                 if part.endswith("[]"):
                     return self._handle_array_match(current, part, expected)
 
-                # Regular traversal
                 if not isinstance(current, dict) or part not in current:
                     return False
                 current = current[part]
 
-            # Compare final value
             return str(current).lower() == expected.lower()
 
         except Exception:
@@ -334,12 +309,10 @@ class BehaviorTracker:
         self, rule: BehaviorRule, client_ip: str, endpoint_id: str, details: str
     ) -> None:
         """Execute action in active mode."""
-        # Custom action takes precedence
         if rule.custom_action:
             rule.custom_action(client_ip, endpoint_id, details)
             return
 
-        # Built-in actions
         if rule.action == "ban":
             self._execute_ban_action(client_ip, details)
         elif rule.action == "log":
@@ -353,7 +326,6 @@ class BehaviorTracker:
         self, rule: BehaviorRule, client_ip: str, endpoint_id: str, details: str
     ) -> None:
         """Apply the configured action when a rule is violated."""
-        # Send behavioral violation event to agent
         if self.agent_handler:
             self._send_behavior_event(
                 event_type="behavioral_violation",
@@ -368,7 +340,6 @@ class BehaviorTracker:
                 window=rule.window,
             )
 
-        # Handle based on mode
         if self.config.passive_mode:
             self._log_passive_mode_action(rule, client_ip, details)
         else:
@@ -399,5 +370,4 @@ class BehaviorTracker:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break behavioral analysis
             self.logger.error(f"Failed to send behavior event to agent: {e}")

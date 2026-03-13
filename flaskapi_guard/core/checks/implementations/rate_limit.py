@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/rate_limit.py
 from typing import Any
 
 from flask import Request, Response, g
@@ -65,13 +64,11 @@ class RateLimitCheck(SecurityCheck):
         event_kwargs: dict[str, Any],
     ) -> Response | None:
         """Apply rate limit check and send events if exceeded."""
-        # Create and use temporary rate limit handler
         rate_handler = self._create_rate_handler(rate_limit, window)
         response = rate_handler.check_rate_limit(
             request, client_ip, self.middleware.create_error_response
         )
 
-        # Send event and handle passive mode
         if response is not None:
             self._send_rate_limit_event(request, event_type, event_kwargs)
             if self.config.passive_mode:
@@ -201,7 +198,6 @@ class RateLimitCheck(SecurityCheck):
         if not client_ip:
             return None
 
-        # Check if rate limit should be bypassed
         if (
             route_config
             and self.middleware.route_resolver is not None
@@ -213,19 +209,15 @@ class RateLimitCheck(SecurityCheck):
 
         endpoint_path = request.path
 
-        # Priority 1: Endpoint-specific rate limit
         if response := self._check_endpoint_rate_limit(
             request, client_ip, endpoint_path
         ):
             return response
 
-        # Priority 2: Route-specific rate limit
         if response := self._check_route_rate_limit(request, client_ip, route_config):
             return response
 
-        # Priority 3: Geo-based rate limit
         if response := self._check_geo_rate_limit(request, client_ip, route_config):
             return response
 
-        # Priority 4: Global rate limiting
         return self._check_global_rate_limit(request, client_ip)

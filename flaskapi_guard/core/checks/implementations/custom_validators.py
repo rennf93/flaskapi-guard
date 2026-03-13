@@ -1,4 +1,5 @@
-# flaskapi_guard/core/checks/implementations/custom_validators.py
+from collections.abc import Callable
+
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -12,6 +13,33 @@ class CustomValidatorsCheck(SecurityCheck):
     def check_name(self) -> str:
         return "custom_validators"
 
+    def _log_validation_failure(self, request: Request) -> None:
+        """Log suspicious activity for custom validation failure."""
+        log_activity(
+            request,
+            self.logger,
+            log_type="suspicious",
+            reason="Custom validation failed",
+            level=self.config.log_suspicious_level,
+            passive_mode=self.config.passive_mode,
+        )
+
+    def _send_violation_event(self, request: Request, validator: Callable) -> None:
+        """Send decorator violation event for custom validation failure."""
+        if self.middleware.event_bus is None:
+            return
+        self.middleware.event_bus.send_middleware_event(
+            event_type="decorator_violation",
+            request=request,
+            action_taken="request_blocked"
+            if not self.config.passive_mode
+            else "logged_only",
+            reason="Custom validation failed",
+            decorator_type="content_filtering",
+            violation_type="custom_validation",
+            validator_name=getattr(validator, "__name__", "anonymous"),
+        )
+
     def check(self, request: Request) -> Response | None:
         """Check custom validators."""
         route_config = getattr(g, "route_config", None)
@@ -21,29 +49,8 @@ class CustomValidatorsCheck(SecurityCheck):
         for validator in route_config.custom_validators:
             validation_response = validator(request)
             if validation_response:
-                # Log suspicious activity for custom validation failure
-                log_activity(
-                    request,
-                    self.logger,
-                    log_type="suspicious",
-                    reason="Custom validation failed",
-                    level=self.config.log_suspicious_level,
-                    passive_mode=self.config.passive_mode,
-                )
-
-                # Send decorator violation event for custom validation failure
-                if self.middleware.event_bus is not None:
-                    self.middleware.event_bus.send_middleware_event(
-                        event_type="decorator_violation",
-                        request=request,
-                        action_taken="request_blocked"
-                        if not self.config.passive_mode
-                        else "logged_only",
-                        reason="Custom validation failed",
-                        decorator_type="content_filtering",
-                        violation_type="custom_validation",
-                        validator_name=getattr(validator, "__name__", "anonymous"),
-                    )
+                self._log_validation_failure(request)
+                self._send_violation_event(request, validator)
                 if not self.config.passive_mode and isinstance(
                     validation_response, Response
                 ):

@@ -1,4 +1,3 @@
-# flaskapi_guard/decorators/__init__.py
 from flaskapi_guard.decorators.access_control import AccessControlMixin
 from flaskapi_guard.decorators.advanced import AdvancedMixin
 from flaskapi_guard.decorators.authentication import AuthenticationMixin
@@ -50,10 +49,8 @@ __all__ = [
     "SecurityDecorator",
     "RouteConfig",
     "get_route_decorator_config",
-    # Base classes for extending
     "BaseSecurityDecorator",
     "BaseSecurityMixin",
-    # Mixins (to create custom decorator classes)
     "AccessControlMixin",
     "RateLimitingMixin",
     "BehavioralMixin",

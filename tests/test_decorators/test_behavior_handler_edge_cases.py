@@ -25,7 +25,6 @@ class TestHandleArrayMatchEdgeCases:
         self, tracker: BehaviorTracker
     ) -> None:
         """Test _handle_array_match when part not in current dict."""
-        # return False when part not in current
         current = {"other_field": [1, 2, 3]}
         part = "missing_field[]"
         expected = "test"
@@ -35,7 +34,6 @@ class TestHandleArrayMatchEdgeCases:
 
     def test_handle_array_match_not_a_list(self, tracker: BehaviorTracker) -> None:
         """Test _handle_array_match when field is not a list."""
-        # return False when current is not a list
         current = {"items": "not_a_list"}
         part = "items[]"
         expected = "test"
@@ -47,7 +45,6 @@ class TestHandleArrayMatchEdgeCases:
         self, tracker: BehaviorTracker
     ) -> None:
         """Test _handle_array_match when current is not a dict."""
-        # return False when not isinstance(current, dict)
         current = ["not", "a", "dict"]
         part = "items[]"
         expected = "test"
@@ -61,7 +58,6 @@ class TestTraverseJsonPathEdgeCases:
 
     def test_traverse_json_path_missing_key(self, tracker: BehaviorTracker) -> None:
         """Test _traverse_json_path with missing key in path."""
-        # return None when key not found
         data = {"level1": {"level2": "value"}}
         path = "level1.missing.level3"
 
@@ -70,7 +66,6 @@ class TestTraverseJsonPathEdgeCases:
 
     def test_traverse_json_path_not_a_dict(self, tracker: BehaviorTracker) -> None:
         """Test _traverse_json_path when encountering non-dict."""
-        # return None when part not in current
         data = {"level1": "string_value"}
         path = "level1.level2"
 
@@ -79,7 +74,6 @@ class TestTraverseJsonPathEdgeCases:
 
     def test_traverse_json_path_root_not_dict(self, tracker: BehaviorTracker) -> None:
         """Test _traverse_json_path when data is not a dict."""
-        # return None when not isinstance(current, dict)
         data = ["not", "a", "dict"]
         path = "some.path"
 
@@ -102,7 +96,6 @@ class TestMatchJsonPatternEdgeCases:
         self, tracker: BehaviorTracker
     ) -> None:
         """Test _match_json_pattern when encountering non-dict during traversal."""
-        # This should trigger through the pattern matching logic
         data = {"result": "string_not_dict"}
         pattern = "result.nested==value"
 
@@ -122,11 +115,8 @@ class TestMatchJsonPatternEdgeCases:
     @pytest.mark.parametrize(
         "data,pattern",
         [
-            # Array match with missing field
             ({"other": [1, 2, 3]}, "items[]==test"),
-            # Array match with non-list value
             ({"items": "not_a_list"}, "items[]==test"),
-            # Nested path traversal failure
             ({"level1": "not_dict"}, "level1.level2==value"),
         ],
     )

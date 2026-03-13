@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/pipeline.py
 import logging
 
 from flask import Request, Response
@@ -43,7 +42,6 @@ class SecurityCheckPipeline:
             try:
                 response = check.check(request)
                 if response is not None:
-                    # Check failed and returned a blocking response
                     self.logger.info(
                         f"Request blocked by {check.check_name}",
                         extra={
@@ -55,7 +53,6 @@ class SecurityCheckPipeline:
                     return response
 
             except Exception as e:
-                # Log error but don't let check failures break the pipeline
                 self.logger.error(
                     f"Error in security check {check.check_name}: {e}",
                     extra={
@@ -66,7 +63,6 @@ class SecurityCheckPipeline:
                     exc_info=True,
                 )
 
-                # Fail-secure: if check errors and fail_secure is enabled, block
                 if hasattr(check.config, "fail_secure") and check.config.fail_secure:
                     self.logger.warning(
                         "Blocking request due to check error "
@@ -77,10 +73,8 @@ class SecurityCheckPipeline:
                         default_message="Security check failed",
                     )
 
-                # Otherwise, continue to next check (fail-open)
                 continue
 
-        # All checks passed
         return None
 
     def add_check(self, check: SecurityCheck) -> None:

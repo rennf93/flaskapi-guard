@@ -226,7 +226,6 @@ def test_custom_error_responses() -> None:
         "request_path, request_headers, use_custom_check"
     ),
     [
-        # Normal case
         (
             "normal",
             200,
@@ -235,7 +234,6 @@ def test_custom_error_responses() -> None:
             {},
             False,
         ),
-        # Blacklisted IP
         (
             "blacklisted",
             403,
@@ -244,7 +242,6 @@ def test_custom_error_responses() -> None:
             {"X-Forwarded-For": "192.168.1.5"},
             False,
         ),
-        # HTTPS enforcement
         (
             "https_enforcement",
             301,
@@ -253,7 +250,6 @@ def test_custom_error_responses() -> None:
             {},
             False,
         ),
-        # Excluded path
         (
             "excluded_path",
             200,
@@ -262,7 +258,6 @@ def test_custom_error_responses() -> None:
             {},
             False,
         ),
-        # Custom request check
         (
             "custom_request_check",
             418,
@@ -271,7 +266,6 @@ def test_custom_error_responses() -> None:
             {"X-Custom-Check": "true"},
             True,
         ),
-        # Custom request check - no trigger
         (
             "custom_request_check_no_trigger",
             200,
@@ -415,7 +409,6 @@ def test_cleanup_expired_request_times() -> None:
     assert len(handler.request_timestamps) == 0
 
     current_time = time.time()
-    # Test data
     handler.request_timestamps["ip1"].append(current_time)
     handler.request_timestamps["ip1"].append(current_time)
     handler.request_timestamps["ip2"].append(current_time)
@@ -424,7 +417,6 @@ def test_cleanup_expired_request_times() -> None:
     assert len(handler.request_timestamps["ip2"]) == 1
     assert len(handler.request_timestamps) == 2
 
-    # Reset and verify cleared
     handler.reset()
     assert len(handler.request_timestamps) == 0
 
@@ -461,7 +453,6 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
 
     security_config_redis.block_cloud_providers = {"AWS"}
 
-    # Mock external handlers before FlaskAPIGuard is created
     with (
         patch(
             "flaskapi_guard.handlers.redis_handler.RedisManager.initialize"
@@ -482,10 +473,8 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
     ):
         FlaskAPIGuard(app, config=security_config_redis)
 
-        # Verify Redis handler initialization
         redis_init.assert_called_once()
 
-        # Verify component initializations with Redis
         cloud_init.assert_called_once()
         ipban_init.assert_called_once()
         ipinfo_init.assert_called_once()
@@ -501,7 +490,6 @@ def test_redis_initialization_without_ipinfo_and_cloud(
 
     security_config_redis.blocked_countries = []
 
-    # Mock external handlers before FlaskAPIGuard is created
     with (
         patch(
             "flaskapi_guard.handlers.redis_handler.RedisManager.initialize"
@@ -522,10 +510,8 @@ def test_redis_initialization_without_ipinfo_and_cloud(
     ):
         FlaskAPIGuard(app, config=security_config_redis)
 
-        # Verify Redis handler initialization
         redis_init.assert_called_once()
 
-        # Verify component initializations with Redis
         cloud_init.assert_not_called()
         ipban_init.assert_called_once()
         ipinfo_init.assert_not_called()
@@ -583,22 +569,17 @@ def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # Should be allowed
         response = client.get("/")
         assert response.status_code == 200
 
-        # Should be allowed
         response = client.get("/")
         assert response.status_code == 200
 
-        # Should be rate limited because count > limit
         response = client.get("/")
         assert response.status_code == 429
 
-        # Reset redis keys
         rate_handler.reset()
 
-        # Should be allowed again
         response = client.get("/")
         assert response.status_code == 200
 
@@ -625,7 +606,6 @@ def test_rate_limit_reset_with_redis_errors(
     ):
         rate_handler.reset()
 
-        # Verify error was logged
         mock_logger.assert_called_once()
         args = mock_logger.call_args[0]
         assert "Failed to reset Redis rate limits" in args[0]
@@ -683,19 +663,15 @@ def test_sliding_window_rate_limiting() -> None:
     handler.reset()
 
     with app.test_client() as client:
-        # First 3 requests should be allowed
         for _ in range(3):
             response = client.get("/")
             assert response.status_code == 200
 
-        # 4th request should be rate limited
         response = client.get("/")
         assert response.status_code == 429
 
-        # Wait for window to slide plus a little extra to be safe
         time.sleep(1.5)
 
-        # After 1.5 seconds, the rate limit should reset
         response = client.get("/")
         assert response.status_code == 200
 
@@ -988,7 +964,6 @@ def test_ipv6_rate_limiting(
     def read_root() -> dict[str, str]:
         return {"message": "Hello World"}
 
-    # Reset rate limiter to clear any stale state from previous tests
     handler = rate_limit_handler(config)
     handler.reset()
 
@@ -1028,19 +1003,15 @@ def test_ipv6_whitelist_blacklist(security_config_redis: SecurityConfig) -> None
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # IPv6 loopback
         response = client.get("/", headers={"X-Forwarded-For": "::1"})
         assert response.status_code == 200
 
-        # Whitelisted IPv6 address
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::1"})
         assert response.status_code == 200
 
-        # Blacklisted IPv6 address
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::dead:beef"})
         assert response.status_code == 403
 
-        # Non-whitelisted IPv6 address (block)
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::2"})
         assert response.status_code == 403
 
@@ -1065,18 +1036,15 @@ def test_ipv6_cidr_whitelist_blacklist(
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # IPv6 address in whitelisted CIDR
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8::1"})
         assert response.status_code == 200
 
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8:1::1"})
         assert response.status_code == 200
 
-        # IPv6 address in blacklisted CIDR (blacklist overrides whitelist)
         response = client.get("/", headers={"X-Forwarded-For": "2001:db8:dead::beef"})
         assert response.status_code == 403
 
-        # IPv6 address outside whitelisted CIDR
         response = client.get("/", headers={"X-Forwarded-For": "2001:db9::1"})
         assert response.status_code == 403
 
@@ -1099,7 +1067,6 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # IPv4 addresses
         response = client.get("/", headers={"X-Forwarded-For": "127.0.0.1"})
         assert response.status_code == 200
 
@@ -1109,7 +1076,6 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
         response = client.get("/", headers={"X-Forwarded-For": "192.168.1.100"})
         assert response.status_code == 403
 
-        # IPv6 addresses
         response = client.get("/", headers={"X-Forwarded-For": "::1"})
         assert response.status_code == 200
 
@@ -1134,7 +1100,6 @@ def test_emergency_mode_passive(security_config: SecurityConfig) -> None:
     FlaskAPIGuard(app, config=security_config)
 
     with app.test_client() as client:
-        # Should pass in passive mode
         response = client.get("/test", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 200
 
@@ -1189,7 +1154,6 @@ def test_cloud_ip_refresh_no_providers() -> None:
 
     initial_refresh_time = guard.last_cloud_ip_refresh
     guard.refresh_cloud_ip_ranges()
-    # Should not have updated the refresh time since no providers are configured
     assert guard.last_cloud_ip_refresh == initial_refresh_time
 
 
@@ -1212,17 +1176,12 @@ def test_agent_initialization_import_error() -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    # to_agent_config returns None when guard_agent is not installed (ImportError),
-    # so the agent_handler stays None and we get the "invalid config" warning path.
-    # To test the ImportError path inside extension.py, we need to_agent_config to
-    # return a truthy value, and then the import inside extension.py to fail.
     with patch.object(
         SecurityConfig,
         "to_agent_config",
         return_value=MagicMock(),
     ):
         guard = FlaskAPIGuard(app, config=config)
-        # guard_agent is not installed, so ImportError should be caught
         assert guard.agent_handler is None
 
 
@@ -1266,12 +1225,10 @@ def test_agent_initialization_invalid_config() -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    # Patch SecurityConfig.to_agent_config at class level to return None
     with patch(
         "flaskapi_guard.models.SecurityConfig.to_agent_config", return_value=None
     ):
         guard = FlaskAPIGuard(app, config=config)
-        # to_agent_config returns None, so agent_handler stays None
         assert guard.agent_handler is None
 
 
@@ -1292,12 +1249,9 @@ def test_passive_mode_rate_limiting() -> None:
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # First request — within limit
         response = client.get("/")
         assert response.status_code == 200
 
-        # Second request — exceeds limit but passive mode should not block
-        # The _check_rate_limit method returns None in passive mode
         with app.test_request_context("/"):
             from flask import request
 
@@ -1321,16 +1275,13 @@ def test_reset_method() -> None:
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # Exhaust rate limit
         client.get("/")
         client.get("/")
         response = client.get("/")
         assert response.status_code == 429
 
-        # Reset via FlaskAPIGuard.reset()
         guard.reset()
 
-        # Should be allowed again
         response = client.get("/")
         assert response.status_code == 200
 
@@ -1349,7 +1300,6 @@ def test_request_without_client() -> None:
         return {"message": "Hello World"}
 
     with app.test_client() as client:
-        # Patch extract_client_ip to return "unknown" (simulates no remote_addr)
         with patch(
             "flaskapi_guard.extension.extract_client_ip", return_value="unknown"
         ):
@@ -1423,5 +1373,4 @@ def test_security_headers_disabled() -> None:
     with app.test_client() as client:
         response = client.get("/")
         assert response.status_code == 200
-        # Security headers like X-Content-Type-Options should not be present
         assert "X-Content-Type-Options" not in response.headers

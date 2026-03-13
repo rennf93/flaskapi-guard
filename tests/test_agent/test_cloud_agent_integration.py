@@ -1,4 +1,3 @@
-# tests/test_agent/test_cloud_agent_integration.py
 import ipaddress
 import logging
 from collections.abc import Generator
@@ -11,10 +10,7 @@ from flaskapi_guard.handlers.cloud_handler import CloudManager
 
 
 class TestCloudManagerAgentIntegration:
-    """Test CloudManager agent integration."""
-
     def test_initialize_agent(self) -> None:
-        """Test initialize_agent method."""
         manager = CloudManager()
         mock_agent = MagicMock()
 
@@ -23,23 +19,18 @@ class TestCloudManagerAgentIntegration:
         assert manager.agent_handler is mock_agent
 
     def test_get_cloud_provider_details_invalid_ip(self) -> None:
-        """Test get_cloud_provider_details with invalid IP."""
         manager = CloudManager()
 
-        # Add some test IP ranges
         manager.ip_ranges["AWS"] = {ipaddress.ip_network("10.0.0.0/8")}
 
-        # Test with invalid IP address
         result = manager.get_cloud_provider_details("not-an-ip-address")
 
         assert result is None
 
     def test_send_cloud_detection_event_no_agent(self) -> None:
-        """Test send_cloud_detection_event when agent_handler is None."""
         manager = CloudManager()
         manager.agent_handler = None
 
-        # Should return early without any action
         manager.send_cloud_detection_event(
             ip="192.168.1.1",
             provider="AWS",
@@ -47,10 +38,7 @@ class TestCloudManagerAgentIntegration:
             action_taken="request_blocked",
         )
 
-        # Test passes if no exception is raised
-
     def test_send_cloud_detection_event_with_agent(self) -> None:
-        """Test send_cloud_detection_event with agent."""
         manager = CloudManager()
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
@@ -62,11 +50,9 @@ class TestCloudManagerAgentIntegration:
             action_taken="request_blocked",
         )
 
-        # Verify event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
-        # Verify event properties
         assert sent_event.event_type == "cloud_blocked"
         assert sent_event.ip_address == "192.168.1.100"
         assert sent_event.action_taken == "request_blocked"
@@ -75,11 +61,9 @@ class TestCloudManagerAgentIntegration:
         assert sent_event.metadata["network"] == "192.168.0.0/16"
 
     def test_send_cloud_event_no_agent_handler(self) -> None:
-        """Test _send_cloud_event when agent_handler is None."""
         manager = CloudManager()
         manager.agent_handler = None
 
-        # Should return early without any action
         manager._send_cloud_event(
             event_type="cloud_blocked",
             ip_address="192.168.1.1",
@@ -87,10 +71,7 @@ class TestCloudManagerAgentIntegration:
             reason="test reason",
         )
 
-        # Test passes if no exception is raised
-
     def test_send_cloud_event_success(self) -> None:
-        """Test _send_cloud_event success path."""
         manager = CloudManager()
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
@@ -105,11 +86,9 @@ class TestCloudManagerAgentIntegration:
             extra_data="test",
         )
 
-        # Verify event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
-        # Verify event properties
         assert sent_event.event_type == "cloud_blocked"
         assert sent_event.ip_address == "192.168.1.100"
         assert sent_event.action_taken == "request_blocked"
@@ -121,16 +100,13 @@ class TestCloudManagerAgentIntegration:
     def test_send_cloud_event_exception_handling(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test _send_cloud_event exception handling."""
         manager = CloudManager()
         mock_agent = MagicMock()
         mock_agent.send_event.side_effect = Exception("Network error")
         manager.agent_handler = mock_agent
 
-        # Enable logging
         caplog.set_level(logging.ERROR)
 
-        # Should not raise exception
         manager._send_cloud_event(
             event_type="cloud_blocked",
             ip_address="192.168.1.101",
@@ -138,24 +114,19 @@ class TestCloudManagerAgentIntegration:
             reason="Test failure",
         )
 
-        # Verify error was logged
         assert "Failed to send cloud event to agent: Network error" in caplog.text
 
 
 @pytest.fixture(autouse=True)
 def cleanup_cloud_singleton() -> Generator[Any, Any, Any]:
-    """Cleanup CloudManager singleton before and after test."""
-    # Store original state
     original_instance = CloudManager._instance
     original_ip_ranges = None
     if original_instance:
-        # Deep copy the ip_ranges to restore later
         original_ip_ranges = {
             provider: ranges.copy()
             for provider, ranges in original_instance.ip_ranges.items()
         }
 
-    # Reset before test
     CloudManager._instance = None
 
     def custom_new(cls: type[CloudManager]) -> CloudManager:
@@ -171,7 +142,6 @@ def cleanup_cloud_singleton() -> Generator[Any, Any, Any]:
             cls._instance.logger = logging.getLogger(__name__)
         return cls._instance
 
-    # Patch __new__ with our custom implementation and SecurityEvent
     with (
         patch.object(CloudManager, "__new__", custom_new),
         patch(
@@ -183,8 +153,6 @@ def cleanup_cloud_singleton() -> Generator[Any, Any, Any]:
         mock_event.side_effect = SecurityEvent
         yield
 
-    # Restore original state completely
     CloudManager._instance = original_instance
     if original_instance and original_ip_ranges:
-        # Restore the original ip_ranges
         original_instance.ip_ranges = original_ip_ranges

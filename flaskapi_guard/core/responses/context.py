@@ -1,4 +1,3 @@
-# flaskapi_guard/core/responses/context.py
 from dataclasses import dataclass
 from logging import Logger
 from typing import Any
@@ -21,6 +20,5 @@ class ResponseContext:
     logger: Logger
     metrics_collector: MetricsCollector
 
-    # Optional dependencies
     agent_handler: Any | None = None
     guard_decorator: BaseSecurityDecorator | None = None

@@ -27,7 +27,7 @@ dependencies = [
     "maxminddb",
     "pydantic",
     "redis",
-    "requests",
+
     "typing-extensions",
     "gunicorn",
     "werkzeug",
@@ -212,7 +212,7 @@ ignore = []
 exclude = ["tests", ".venv", "vulture_whitelist.py", "examples", "docs"]
 extend_exclude = ["conftest.py", "setup.py"]
 known_first_party = ["flaskapi_guard"]
-per_rule_ignores = { "DEP002" = [
+per_rule_ignores = { "DEP001" = ["guard_agent"], "DEP002" = [
     "bandit",
     "deptry",
     "mkdocs",

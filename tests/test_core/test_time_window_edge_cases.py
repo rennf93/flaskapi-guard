@@ -15,7 +15,6 @@ def mock_guard() -> Mock:
 
     guard = Mock()
     guard.config = config
-    # Use MagicMock for logger so methods work properly
     guard.logger = MagicMock()
     guard.event_bus = Mock()
     guard.event_bus.send_middleware_event = MagicMock()
@@ -36,42 +35,33 @@ class TestTimeWindowEdgeCases:
         self, time_window_check: TimeWindowCheck
     ) -> None:
         """Test _check_time_window handles exceptions and returns True."""
-        # Exception handling in _check_time_window
-        # Pass invalid time_restrictions to trigger exception
-        invalid_restrictions = {"invalid": "data"}  # Missing 'start' and 'end' keys
+        invalid_restrictions = {"invalid": "data"}
 
         result = time_window_check._check_time_window(invalid_restrictions)
 
-        # Should return True (allow access) when time check fails
         assert result is True
-        # Verify logger.error was called
-        # Verify logger.error was called - cast for mypy
         cast(MagicMock, time_window_check.logger.error).assert_called_once()
 
     def test_check_time_window_missing_start_key(
         self, time_window_check: TimeWindowCheck
     ) -> None:
         """Test _check_time_window with missing start key."""
-        # Exception when accessing 'start' key
         incomplete_restrictions = {"end": "18:00"}
 
         result = time_window_check._check_time_window(incomplete_restrictions)
 
         assert result is True
-        # Verify logger.error was called - cast for mypy
         cast(MagicMock, time_window_check.logger.error).assert_called_once()
 
     def test_check_time_window_missing_end_key(
         self, time_window_check: TimeWindowCheck
     ) -> None:
         """Test _check_time_window with missing end key."""
-        # Exception when accessing 'end' key
         incomplete_restrictions = {"start": "09:00"}
 
         result = time_window_check._check_time_window(incomplete_restrictions)
 
         assert result is True
-        # Verify logger.error was called - cast for mypy
         cast(MagicMock, time_window_check.logger.error).assert_called_once()
 
     def test_check_time_window_invalid_timezone_fallback(
@@ -86,5 +76,4 @@ class TestTimeWindowEdgeCases:
 
         result = time_window_check._check_time_window(restrictions)
 
-        # Should succeed with UTC fallback and allow access (00:00-23:59 covers all day)
         assert result is True

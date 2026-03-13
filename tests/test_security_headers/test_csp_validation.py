@@ -9,7 +9,6 @@ def test_csp_report_validation() -> None:
     """Test CSP violation report validation."""
     manager = SecurityHeadersManager()
 
-    # Valid report
     valid_report = {
         "csp-report": {
             "document-uri": "https://example.com",
@@ -19,7 +18,6 @@ def test_csp_report_validation() -> None:
     }
     assert manager.validate_csp_report(valid_report) is True
 
-    # Invalid report (missing required fields)
     invalid_report = {
         "csp-report": {
             "document-uri": "https://example.com",
@@ -27,7 +25,6 @@ def test_csp_report_validation() -> None:
     }
     assert manager.validate_csp_report(invalid_report) is False
 
-    # Empty report
     empty_report: dict[str, Any] = {}
     assert manager.validate_csp_report(empty_report) is False
 
@@ -39,21 +36,18 @@ def test_build_csp_with_empty_sources() -> None:
     csp_config = {
         "default-src": ["'self'"],
         "script-src": ["'self'", "https://cdn.com"],
-        "upgrade-insecure-requests": [],  # Directive with no sources
-        "block-all-mixed-content": [],  # Another directive with no sources
+        "upgrade-insecure-requests": [],
+        "block-all-mixed-content": [],
     }
 
     csp_header = manager._build_csp(csp_config)
 
-    # Should include directives with sources
     assert "default-src 'self'" in csp_header
     assert "script-src 'self' https://cdn.com" in csp_header
 
-    # Should include directives without sources (standalone directives)
     assert "upgrade-insecure-requests" in csp_header
     assert "block-all-mixed-content" in csp_header
 
-    # These should not have sources after them
     assert "upgrade-insecure-requests;" in csp_header or csp_header.endswith(
         "upgrade-insecure-requests"
     )
@@ -73,7 +67,6 @@ def test_csp_unsafe_inline_warning(caplog: pytest.LogCaptureFixture) -> None:
         }
     )
 
-    # Check warnings were logged
     assert "CSP directive 'script-src' contains unsafe sources" in caplog.text
     assert "CSP directive 'style-src' contains unsafe sources" in caplog.text
 
@@ -90,5 +83,4 @@ def test_csp_safe_directives_no_warning(caplog: pytest.LogCaptureFixture) -> Non
         }
     )
 
-    # No warnings should be logged
     assert "unsafe sources" not in caplog.text

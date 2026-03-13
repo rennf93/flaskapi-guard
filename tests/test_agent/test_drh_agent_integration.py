@@ -14,7 +14,6 @@ from flaskapi_guard.models import DynamicRules, SecurityConfig
 
 @pytest.fixture
 def sample_rules() -> DynamicRules:
-    """Create sample dynamic rules for testing."""
     return DynamicRules(
         rule_id="test-rule-123",
         version=1,
@@ -39,181 +38,131 @@ def sample_rules() -> DynamicRules:
 
 
 class TestDynamicRuleManagerInitialization:
-    """Test DynamicRuleManager initialization"""
-
     def test_singleton_pattern(
         self, config: SecurityConfig, cleanup_singleton: Generator[Any, Any, Any]
     ) -> None:
-        """Test that DynamicRuleManager follows singleton pattern."""
-        # Reset the singleton instance
         DynamicRuleManager._instance = None
 
-        # Create first instance
         instance1 = DynamicRuleManager(config)
 
-        # Create second instance
         instance2 = DynamicRuleManager(config)
 
-        # Both should be the same instance
         assert instance1 is instance2
         assert DynamicRuleManager._instance is instance1
 
     def test_singleton_preserves_state(self, config: SecurityConfig) -> None:
-        """Test that singleton preserves state between calls."""
-        # Reset the singleton instance
         DynamicRuleManager._instance = None
 
-        # Create instance and modify state
         instance1 = DynamicRuleManager(config)
         instance1.last_update = 12345.67
         test_rules = MagicMock()
         instance1.current_rules = test_rules
 
-        # Create another instance reference
         instance2 = DynamicRuleManager(config)
 
-        # State should be preserved
         assert instance2.last_update == 12345.67
         assert instance2.current_rules is test_rules
 
 
 class TestDynamicRuleManagerAgentRedisInit:
-    """Test agent and redis initialization"""
-
     def test_initialize_agent_with_dynamic_rules_enabled(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test agent initialization when dynamic rules are enabled."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Initialize agent
         manager.initialize_agent(mock_agent_handler)
 
-        # Verify agent handler is set
         assert manager.agent_handler is mock_agent_handler
 
-        # Verify update thread was created
         assert manager._update_thread is not None
         assert isinstance(manager._update_thread, threading.Thread)
 
-        # Clean up
         manager.stop()
 
     def test_initialize_agent_with_dynamic_rules_disabled(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test agent initialization when dynamic rules are disabled."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
-        # Disable dynamic rules
         config.enable_dynamic_rules = False
 
         manager = DynamicRuleManager(config)
 
-        # Initialize agent
         manager.initialize_agent(mock_agent_handler)
 
-        # Verify agent handler is set
         assert manager.agent_handler is mock_agent_handler
 
-        # Verify update thread was NOT created
         assert manager._update_thread is None
 
     def test_initialize_agent_prevents_duplicate_threads(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test initializing agent multiple times doesn't create duplicate threads."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Initialize agent first time
         manager.initialize_agent(mock_agent_handler)
         first_thread = manager._update_thread
 
-        # Initialize agent second time
         manager.initialize_agent(mock_agent_handler)
         second_thread = manager._update_thread
 
-        # Should be the same thread
         assert first_thread is second_thread
 
-        # Clean up
         manager.stop()
 
     def test_initialize_redis(
         self, config: SecurityConfig, mock_redis_handler: MagicMock
     ) -> None:
-        """Test redis initialization."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Initialize redis
         manager.initialize_redis(mock_redis_handler)
 
-        # Verify redis handler is set
         assert manager.redis_handler is mock_redis_handler
 
 
 class TestDynamicRuleManagerUpdateLoop:
-    """Test rule update loop functionality"""
-
     def test_rule_update_loop_normal_operation(self, config: SecurityConfig) -> None:
-        """Test the rule update loop during normal operation."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         config.dynamic_rule_interval = 1
         manager = DynamicRuleManager(config)
 
-        # Track update calls
         update_count = 0
 
         def mock_update_rules() -> None:
             nonlocal update_count
             update_count += 1
             if update_count >= 2:
-                # Stop the test after 2 updates
                 return
 
         with patch.object(manager, "update_rules", mock_update_rules):
-            # Create a stop event and start the loop in a thread
             manager._stop_event = threading.Event()
             loop_thread = threading.Thread(
                 target=manager._rule_update_loop, daemon=True
             )
             loop_thread.start()
 
-            # Wait a bit for updates to happen
             time.sleep(2.5)
 
-            # Stop the loop
             manager._stop_event.set()
             loop_thread.join(timeout=2)
 
-        # Verify updates were called
         assert update_count >= 2
 
     def test_rule_update_loop_handles_exceptions(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test that rule update loop handles exceptions gracefully."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
-        # Set a very short interval for testing
         config.dynamic_rule_interval = 1
 
         manager = DynamicRuleManager(config)
 
-        # Mock update_rules to raise exception
         call_count = 0
 
         def mock_update_rules() -> None:
@@ -223,7 +172,6 @@ class TestDynamicRuleManagerUpdateLoop:
                 raise Exception("Test exception")
 
         with patch.object(manager, "update_rules", mock_update_rules):
-            # Create a stop event and start the loop in a thread
             manager._stop_event = threading.Event()
 
             with caplog.at_level(logging.ERROR):
@@ -232,26 +180,19 @@ class TestDynamicRuleManagerUpdateLoop:
                 )
                 loop_thread.start()
 
-                # Wait for exception to be logged
                 time.sleep(2.5)
 
-                # Stop the loop
                 manager._stop_event.set()
                 loop_thread.join(timeout=2)
 
-        # Verify exception was logged
         assert "Error in dynamic rule update loop: Test exception" in caplog.text
         assert call_count >= 1
 
 
 class TestDynamicRuleManagerUpdateRules:
-    """Test update_rules method"""
-
     def test_update_rules_disabled(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test update_rules when dynamic rules are disabled."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         config.enable_dynamic_rules = False
@@ -260,12 +201,9 @@ class TestDynamicRuleManagerUpdateRules:
 
         manager.update_rules()
 
-        # Should not fetch rules
         mock_agent_handler.get_dynamic_rules.assert_not_called()
 
     def test_update_rules_no_agent(self, config: SecurityConfig) -> None:
-        """Test update_rules when agent handler is not set."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -273,25 +211,20 @@ class TestDynamicRuleManagerUpdateRules:
 
         manager.update_rules()
 
-        # Should return early without error
         assert manager.current_rules is None
 
     def test_update_rules_no_rules_returned(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test update_rules when agent returns no rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Agent returns None
         mock_agent_handler.get_dynamic_rules.return_value = None
 
         manager.update_rules()
 
-        # Should not update current rules
         assert manager.current_rules is None
         assert manager.last_update == 0
 
@@ -301,20 +234,16 @@ class TestDynamicRuleManagerUpdateRules:
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test update_rules when rules haven't changed."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
         manager.current_rules = sample_rules
 
-        # Agent returns same rules
         mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
         manager.update_rules()
 
-        # Rules should not be re-applied
         assert manager.current_rules is sample_rules
         assert manager.last_update == 0
 
@@ -324,24 +253,19 @@ class TestDynamicRuleManagerUpdateRules:
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test update_rules when agent returns older version."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Set current rules to version 2
         current_rules = sample_rules.model_copy()
         current_rules.version = 2
         manager.current_rules = current_rules
 
-        # Agent returns version 1
         mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
         manager.update_rules()
 
-        # Should not downgrade
         assert manager.current_rules is not None
         assert manager.current_rules.version == 2
         assert manager.last_update == 0
@@ -353,37 +277,29 @@ class TestDynamicRuleManagerUpdateRules:
         sample_rules: DynamicRules,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test successful rule update with new rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock the internal methods
         with (
             patch.object(manager, "_apply_rules", MagicMock()) as mock_apply_rules,
             patch.object(
                 manager, "_send_rule_applied_event", MagicMock()
             ) as mock_send_event,
         ):
-            # Agent returns new rules
             mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
             with caplog.at_level(logging.INFO):
                 manager.update_rules()
 
-            # Verify rules were applied
             mock_apply_rules.assert_called_once_with(sample_rules)
 
-            # Verify rules were cached
             assert manager.current_rules == sample_rules
             assert manager.last_update > 0
 
-            # Verify event was sent
             mock_send_event.assert_called_once_with(sample_rules)
 
-        # Verify logging
         assert (
             f"Applying dynamic rules: {sample_rules.rule_id} v{sample_rules.version}"
             in caplog.text
@@ -396,28 +312,21 @@ class TestDynamicRuleManagerUpdateRules:
         sample_rules: DynamicRules,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test update_rules when sending dynamic_rule_updated event fails."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Set current rules with different version to trigger update
         current_rules = sample_rules.model_copy()
         current_rules.version = 1
         manager.current_rules = current_rules
 
-        # Update sample_rules to have a newer version
         sample_rules.version = 2
 
-        # Mock agent to return new rules
         mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
-        # Make send_event fail when called for dynamic_rule_updated event
         mock_agent_handler.send_event.side_effect = Exception("Network error")
 
-        # Mock the internal methods
         with (
             patch.object(manager, "_apply_rules", MagicMock()) as mock_apply_rules,
             patch.object(
@@ -427,24 +336,19 @@ class TestDynamicRuleManagerUpdateRules:
             with caplog.at_level(logging.ERROR):
                 manager.update_rules()
 
-            # Verify dynamic_rule_updated event was attempted
             mock_agent_handler.send_event.assert_called_once()
             sent_event = mock_agent_handler.send_event.call_args[0][0]
             assert sent_event.event_type == "dynamic_rule_updated"
             assert sent_event.action_taken == "rules_received"
             assert "Received updated rules" in sent_event.reason
 
-            # Verify error was logged for failed event
             assert "Failed to send rule updated event: Network error" in caplog.text
 
-            # Verify rules were still applied despite event failure
             mock_apply_rules.assert_called_once_with(sample_rules)
 
-            # Verify rules were cached
             assert manager.current_rules == sample_rules
             assert manager.last_update > 0
 
-            # Verify the rule applied event was also sent
             mock_send_event.assert_called_once_with(sample_rules)
 
     def test_update_rules_apply_failure(
@@ -454,14 +358,11 @@ class TestDynamicRuleManagerUpdateRules:
         sample_rules: DynamicRules,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test update_rules when _apply_rules fails."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock _apply_rules to raise exception
         with (
             patch.object(
                 manager,
@@ -472,20 +373,16 @@ class TestDynamicRuleManagerUpdateRules:
                 manager, "_send_rule_applied_event", MagicMock()
             ) as mock_send_event,
         ):
-            # Agent returns new rules
             mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
             with caplog.at_level(logging.ERROR):
                 manager.update_rules()
 
-            # Verify error was logged
             assert "Failed to update dynamic rules: Apply failed" in caplog.text
 
-            # Rules should not be cached on failure
             assert manager.current_rules is None
             assert manager.last_update == 0
 
-            # Event should not be sent
             mock_send_event.assert_not_called()
 
     def test_update_rules_different_rule_id(
@@ -494,50 +391,39 @@ class TestDynamicRuleManagerUpdateRules:
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test update_rules with different rule ID."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Set current rules with different ID
         current_rules = sample_rules.model_copy()
         current_rules.rule_id = "different-rule-456"
         manager.current_rules = current_rules
 
-        # Mock the internal methods
         with (
             patch.object(manager, "_apply_rules", MagicMock()) as mock_apply_rules,
             patch.object(manager, "_send_rule_applied_event", MagicMock()),
         ):
-            # Agent returns new rules with different ID
             mock_agent_handler.get_dynamic_rules.return_value = sample_rules
 
             manager.update_rules()
 
-            # Should apply new rules (different ID)
             mock_apply_rules.assert_called_once_with(sample_rules)
             assert manager.current_rules == sample_rules
 
 
 class TestDynamicRuleManagerApplyRules:
-    """Test _apply_rules method"""
-
     def test_apply_rules_all_types(
         self,
         config: SecurityConfig,
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test applying all types of rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock all sub-methods
         with (
             patch.object(manager, "_apply_ip_bans", MagicMock()) as mock_ip_bans,
             patch.object(
@@ -565,10 +451,8 @@ class TestDynamicRuleManagerApplyRules:
                 manager, "_activate_emergency_mode", MagicMock()
             ) as mock_emergency_mode,
         ):
-            # Apply rules
             manager._apply_rules(sample_rules)
 
-            # Verify all methods were called
             mock_ip_bans.assert_called_once_with(
                 sample_rules.ip_blacklist, sample_rules.ip_ban_duration
             )
@@ -593,24 +477,19 @@ class TestDynamicRuleManagerApplyRules:
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test applying rules with emergency mode enabled."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Enable emergency mode
         sample_rules.emergency_mode = True
         sample_rules.emergency_whitelist = ["192.168.1.1", "10.0.0.1"]
 
-        # Mock emergency mode method
         with patch.object(
             manager, "_activate_emergency_mode", MagicMock()
         ) as mock_emergency_mode:
             manager._apply_rules(sample_rules)
 
-            # Verify emergency mode was activated
             mock_emergency_mode.assert_called_once_with(
                 sample_rules.emergency_whitelist
             )
@@ -618,14 +497,11 @@ class TestDynamicRuleManagerApplyRules:
     def test_apply_rules_partial(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test applying rules with only some rule types."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Create rules with only some fields
         partial_rules = DynamicRules(
             rule_id="partial-123",
             version=1,
@@ -648,7 +524,6 @@ class TestDynamicRuleManagerApplyRules:
             ip_ban_duration=3600,
         )
 
-        # Mock methods
         with (
             patch.object(manager, "_apply_ip_bans", MagicMock()) as mock_ip_bans,
             patch.object(
@@ -675,7 +550,6 @@ class TestDynamicRuleManagerApplyRules:
         ):
             manager._apply_rules(partial_rules)
 
-            # Only IP bans should be called
             mock_ip_bans.assert_called_once()
             mock_ip_whitelist.assert_not_called()
             mock_country_rules.assert_not_called()
@@ -683,7 +557,6 @@ class TestDynamicRuleManagerApplyRules:
             mock_cloud_provider_rules.assert_not_called()
             mock_user_agent_rules.assert_not_called()
             mock_pattern_rules.assert_not_called()
-            # Feature toggles is always called
             mock_feature_toggles.assert_called_once()
 
     def test_apply_rules_exception_handling(
@@ -693,14 +566,11 @@ class TestDynamicRuleManagerApplyRules:
         sample_rules: DynamicRules,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test exception handling in _apply_rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock method to raise exception
         with patch.object(
             manager, "_apply_ip_bans", MagicMock(side_effect=Exception("IP ban failed"))
         ):
@@ -708,23 +578,17 @@ class TestDynamicRuleManagerApplyRules:
                 with pytest.raises(Exception, match="IP ban failed"):
                     manager._apply_rules(sample_rules)
 
-        # Verify error was logged
         assert "Failed to apply dynamic rules: IP ban failed" in caplog.text
 
 
 class TestDynamicRuleManagerIPRules:
-    """Test IP ban/whitelist methods"""
-
     def test_apply_ip_bans_success(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test successful IP ban application."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Mock ip_ban_manager at the import location
         with patch(
             "flaskapi_guard.handlers.ipban_handler.ip_ban_manager"
         ) as mock_ban_manager:
@@ -736,31 +600,25 @@ class TestDynamicRuleManagerIPRules:
             with caplog.at_level(logging.INFO):
                 manager._apply_ip_bans(ip_list, duration)
 
-            # Verify bans were applied
             assert mock_ban_manager.ban_ip.call_count == 2
             mock_ban_manager.ban_ip.assert_any_call(
                 "172.16.0.100", 3600, "dynamic_rule"
             )
             mock_ban_manager.ban_ip.assert_any_call("10.0.0.50", 3600, "dynamic_rule")
 
-            # Verify logging
             assert "Dynamic rule: Banned IP 172.16.0.100 for 3600s" in caplog.text
             assert "Dynamic rule: Banned IP 10.0.0.50 for 3600s" in caplog.text
 
     def test_apply_ip_bans_with_failures(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test IP ban application with some failures."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Mock ip_ban_manager at the import location
         with patch(
             "flaskapi_guard.handlers.ipban_handler.ip_ban_manager"
         ) as mock_ban_manager:
-            # First call succeeds, second fails
             mock_ban_manager.ban_ip = MagicMock(
                 side_effect=[None, Exception("Ban failed")]
             )
@@ -771,22 +629,17 @@ class TestDynamicRuleManagerIPRules:
             with caplog.at_level(logging.ERROR):
                 manager._apply_ip_bans(ip_list, duration)
 
-            # Verify both were attempted
             assert mock_ban_manager.ban_ip.call_count == 2
 
-            # Verify error was logged
             assert "Failed to ban IP 10.0.0.50: Ban failed" in caplog.text
 
     def test_apply_ip_whitelist_success(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test successful IP whitelist application."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Mock ip_ban_manager at the import location
         with patch(
             "flaskapi_guard.handlers.ipban_handler.ip_ban_manager"
         ) as mock_ban_manager:
@@ -797,25 +650,20 @@ class TestDynamicRuleManagerIPRules:
             with caplog.at_level(logging.INFO):
                 manager._apply_ip_whitelist(ip_list)
 
-            # Verify unbans were applied
             assert mock_ban_manager.unban_ip.call_count == 2
             mock_ban_manager.unban_ip.assert_any_call("192.168.1.200")
             mock_ban_manager.unban_ip.assert_any_call("10.0.0.100")
 
-            # Verify logging
             assert "Dynamic rule: Whitelisted IP 192.168.1.200" in caplog.text
             assert "Dynamic rule: Whitelisted IP 10.0.0.100" in caplog.text
 
     def test_apply_ip_whitelist_with_failures(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test IP whitelist application with failures."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Mock ip_ban_manager at the import location
         with patch(
             "flaskapi_guard.handlers.ipban_handler.ip_ban_manager"
         ) as mock_ban_manager:
@@ -826,18 +674,13 @@ class TestDynamicRuleManagerIPRules:
             with caplog.at_level(logging.ERROR):
                 manager._apply_ip_whitelist(ip_list)
 
-            # Verify error was logged
             assert "Failed to whitelist IP 192.168.1.200: Unban failed" in caplog.text
 
 
 class TestDynamicRuleManagerCountryRules:
-    """Test country rules method"""
-
     def test_apply_country_rules_blocked_only(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying only blocked countries."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -848,17 +691,13 @@ class TestDynamicRuleManagerCountryRules:
         with caplog.at_level(logging.INFO):
             manager._apply_country_rules(blocked, allowed)
 
-        # Verify config was updated
         assert manager.config.blocked_countries == blocked
 
-        # Verify logging
         assert "Dynamic rule: Blocked countries ['XX', 'YY']" in caplog.text
 
     def test_apply_country_rules_allowed_only(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying only allowed countries."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -869,17 +708,13 @@ class TestDynamicRuleManagerCountryRules:
         with caplog.at_level(logging.INFO):
             manager._apply_country_rules(blocked, allowed)
 
-        # Verify config was updated
         assert manager.config.whitelist_countries == allowed
 
-        # Verify logging
         assert "Dynamic rule: Whitelisted countries ['US', 'CA']" in caplog.text
 
     def test_apply_country_rules_both(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying both blocked and allowed countries."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -890,23 +725,17 @@ class TestDynamicRuleManagerCountryRules:
         with caplog.at_level(logging.INFO):
             manager._apply_country_rules(blocked, allowed)
 
-        # Verify config was updated
         assert manager.config.blocked_countries == blocked
         assert manager.config.whitelist_countries == allowed
 
-        # Verify logging
         assert "Dynamic rule: Blocked countries ['XX', 'YY']" in caplog.text
         assert "Dynamic rule: Whitelisted countries ['US', 'CA']" in caplog.text
 
 
 class TestDynamicRuleManagerRateLimitRules:
-    """Test rate limit rules method"""
-
     def test_apply_rate_limit_global_only(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying only global rate limits."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -936,18 +765,14 @@ class TestDynamicRuleManagerRateLimitRules:
         with caplog.at_level(logging.INFO):
             manager._apply_rate_limit_rules(rules)
 
-        # Verify config was updated
         assert manager.config.rate_limit == 50
         assert manager.config.rate_limit_window == 30
 
-        # Verify logging
         assert "Dynamic rule: Global rate limit 50 per 30s" in caplog.text
 
     def test_apply_rate_limit_endpoint_only(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying only endpoint rate limits."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -977,10 +802,8 @@ class TestDynamicRuleManagerRateLimitRules:
         with caplog.at_level(logging.INFO):
             manager._apply_rate_limit_rules(rules)
 
-        # Verify config was updated
         assert manager.config.endpoint_rate_limits == rules.endpoint_rate_limits
 
-        # Verify logging
         assert (
             "Dynamic rule: Applied endpoint-specific rate limits for 2 endpoints"
             in caplog.text
@@ -990,8 +813,6 @@ class TestDynamicRuleManagerRateLimitRules:
     def test_apply_rate_limit_both(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying both global and endpoint rate limits."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1021,20 +842,15 @@ class TestDynamicRuleManagerRateLimitRules:
         with caplog.at_level(logging.INFO):
             manager._apply_rate_limit_rules(rules)
 
-        # Verify both were applied
         assert manager.config.rate_limit == 100
         assert manager.config.rate_limit_window == 60
         assert manager.config.endpoint_rate_limits == rules.endpoint_rate_limits
 
 
 class TestDynamicRuleManagerOtherRules:
-    """Test cloud provider, user agent, and pattern rules"""
-
     def test_apply_cloud_provider_rules(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying cloud provider rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1044,10 +860,8 @@ class TestDynamicRuleManagerOtherRules:
         with caplog.at_level(logging.INFO):
             manager._apply_cloud_provider_rules(providers)
 
-        # Verify config was updated
         assert manager.config.block_cloud_providers == providers
 
-        # Verify logging
         assert (
             "Dynamic rule: Blocked cloud providers {'aws', 'azure', 'gcp'}"
             in caplog.text
@@ -1066,8 +880,6 @@ class TestDynamicRuleManagerOtherRules:
     def test_apply_user_agent_rules(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying user agent rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1077,10 +889,8 @@ class TestDynamicRuleManagerOtherRules:
         with caplog.at_level(logging.INFO):
             manager._apply_user_agent_rules(user_agents)
 
-        # Verify config was updated
         assert manager.config.blocked_user_agents == user_agents
 
-        # Verify logging
         assert (
             "Dynamic rule: Blocked user agents ['badbot', 'scanner', 'scraper']"
             in caplog.text
@@ -1089,15 +899,12 @@ class TestDynamicRuleManagerOtherRules:
     def test_apply_pattern_rules(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test applying pattern rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
         patterns = ["../", "SELECT * FROM", "<script>"]
 
-        # Mock sus_patterns_handler at the import location
         with patch(
             "flaskapi_guard.handlers.suspatterns_handler.sus_patterns_handler"
         ) as mock_patterns:
@@ -1106,13 +913,11 @@ class TestDynamicRuleManagerOtherRules:
             with caplog.at_level(logging.INFO):
                 manager._apply_pattern_rules(patterns)
 
-            # Verify patterns were added
             assert mock_patterns.add_pattern.call_count == 3
             mock_patterns.add_pattern.assert_any_call("../")
             mock_patterns.add_pattern.assert_any_call("SELECT * FROM")
             mock_patterns.add_pattern.assert_any_call("<script>")
 
-            # Verify logging
             assert (
                 "Dynamic rule: Added suspicious patterns "
                 "['../', 'SELECT * FROM', '<script>']" in caplog.text
@@ -1120,13 +925,9 @@ class TestDynamicRuleManagerOtherRules:
 
 
 class TestDynamicRuleManagerFeatureToggles:
-    """Test feature toggle method"""
-
     def test_apply_feature_toggles_all_enabled(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test enabling all features."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1156,12 +957,10 @@ class TestDynamicRuleManagerFeatureToggles:
         with caplog.at_level(logging.INFO):
             manager._apply_feature_toggles(rules)
 
-        # Verify config was updated
         assert manager.config.enable_penetration_detection is True
         assert manager.config.enable_ip_banning is True
         assert manager.config.enable_rate_limiting is True
 
-        # Verify logging
         assert "Dynamic rule: Penetration detection True" in caplog.text
         assert "Dynamic rule: IP banning True" in caplog.text
         assert "Dynamic rule: Rate limiting True" in caplog.text
@@ -1169,8 +968,6 @@ class TestDynamicRuleManagerFeatureToggles:
     def test_apply_feature_toggles_all_disabled(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test disabling all features."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1200,12 +997,10 @@ class TestDynamicRuleManagerFeatureToggles:
         with caplog.at_level(logging.INFO):
             manager._apply_feature_toggles(rules)
 
-        # Verify config was updated
         assert manager.config.enable_penetration_detection is False
         assert manager.config.enable_ip_banning is False
         assert manager.config.enable_rate_limiting is False
 
-        # Verify logging
         assert "Dynamic rule: Penetration detection False" in caplog.text
         assert "Dynamic rule: IP banning False" in caplog.text
         assert "Dynamic rule: Rate limiting False" in caplog.text
@@ -1213,13 +1008,10 @@ class TestDynamicRuleManagerFeatureToggles:
     def test_apply_feature_toggles_none_values(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test with None values (no changes)."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Store original values
         orig_pen = config.enable_penetration_detection
         orig_ban = config.enable_ip_banning
         orig_rate = config.enable_rate_limiting
@@ -1249,38 +1041,30 @@ class TestDynamicRuleManagerFeatureToggles:
         with caplog.at_level(logging.INFO):
             manager._apply_feature_toggles(rules)
 
-        # Verify config was NOT changed
         assert manager.config.enable_penetration_detection == orig_pen
         assert manager.config.enable_ip_banning == orig_ban
         assert manager.config.enable_rate_limiting == orig_rate
 
-        # Verify no logging
         assert "Dynamic rule: Penetration detection" not in caplog.text
         assert "Dynamic rule: IP banning" not in caplog.text
         assert "Dynamic rule: Rate limiting" not in caplog.text
 
 
 class TestDynamicRuleManagerEmergencyMode:
-    """Test emergency mode method"""
-
     def test_activate_emergency_mode_with_agent(
         self,
         config: SecurityConfig,
         mock_agent_handler: MagicMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test activating emergency mode with agent."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock send event
         with patch.object(
             manager, "_send_emergency_event", MagicMock()
         ) as mock_send_event:
-            # Set original threshold
             config.auto_ban_threshold = 10
 
             whitelist = ["192.168.1.1", "10.0.0.1"]
@@ -1288,12 +1072,10 @@ class TestDynamicRuleManagerEmergencyMode:
             with caplog.at_level(logging.WARNING):
                 manager._activate_emergency_mode(whitelist)
 
-            # Verify emergency mode was set
             assert manager.config.emergency_mode is True
             assert manager.config.emergency_whitelist == whitelist
-            assert manager.config.auto_ban_threshold == 5  # Halved from 10
+            assert manager.config.auto_ban_threshold == 5
 
-            # Verify logging
             assert (
                 "[EMERGENCY MODE] ACTIVATED - Enhanced security posture enabled"
                 in caplog.text
@@ -1303,20 +1085,16 @@ class TestDynamicRuleManagerEmergencyMode:
                 in caplog.text
             )
 
-            # Verify event was sent
             mock_send_event.assert_called_once_with(whitelist)
 
     def test_activate_emergency_mode_without_agent(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test activating emergency mode without agent."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = None
 
-        # Set original threshold
         config.auto_ban_threshold = 3
 
         whitelist = ["192.168.1.1"]
@@ -1324,23 +1102,17 @@ class TestDynamicRuleManagerEmergencyMode:
         with caplog.at_level(logging.CRITICAL):
             manager._activate_emergency_mode(whitelist)
 
-        # Verify emergency mode was set
         assert manager.config.emergency_mode is True
         assert manager.config.emergency_whitelist == whitelist
-        assert manager.config.auto_ban_threshold == 1  # max(1, 3//2)
-
-        # No event should be sent without agent
+        assert manager.config.auto_ban_threshold == 1
 
     def test_activate_emergency_mode_minimum_threshold(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test emergency mode with very low threshold."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Set very low threshold
         config.auto_ban_threshold = 1
 
         whitelist: list[str] = []
@@ -1348,24 +1120,18 @@ class TestDynamicRuleManagerEmergencyMode:
         with caplog.at_level(logging.WARNING):
             manager._activate_emergency_mode(whitelist)
 
-        # Verify threshold is still 1 (minimum)
         assert manager.config.auto_ban_threshold == 1
 
-        # Verify logging shows reduction
         assert "[EMERGENCY MODE] Reduced auto-ban threshold from 1 to 1" in caplog.text
 
 
 class TestDynamicRuleManagerEventSending:
-    """Test event sending methods"""
-
     def test_send_rule_applied_event_success(
         self,
         config: SecurityConfig,
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test successful rule applied event sending."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1373,10 +1139,8 @@ class TestDynamicRuleManagerEventSending:
 
         manager._send_rule_applied_event(sample_rules)
 
-        # Verify event was sent
         mock_agent_handler.send_event.assert_called_once()
 
-        # Check event details
         sent_event = mock_agent_handler.send_event.call_args[0][0]
         assert sent_event.event_type == "dynamic_rule_applied"
         assert sent_event.ip_address == "system"
@@ -1393,14 +1157,11 @@ class TestDynamicRuleManagerEventSending:
     def test_send_rule_applied_event_no_agent(
         self, config: SecurityConfig, sample_rules: DynamicRules
     ) -> None:
-        """Test rule applied event with no agent."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = None
 
-        # Should return early without error
         manager._send_rule_applied_event(sample_rules)
 
     def test_send_rule_applied_event_failure(
@@ -1410,27 +1171,21 @@ class TestDynamicRuleManagerEventSending:
         sample_rules: DynamicRules,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test rule applied event sending failure."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Make send_event fail
         mock_agent_handler.send_event.side_effect = Exception("Send failed")
 
         with caplog.at_level(logging.ERROR):
             manager._send_rule_applied_event(sample_rules)
 
-        # Verify error was logged
         assert "Failed to send rule applied event: Send failed" in caplog.text
 
     def test_send_emergency_event_success(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test successful emergency event sending."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1440,10 +1195,8 @@ class TestDynamicRuleManagerEventSending:
 
         manager._send_emergency_event(whitelist)
 
-        # Verify event was sent
         mock_agent_handler.send_event.assert_called_once()
 
-        # Check event details
         sent_event = mock_agent_handler.send_event.call_args[0][0]
         assert sent_event.event_type == "emergency_mode_activated"
         assert sent_event.ip_address == "system"
@@ -1455,32 +1208,25 @@ class TestDynamicRuleManagerEventSending:
     def test_send_emergency_event_large_whitelist(
         self, config: SecurityConfig, mock_agent_handler: MagicMock
     ) -> None:
-        """Test emergency event with large whitelist (truncated)."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Create large whitelist
         whitelist = [f"192.168.1.{i}" for i in range(20)]
 
         manager._send_emergency_event(whitelist)
 
-        # Check that whitelist was truncated in metadata
         sent_event = mock_agent_handler.send_event.call_args[0][0]
         assert sent_event.metadata["whitelist_count"] == 20
-        assert len(sent_event.metadata["whitelist"]) == 10  # Limited to 10
+        assert len(sent_event.metadata["whitelist"]) == 10
 
     def test_send_emergency_event_no_agent(self, config: SecurityConfig) -> None:
-        """Test emergency event with no agent."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = None
 
-        # Should return early without error
         manager._send_emergency_event(["192.168.1.1"])
 
     def test_send_emergency_event_failure(
@@ -1489,42 +1235,31 @@ class TestDynamicRuleManagerEventSending:
         mock_agent_handler: MagicMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test emergency event sending failure."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Make send_event fail
         mock_agent_handler.send_event.side_effect = Exception("Send failed")
 
         with caplog.at_level(logging.ERROR):
             manager._send_emergency_event(["192.168.1.1"])
 
-        # Verify error was logged
         assert "Failed to send emergency event: Send failed" in caplog.text
 
 
 class TestDynamicRuleManagerUtilityMethods:
-    """Test utility methods"""
-
     def test_get_current_rules(
         self, config: SecurityConfig, sample_rules: DynamicRules
     ) -> None:
-        """Test getting current rules."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Initially None
         assert manager.get_current_rules() is None
 
-        # Set rules
         manager.current_rules = sample_rules
 
-        # Should return the rules
         assert manager.get_current_rules() == sample_rules
 
     def test_force_update(
@@ -1533,18 +1268,14 @@ class TestDynamicRuleManagerUtilityMethods:
         mock_agent_handler: MagicMock,
         sample_rules: DynamicRules,
     ) -> None:
-        """Test forcing rule update."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
         manager.agent_handler = mock_agent_handler
 
-        # Mock update_rules
         with patch.object(manager, "update_rules", MagicMock()) as mock_update_rules:
             manager.force_update()
 
-            # Verify update_rules was called
             mock_update_rules.assert_called_once()
 
     def test_stop_with_thread(
@@ -1553,13 +1284,10 @@ class TestDynamicRuleManagerUtilityMethods:
         mock_agent_handler: MagicMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test stopping manager with active thread."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
 
-        # Create a stop event and thread
         manager._stop_event = threading.Event()
         manager._update_thread = threading.Thread(
             target=lambda: manager._stop_event.wait(), daemon=True
@@ -1569,14 +1297,11 @@ class TestDynamicRuleManagerUtilityMethods:
         with caplog.at_level(logging.INFO):
             manager.stop()
 
-        # Verify cleanup
         assert manager._update_thread is None
 
     def test_stop_without_thread(
         self, config: SecurityConfig, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test stopping manager without active thread."""
-        # Reset singleton
         DynamicRuleManager._instance = None
 
         manager = DynamicRuleManager(config)
@@ -1585,18 +1310,12 @@ class TestDynamicRuleManagerUtilityMethods:
         with caplog.at_level(logging.INFO):
             manager.stop()
 
-        # Should complete without error
         assert manager._update_thread is None
-        # No log message when there's no thread to stop
         assert "Stopped dynamic rule update loop" not in caplog.text
 
 
-# Cleanup fixture
 @pytest.fixture
 def cleanup_singleton() -> Generator[Any, Any, Any]:
-    """Reset singleton before and after each test."""
-    # Reset before test
     DynamicRuleManager._instance = None
     yield
-    # Reset after test
     DynamicRuleManager._instance = None

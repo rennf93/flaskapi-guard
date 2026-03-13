@@ -12,19 +12,17 @@ from flaskapi_guard.models import SecurityConfig
 
 def test_behavior_rule_creation() -> None:
     """Test creating a BehaviorRule with different parameters."""
-    # Basic rule
     rule = BehaviorRule(
         rule_type="usage",
         threshold=10,
     )
     assert rule.rule_type == "usage"
     assert rule.threshold == 10
-    assert rule.window == 3600  # default
+    assert rule.window == 3600
     assert rule.pattern is None
-    assert rule.action == "log"  # default
+    assert rule.action == "log"
     assert rule.custom_action is None
 
-    # Rule with all parameters
     custom_action = MagicMock()
     rule = BehaviorRule(
         rule_type="return_pattern",
@@ -102,15 +100,12 @@ def test_track_endpoint_usage_in_memory(security_config: SecurityConfig) -> None
     endpoint_id = "/api/test"
     client_ip = "192.168.1.1"
 
-    # First few requests should not exceed threshold
     assert not tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
     assert not tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
     assert not tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
 
-    # Fourth request should exceed threshold
     assert tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
 
-    # Verify data structure
     assert len(tracker.usage_counts[endpoint_id][client_ip]) == 4
 
 
@@ -124,16 +119,13 @@ def test_track_endpoint_usage_with_window_cleanup(
     endpoint_id = "/api/test"
     client_ip = "192.168.1.1"
 
-    # Add old timestamp manually
     current_time = time.time()
-    old_time = current_time - 2  # 2 seconds ago, outside 1-second window
+    old_time = current_time - 2
     tracker.usage_counts[endpoint_id][client_ip].append(old_time)
     tracker.usage_counts[endpoint_id][client_ip].append(old_time)
 
-    # New request should clean old timestamps and not exceed threshold
     assert not tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
 
-    # Only the new timestamp should remain
     assert len(tracker.usage_counts[endpoint_id][client_ip]) == 1
 
 
@@ -151,12 +143,10 @@ def test_track_endpoint_usage_with_redis(
     client_ip = "192.168.1.1"
     current_time = time.time()
 
-    # Mock Redis operations
     with (
         patch.object(redis_mgr, "keys") as mock_keys,
         patch.object(redis_mgr, "set_key") as mock_set_key,
     ):
-        # First request - should not exceed threshold (1 key)
         mock_keys.return_value = [
             f"behavior_usage:behavior:usage:/api/test:192.168.1.1:{current_time}"
         ]
@@ -164,7 +154,6 @@ def test_track_endpoint_usage_with_redis(
         result = tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
         assert not result
 
-        # Second request - should not exceed threshold (2 keys)
         mock_keys.return_value = [
             f"behavior_usage:behavior:usage:/api/test:192.168.1.1:{current_time}",
             f"behavior_usage:behavior:usage:/api/test:192.168.1.1:{current_time + 1}",
@@ -172,7 +161,6 @@ def test_track_endpoint_usage_with_redis(
         result = tracker.track_endpoint_usage(endpoint_id, client_ip, rule)
         assert not result
 
-        # Third request - should exceed threshold (3 keys > threshold 2)
         mock_keys.return_value = [
             f"behavior_usage:behavior:usage:/api/test:192.168.1.1:{current_time}",
             f"behavior_usage:behavior:usage:/api/test:192.168.1.1:{current_time + 1}",
@@ -187,7 +175,7 @@ def test_track_endpoint_usage_with_redis(
 def test_track_return_pattern_no_pattern(security_config: SecurityConfig) -> None:
     """Test return pattern tracking with no pattern specified."""
     tracker = BehaviorTracker(security_config)
-    rule = BehaviorRule(rule_type="return_pattern", threshold=5)  # No pattern
+    rule = BehaviorRule(rule_type="return_pattern", threshold=5)
 
     response = Response("test", status=200)
     result = tracker.track_return_pattern("/api/test", "192.168.1.1", response, rule)
@@ -203,11 +191,9 @@ def test_track_return_pattern_in_memory(security_config: SecurityConfig) -> None
     client_ip = "192.168.1.1"
     response = Response("success", status=200)
 
-    # First few matches should not exceed threshold
     assert not tracker.track_return_pattern(endpoint_id, client_ip, response, rule)
     assert not tracker.track_return_pattern(endpoint_id, client_ip, response, rule)
 
-    # Third match should exceed threshold
     assert tracker.track_return_pattern(endpoint_id, client_ip, response, rule)
 
 
@@ -246,10 +232,8 @@ def test_track_return_pattern_with_redis(
 @pytest.mark.parametrize(
     "response_data,pattern,expected",
     [
-        # Status code patterns
         ({"status_code": 200}, "status:200", True),
         ({"status_code": 404}, "status:200", False),
-        # JSON patterns
         (
             {"body": '{"status": "success"}', "status_code": 200},
             "json:status==success",
@@ -265,7 +249,6 @@ def test_track_return_pattern_with_redis(
             "json:result.status==win",
             True,
         ),
-        # Regex patterns
         (
             {"body": "Error: Database connection failed", "status_code": 500},
             "regex:database.*failed",
@@ -276,7 +259,6 @@ def test_track_return_pattern_with_redis(
             "regex:database.*failed",
             False,
         ),
-        # String patterns
         ({"body": "Internal Server Error", "status_code": 500}, "server error", True),
         ({"body": "Success", "status_code": 200}, "server error", False),
     ],
@@ -290,7 +272,6 @@ def test_check_response_pattern(
     """Test response pattern checking with various patterns."""
     tracker = BehaviorTracker(security_config)
 
-    # Create response with mock data
     response = Response(
         response_data.get("body", ""), status=response_data.get("status_code", 200)
     )
@@ -339,10 +320,8 @@ def test_check_response_pattern_exception(
     tracker = BehaviorTracker(security_config)
 
     with patch.object(tracker.logger, "error") as mock_logger:
-        # Create a response that will cause an exception in pattern checking
         response = Response("test", status=200)
 
-        # Patch json.loads to raise an exception for JSON pattern testing
         with patch("json.loads", side_effect=Exception("Test error")):
             result = tracker._check_response_pattern(response, "json:test==value")
             assert not result
@@ -384,16 +363,12 @@ def test_match_json_pattern_exception(security_config: SecurityConfig) -> None:
 @pytest.mark.parametrize(
     "data,pattern,expected",
     [
-        # Simple dot notation
         ({"status": "success"}, "status==success", True),
         ({"status": "error"}, "status==success", False),
-        # Nested objects
         ({"result": {"status": "win"}}, "result.status==win", True),
         ({"result": {"status": "lose"}}, "result.status==win", False),
-        # Array handling
         ({"items": ["rare", "common"]}, "items[]==rare", True),
         ({"items": ["common", "uncommon"]}, "items[]==rare", False),
-        # Missing keys
         ({"other": "value"}, "status==success", False),
         ({"result": {}}, "result.status==win", False),
     ],
@@ -411,11 +386,9 @@ def test_match_json_pattern_invalid(security_config: SecurityConfig) -> None:
     """Test JSON pattern matching with invalid patterns."""
     tracker = BehaviorTracker(security_config)
 
-    # Pattern without ==
     result = tracker._match_json_pattern({"status": "success"}, "status")
     assert not result
 
-    # Exception during processing
     result = tracker._match_json_pattern(
         {"status": "success"}, "invalid..pattern==test"
     )
@@ -438,7 +411,9 @@ def test_apply_action_ban(security_config: SecurityConfig) -> None:
     rule = BehaviorRule(rule_type="usage", threshold=5, action="ban")
 
     with (
-        patch("flaskapi_guard.handlers.ipban_handler.ip_ban_manager") as mock_ban_manager,
+        patch(
+            "flaskapi_guard.handlers.ipban_handler.ip_ban_manager"
+        ) as mock_ban_manager,
         patch.object(tracker.logger, "warning") as mock_logger,
     ):
         mock_ban_manager.ban_ip = MagicMock()
@@ -501,18 +476,16 @@ def test_redis_key_timestamp_filtering(
         patch.object(redis_mgr, "keys") as mock_keys,
         patch.object(redis_mgr, "set_key") as mock_set_key,
     ):
-        # Mix of valid and invalid timestamps
         mock_keys.return_value = [
-            f"behavior_usage:test:key:{current_time}",  # Valid - current
-            f"behavior_usage:test:key:{current_time - 30}",  # Valid - within window
-            f"behavior_usage:test:key:{current_time - 120}",  # Invalid - outside window
-            "behavior_usage:test:key:invalid_timestamp",  # Invalid - bad format
-            "behavior_usage:test:key:",  # Invalid - empty timestamp
+            f"behavior_usage:test:key:{current_time}",
+            f"behavior_usage:test:key:{current_time - 30}",
+            f"behavior_usage:test:key:{current_time - 120}",
+            "behavior_usage:test:key:invalid_timestamp",
+            "behavior_usage:test:key:",
         ]
         mock_set_key.return_value = None
 
         result = tracker.track_endpoint_usage("/api/test", "192.168.1.1", rule)
-        # Should count 2 valid timestamps, which equals threshold, so not exceeded
         assert not result
 
 
@@ -521,7 +494,7 @@ def test_track_return_pattern_no_match(security_config: SecurityConfig) -> None:
     tracker = BehaviorTracker(security_config)
     rule = BehaviorRule(rule_type="return_pattern", threshold=1, pattern="status:404")
 
-    response = Response("success", status=200)  # Won't match 404 pattern
+    response = Response("success", status=200)
     result = tracker.track_return_pattern("/api/test", "192.168.1.1", response, rule)
     assert not result
 
@@ -539,18 +512,15 @@ def test_track_return_pattern_window_cleanup(
     client_ip = "192.168.1.1"
     pattern_key = f"{endpoint_id}:{rule.pattern}"
 
-    # Add old timestamps manually
     current_time = time.time()
-    old_time = current_time - 2  # Outside 1-second window
+    old_time = current_time - 2
     tracker.return_patterns[pattern_key][client_ip].extend([old_time, old_time])
 
     response = Response("success", status=200)
 
-    # Should clean old timestamps and not exceed threshold
     result = tracker.track_return_pattern(endpoint_id, client_ip, response, rule)
     assert not result
 
-    # Only the new timestamp should remain
     assert len(tracker.return_patterns[pattern_key][client_ip]) == 1
 
 
@@ -573,16 +543,14 @@ def test_redis_return_pattern_timestamp_filtering(
         patch.object(redis_mgr, "keys") as mock_keys,
         patch.object(redis_mgr, "set_key") as mock_set_key,
     ):
-        # Mix of valid and invalid timestamps
         mock_keys.return_value = [
-            f"behavior_returns:test:key:{current_time}",  # Valid
-            f"behavior_returns:test:key:{current_time - 120}",  # Outside window
-            "behavior_returns:test:key:invalid",  # Invalid format
+            f"behavior_returns:test:key:{current_time}",
+            f"behavior_returns:test:key:{current_time - 120}",
+            "behavior_returns:test:key:invalid",
         ]
         mock_set_key.return_value = None
 
         result = tracker.track_return_pattern(
             "/api/test", "192.168.1.1", response, rule
         )
-        # Should count 1 valid timestamp, which equals threshold, so not exceeded
         assert not result

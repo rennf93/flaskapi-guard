@@ -1,4 +1,3 @@
-# flaskapi_guard/core/events/metrics.py
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -46,7 +45,6 @@ class MetricsCollector:
                 )
                 self.agent_handler.send_metric(metric)
             except Exception as e:
-                # Don't let agent errors break extension functionality
                 self.logger.error(f"Failed to send metric to agent: {e}")
 
     def collect_request_metrics(
@@ -66,17 +64,14 @@ class MetricsCollector:
         endpoint = request.path
         method = request.method
 
-        # Response time metric
         self.send_metric(
             "response_time",
             response_time,
             {"endpoint": endpoint, "method": method, "status": str(status_code)},
         )
 
-        # Request count metric
         self.send_metric("request_count", 1.0, {"endpoint": endpoint, "method": method})
 
-        # Error rate metric (for non-2xx responses)
         if status_code >= 400:
             self.send_metric(
                 "error_rate",

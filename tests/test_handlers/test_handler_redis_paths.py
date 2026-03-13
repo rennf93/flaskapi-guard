@@ -1,4 +1,3 @@
-# tests/test_handlers/test_handler_redis_paths.py
 """Tests for Redis-specific code paths in handlers using mocked Redis."""
 
 import sys
@@ -14,9 +13,6 @@ from flaskapi_guard.handlers.redis_handler import RedisManager
 from flaskapi_guard.models import SecurityConfig
 
 
-# ---------------------------------------------------------------------------
-# Helpers: mock guard_agent module so imports inside handlers succeed
-# ---------------------------------------------------------------------------
 def _install_mock_guard_agent() -> types.ModuleType:
     """Install a mock guard_agent module into sys.modules."""
     mock_module = types.ModuleType("guard_agent")
@@ -42,9 +38,6 @@ def _mock_guard_agent():  # type: ignore[no-untyped-def]
     _uninstall_mock_guard_agent()
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 @pytest.fixture()
 def fresh_ipban() -> IPBanManager:
     """Return a fresh IPBanManager singleton."""
@@ -70,11 +63,6 @@ def redis_config() -> SecurityConfig:
         redis_url="redis://localhost:6379",
         redis_prefix="flaskapi_guard_test:",
     )
-
-
-# =========================================================================
-# IPBanManager tests
-# =========================================================================
 
 
 class TestIPBanManagerRedis:
@@ -118,7 +106,6 @@ class TestIPBanManagerRedis:
         fresh_ipban.initialize_redis(mock_redis_handler)
         fresh_ipban.initialize_agent(agent)
 
-        # First ban, then unban
         fresh_ipban.ban_ip("10.0.0.3", duration=600)
         agent.reset_mock()
 
@@ -200,11 +187,6 @@ class TestIPBanManagerRedis:
         mock_conn.delete.assert_not_called()
 
 
-# =========================================================================
-# RedisManager tests
-# =========================================================================
-
-
 class TestRedisManagerPaths:
     """Tests for uncovered RedisManager code paths."""
 
@@ -215,9 +197,7 @@ class TestRedisManagerPaths:
         mgr.initialize_agent(agent)
         assert mgr.agent_handler is agent
 
-    def test_send_redis_event_full_flow(
-        self, redis_config: SecurityConfig
-    ) -> None:
+    def test_send_redis_event_full_flow(self, redis_config: SecurityConfig) -> None:
         """_send_redis_event constructs and sends SecurityEvent (lines 48-62)."""
         mgr = RedisManager(redis_config)
         agent = Mock()
@@ -236,25 +216,19 @@ class TestRedisManagerPaths:
         assert event.ip_address == "system"
         assert event.metadata["extra_key"] == "extra_val"
 
-    def test_send_redis_event_no_agent(
-        self, redis_config: SecurityConfig
-    ) -> None:
+    def test_send_redis_event_no_agent(self, redis_config: SecurityConfig) -> None:
         """_send_redis_event returns early when no agent (line 45-46)."""
         mgr = RedisManager(redis_config)
         mgr.agent_handler = None
-        # Should not raise
         mgr._send_redis_event("test", "test", "test")
 
-    def test_send_redis_event_exception(
-        self, redis_config: SecurityConfig
-    ) -> None:
+    def test_send_redis_event_exception(self, redis_config: SecurityConfig) -> None:
         """_send_redis_event logs error on exception (lines 60-62)."""
         mgr = RedisManager(redis_config)
         agent = Mock()
         agent.send_event.side_effect = RuntimeError("agent down")
         mgr.initialize_agent(agent)
 
-        # Should not raise
         mgr._send_redis_event("test", "test", "test")
 
     def test_close_with_connection(self, redis_config: SecurityConfig) -> None:
@@ -290,11 +264,6 @@ class TestRedisManagerPaths:
         mock_redis.delete.assert_not_called()
 
 
-# =========================================================================
-# RateLimitManager tests
-# =========================================================================
-
-
 class TestRateLimitManagerRedis:
     """Tests for Redis-specific paths in RateLimitManager."""
 
@@ -324,11 +293,10 @@ class TestRateLimitManagerRedis:
         mock_redis_handler = MagicMock()
         mock_redis_handler.config = config
         mgr.redis_handler = mock_redis_handler
-        mgr.rate_limit_script_sha = None  # Force non-Lua path
+        mgr.rate_limit_script_sha = None
 
         mock_conn = MagicMock()
         mock_pipeline = MagicMock()
-        # ZADD, ZREMRANGEBYSCORE, ZCARD=5, EXPIRE
         mock_pipeline.execute.return_value = [True, 0, 5, True]
         mock_pipeline.__enter__ = Mock(return_value=mock_pipeline)
         mock_pipeline.__exit__ = Mock(return_value=False)

@@ -16,7 +16,6 @@ def test_route_config_initialization() -> None:
     """Test RouteConfig initialization with default values."""
     config = RouteConfig()
 
-    # Test all default values
     assert config.rate_limit is None
     assert config.rate_limit_window is None
     assert config.ip_whitelist is None
@@ -46,13 +45,11 @@ def test_base_security_mixin_not_implemented() -> None:
 
     mock_func = Mock()
 
-    # Test _ensure_route_config raises NotImplementedError
     with pytest.raises(
         NotImplementedError, match="This mixin must be used with BaseSecurityDecorator"
     ):
         mixin._ensure_route_config(mock_func)
 
-    # Test _apply_route_config raises NotImplementedError
     with pytest.raises(
         NotImplementedError, match="This mixin must be used with BaseSecurityDecorator"
     ):
@@ -63,12 +60,10 @@ def test_base_security_decorator(security_config: SecurityConfig) -> None:
     """Test BaseSecurityDecorator functionality."""
     decorator = BaseSecurityDecorator(security_config)
 
-    # Test initialization
     assert decorator.config == security_config
     assert decorator._route_configs == {}
     assert decorator.behavior_tracker is not None
 
-    # Test _get_route_id
     mock_func = Mock()
     mock_func.__module__ = "test_module"
     mock_func.__qualname__ = "test_function"
@@ -76,7 +71,6 @@ def test_base_security_decorator(security_config: SecurityConfig) -> None:
     route_id = decorator._get_route_id(mock_func)
     assert route_id == "test_module.test_function"
 
-    # Test _ensure_route_config creates new config
     route_config = decorator._ensure_route_config(mock_func)
     assert isinstance(route_config, RouteConfig)
     assert (
@@ -84,19 +78,15 @@ def test_base_security_decorator(security_config: SecurityConfig) -> None:
         == security_config.enable_penetration_detection
     )
 
-    # Test _ensure_route_config returns existing config
     route_config2 = decorator._ensure_route_config(mock_func)
-    assert route_config is route_config2  # Same instance
+    assert route_config is route_config2
 
-    # Test get_route_config
     retrieved_config = decorator.get_route_config(route_id)
     assert retrieved_config is route_config
 
-    # Test get_route_config with non-existent route
     non_existent_config = decorator.get_route_config("non.existent.route")
     assert non_existent_config is None
 
-    # Test _apply_route_config
     decorated_func = decorator._apply_route_config(mock_func)
     assert decorated_func is mock_func
     assert hasattr(decorated_func, "_guard_route_id")
@@ -111,7 +101,6 @@ def test_get_route_decorator_config() -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    # Create a view function with _guard_route_id
     route_id = "test.route.id"
     route_config = decorator._ensure_route_config(
         Mock(__module__="test", __qualname__="route")
@@ -123,11 +112,9 @@ def test_get_route_decorator_config() -> None:
 
     test_view._guard_route_id = route_id
 
-    # Register the view function
     app.add_url_rule("/test", endpoint="test_view", view_func=test_view)
 
     with app.test_request_context("/test"):
-        # Test with view function that has _guard_route_id
         mock_request = Mock()
         mock_request.endpoint = "test_view"
 
@@ -135,7 +122,6 @@ def test_get_route_decorator_config() -> None:
         assert result is route_config
 
     with app.test_request_context("/test"):
-        # Test with non-existent endpoint
         mock_request = Mock()
         mock_request.endpoint = "nonexistent"
 
@@ -143,7 +129,7 @@ def test_get_route_decorator_config() -> None:
         assert result is None
 
     with app.test_request_context("/test"):
-        # Test with view function that has no _guard_route_id
+
         def plain_view() -> str:
             return "ok"
 
@@ -160,9 +146,7 @@ def test_initialize_behavior_tracking(security_config: SecurityConfig) -> None:
     """Test initialize_behavior_tracking method."""
     decorator = BaseSecurityDecorator(security_config)
 
-    # Test without redis handler
     decorator.initialize_behavior_tracking()
 
-    # Test with redis handler
     mock_redis_handler = Mock()
     decorator.initialize_behavior_tracking(mock_redis_handler)

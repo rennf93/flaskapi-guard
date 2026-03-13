@@ -67,7 +67,6 @@ class TestRouteConfigResolver:
     ) -> None:
         """Test get_guard_decorator from context when app has no extensions."""
         app = Flask(__name__)
-        # No flaskapi_guard in extensions
 
         result = resolver.get_guard_decorator(app)
         assert result == mock_guard_decorator
@@ -82,7 +81,6 @@ class TestRouteConfigResolver:
         app.extensions["flaskapi_guard"] = {"guard_decorator": "not a decorator"}
 
         result = resolver.get_guard_decorator(app)
-        # Should fall back to context decorator
         assert result == resolver.context.guard_decorator
 
     def test_get_guard_decorator_none_when_no_app(
@@ -109,7 +107,6 @@ class TestRouteConfigResolver:
         app = Flask(__name__)
         app.extensions["flaskapi_guard"] = {"guard_decorator": mock_guard_decorator}
 
-        # Create a view function with guard route ID
         def test_view() -> str:
             return "ok"
 
@@ -117,7 +114,6 @@ class TestRouteConfigResolver:
         app.add_url_rule("/api/test", endpoint="test_endpoint", view_func=test_view)
 
         with app.test_request_context("/api/test"):
-            # Simulate Flask resolving the endpoint
             adapter = app.url_map.bind("")
             endpoint, _ = adapter.match("/api/test")
 
@@ -149,7 +145,6 @@ class TestRouteConfigResolver:
         app = Flask(__name__)
         app.extensions["flaskapi_guard"] = {"guard_decorator": mock_guard_decorator}
 
-        # Add a route without guard route ID
         @app.route("/api/other")
         def other_view() -> str:
             return "ok"
@@ -215,7 +210,6 @@ class TestRouteConfigResolver:
     ) -> None:
         """Test get_cloud_providers_to_check from global config."""
         route_config = RouteConfig()
-        # No block_cloud_providers set
 
         result = resolver.get_cloud_providers_to_check(route_config)
         assert result == ["aws", "gcp"] or result == ["gcp", "aws"]

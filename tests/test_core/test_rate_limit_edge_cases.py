@@ -50,7 +50,6 @@ class TestRateLimitEdgeCases:
         security_config: SecurityConfig,
     ) -> None:
         """Test _apply_rate_limit_check returns None in passive mode."""
-        # return None in passive mode
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
@@ -79,11 +78,9 @@ class TestRateLimitEdgeCases:
         security_config: SecurityConfig,
     ) -> None:
         """Test _check_global_rate_limit returns None in passive mode."""
-        # return None in passive mode
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
-        # Mock rate limit handler to return a response (exceeded)
         mock_handler = Mock()
         mock_handler.check_rate_limit = MagicMock(
             return_value=Response("Too Many Requests", status=429)
@@ -102,7 +99,6 @@ class TestRateLimitEdgeCases:
             g.client_ip = None
             g.route_config = None
             g.is_whitelisted = False
-            # return None when client_ip is None
             result = rate_limit_check.check(mock_request)
             assert result is None
 
@@ -112,7 +108,6 @@ class TestRateLimitEdgeCases:
         """Test _check_global_rate_limit when rate limit not exceeded."""
         mock_request = Mock(spec=Request)
 
-        # Should return None when rate limit handler returns None
         mock_handler = Mock()
         mock_handler.check_rate_limit = MagicMock(return_value=None)
         rate_limit_check.middleware.rate_limit_handler = mock_handler
@@ -129,7 +124,6 @@ class TestRateLimitEdgeCases:
         security_config.passive_mode = False
         mock_request = Mock(spec=Request)
 
-        # Mock rate limit exceeded
         response = Response("Too Many Requests", status=429)
         mock_handler = Mock()
         mock_handler.check_rate_limit = MagicMock(return_value=response)
@@ -254,10 +248,9 @@ class TestRateLimitEdgeCases:
                 mock_request, "1.2.3.4", route_config
             )
             assert result == response
-            # Verify wildcard limits were used
             call_args = mock_apply.call_args
-            assert call_args[0][2] == 5  # rate_limit
-            assert call_args[0][3] == 30  # window
+            assert call_args[0][2] == 5
+            assert call_args[0][3] == 30
 
     def test_check_geo_rate_limit_no_match(
         self,
@@ -311,17 +304,15 @@ class TestRateLimitEdgeCases:
         mock_request = Mock(spec=Request)
         mock_request.path = "/api/test"
 
-        # Set up request state with route_config
         route_config = Mock()
         route_config.geo_rate_limits = {"US": (10, 60)}
-        route_config.rate_limit = None  # No route rate limit (priority 2 passes)
+        route_config.rate_limit = None
 
         app = Flask(__name__)
         with app.test_request_context():
             g.client_ip = "1.2.3.4"
             g.route_config = route_config
             g.is_whitelisted = False
-            # No endpoint rate limit match (priority 1 passes)
             security_config.endpoint_rate_limits = {}
 
             geo_response = Response("Too Many Requests", status=429)

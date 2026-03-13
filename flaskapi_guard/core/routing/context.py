@@ -1,4 +1,3 @@
-# flaskapi_guard/core/routing/context.py
 from dataclasses import dataclass
 from logging import Logger
 
@@ -18,5 +17,4 @@ class RoutingContext:
     config: SecurityConfig
     logger: Logger
 
-    # Optional dependencies
     guard_decorator: BaseSecurityDecorator | None = None

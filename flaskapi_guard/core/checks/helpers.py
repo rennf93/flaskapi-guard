@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/helpers.py
 import re
 from ipaddress import ip_address, ip_network
 from typing import Any
@@ -57,7 +56,7 @@ def is_ip_in_whitelist(
                 return True
         elif client_ip == allowed:
             return True
-    return False  # Whitelist exists but IP not in it
+    return False
 
 
 def check_country_access(
@@ -81,20 +80,18 @@ def check_country_access(
 
     country = None
 
-    # Check blocked countries
     if route_config.blocked_countries:
         country = geo_ip_handler.get_country(client_ip)
         if country and country in route_config.blocked_countries:
             return False
 
-    # Check whitelisted countries
     if route_config.whitelist_countries:
-        if country is None:  # Get country if not already fetched
+        if country is None:
             country = geo_ip_handler.get_country(client_ip)
 
         if country:
             return country in route_config.whitelist_countries
-        return False  # Whitelist exists but no country found
+        return False
 
     return None
 
@@ -141,23 +138,20 @@ def check_route_ip_access(
     try:
         ip_addr = ip_address(client_ip)
 
-        # Check IP blacklist
         if _check_ip_blacklist(client_ip, ip_addr, route_config):
             return False
 
-        # Check IP whitelist
         whitelist_result = _check_ip_whitelist(client_ip, ip_addr, route_config)
         if whitelist_result is not None:
             return whitelist_result
 
-        # Check country-based access
         country_result = check_country_access(
             client_ip, route_config, middleware.geo_ip_handler
         )
         if country_result is not None:
             return country_result
 
-        return None  # No route-specific rules, fall back to global
+        return None
     except ValueError:
         return False
 
@@ -178,17 +172,12 @@ def check_user_agent_allowed(
     """
     from flaskapi_guard.utils import is_user_agent_allowed as global_user_agent_check
 
-    # Check route-specific blocked user agents first
     if route_config and route_config.blocked_user_agents:
         for pattern in route_config.blocked_user_agents:
             if re.search(pattern, user_agent, re.IGNORECASE):
                 return False
 
-    # Fall back to global check
     return global_user_agent_check(user_agent, config)
-
-
-# Authentication helpers
 
 
 def validate_auth_header(auth_header: str, auth_type: str) -> tuple[bool, str]:
@@ -220,14 +209,10 @@ def validate_auth_header(auth_header: str, auth_type: str) -> tuple[bool, str]:
         if not auth_header.startswith("Basic "):
             return False, "Missing or invalid Basic authentication"
     else:
-        # Generic auth requirement
         if not auth_header:
             return False, f"Missing {auth_type} authentication"
 
     return True, ""
-
-
-# Referrer helpers
 
 
 def is_referrer_domain_allowed(referrer: str, allowed_domains: list[str]) -> bool:
@@ -263,9 +248,6 @@ def is_referrer_domain_allowed(referrer: str, allowed_domains: list[str]) -> boo
         return False
     except Exception:
         return False
-
-
-# Suspicious activity helpers
 
 
 def _get_effective_penetration_setting(
@@ -338,15 +320,12 @@ def detect_penetration_patterns(
         >>> result, info = detect_penetration_patterns(...)
         >>> (False, "disabled_by_decorator")
     """
-    # Get effective penetration detection setting
     penetration_enabled, route_specific_detection = _get_effective_penetration_setting(
         config, route_config
     )
 
-    # Run detection if enabled and not bypassed
     if penetration_enabled and not should_bypass_check_fn("penetration", route_config):
         return detect_penetration_attempt(request)
 
-    # Detection disabled - return reason
     reason = _get_detection_disabled_reason(config, route_specific_detection)
     return False, reason

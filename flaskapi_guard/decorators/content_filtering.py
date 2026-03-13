@@ -1,4 +1,3 @@
-# flaskapi_guard/decorators/content_filtering.py
 from collections.abc import Callable
 from typing import Any
 

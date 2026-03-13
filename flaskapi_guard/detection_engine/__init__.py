@@ -1,4 +1,3 @@
-# flaskapi_guard/detection_engine/__init__.py
 from .compiler import PatternCompiler
 from .monitor import PerformanceMonitor
 from .preprocessor import ContentPreprocessor

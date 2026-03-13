@@ -100,7 +100,6 @@ class TestBypassHandler:
 
         response = bypass_handler.handle_passthrough(mock_request)
 
-        # Flask extension returns None to let Flask proceed
         assert response is None
 
     def test_handle_passthrough_excluded_path(
@@ -114,7 +113,6 @@ class TestBypassHandler:
 
         response = bypass_handler.handle_passthrough(mock_request)
 
-        # Flask extension returns None to let Flask proceed
         assert response is None
         mock_validator.is_path_excluded.assert_called_once_with(mock_request)
 
@@ -176,7 +174,6 @@ class TestBypassHandler:
 
         response = bypass_handler.handle_security_bypass(mock_request, route_config)
 
-        # Flask extension returns None to let Flask proceed
         assert response is None
         mock_event_bus.send_middleware_event.assert_called_once()
         call_args = mock_event_bus.send_middleware_event.call_args[1]
@@ -200,7 +197,6 @@ class TestBypassHandler:
 
         response = bypass_handler.handle_security_bypass(mock_request, route_config)
 
-        # In passive mode, should return None
         assert response is None
         mock_event_bus.send_middleware_event.assert_called_once()
 

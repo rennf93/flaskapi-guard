@@ -89,7 +89,6 @@ def test_authentication_decorators_applied(
     description: str,
 ) -> None:
     """Test that authentication decorators are applied correctly."""
-    # Map route path to endpoint name
     endpoint_map = {
         "/secure": "secure_endpoint",
         "/auth-default": "auth_default_endpoint",
@@ -194,7 +193,7 @@ def test_missing_headers_blocked(
     with auth_decorator_app.test_client() as client:
         headers: dict[str, str] = {"X-Forwarded-For": "127.0.0.1"}
         if endpoint == "/headers-multiple":
-            headers["X-API-Version"] = "v2"  # Add one header but not the other
+            headers["X-API-Version"] = "v2"
 
         method = (
             "post"
@@ -251,11 +250,9 @@ def test_valid_headers_allowed(
 def test_authentication_endpoints_response(auth_decorator_app: Flask) -> None:
     """Test calling authentication endpoints and their responses."""
     with auth_decorator_app.test_client() as client:
-        # Test secure endpoint with HTTP (should redirect to HTTPS)
         response = client.get("/secure", headers={"X-Forwarded-For": "8.8.8.8"})
-        assert response.status_code == 301  # HTTPS redirect
+        assert response.status_code == 301
 
-        # Test secure endpoint with HTTPS (using X-Forwarded-Proto)
         response = client.get(
             "/secure",
             headers={
@@ -266,7 +263,6 @@ def test_authentication_endpoints_response(auth_decorator_app: Flask) -> None:
         assert response.status_code == 200
         assert response.get_json()["message"] == "HTTPS required"
 
-        # Test auth default endpoint with Bearer token
         response = client.get(
             "/auth-default",
             headers={
@@ -277,18 +273,16 @@ def test_authentication_endpoints_response(auth_decorator_app: Flask) -> None:
         assert response.status_code == 200
         assert response.get_json()["message"] == "Auth required (default)"
 
-        # Test auth basic endpoint with Basic auth
         response = client.get(
             "/auth-basic",
             headers={
                 "X-Forwarded-For": "8.8.8.8",
-                "Authorization": "Basic dGVzdDp0ZXN0",  # test:test in base64
+                "Authorization": "Basic dGVzdDp0ZXN0",
             },
         )
         assert response.status_code == 200
         assert response.get_json()["message"] == "Basic auth required"
 
-        # Test headers single endpoint
         response = client.get(
             "/headers-single",
             headers={"X-Forwarded-For": "8.8.8.8", "X-API-Version": "v1"},
@@ -296,7 +290,6 @@ def test_authentication_endpoints_response(auth_decorator_app: Flask) -> None:
         assert response.status_code == 200
         assert response.get_json()["message"] == "Single header required"
 
-        # Test api-key-custom endpoint
         response = client.post(
             "/api-key-custom",
             headers={"X-Forwarded-For": "8.8.8.8", "Authorization": "test-key"},
@@ -313,7 +306,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
     mock_func.__module__ = "test_module"
 
-    # Test require_https
     https_decorator = decorator.require_https()
     decorated_func = https_decorator(mock_func)
 
@@ -322,7 +314,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config is not None
     assert route_config.require_https is True
 
-    # Test require_auth default
     auth_decorator = decorator.require_auth()
     decorated_func2 = auth_decorator(mock_func)
 
@@ -331,7 +322,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config2 is not None
     assert route_config2.auth_required == "bearer"
 
-    # Test require_auth custom
     auth_custom_decorator = decorator.require_auth(type="digest")
     decorated_func3 = auth_custom_decorator(mock_func)
 
@@ -340,7 +330,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config3 is not None
     assert route_config3.auth_required == "digest"
 
-    # Test api_key_auth default
     api_key_decorator = decorator.api_key_auth()
     decorated_func4 = api_key_decorator(mock_func)
 
@@ -350,7 +339,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config4.api_key_required is True
     assert route_config4.required_headers["X-API-Key"] == "required"
 
-    # Test api_key_auth custom
     api_key_custom_decorator = decorator.api_key_auth(header_name="X-Custom-Key")
     decorated_func5 = api_key_custom_decorator(mock_func)
 
@@ -360,7 +348,6 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
     assert route_config5.api_key_required is True
     assert route_config5.required_headers["X-Custom-Key"] == "required"
 
-    # Test require_headers
     headers_decorator = decorator.require_headers(
         {"X-Test": "value", "X-Other": "required"}
     )
@@ -376,12 +363,10 @@ def test_authentication_decorators_unit(security_config: SecurityConfig) -> None
 def test_authentication_failures_blocked(auth_decorator_app: Flask) -> None:
     """Test that authentication failures are properly blocked and logged."""
     with auth_decorator_app.test_client() as client:
-        # Test auth default endpoint without Bearer token
         response = client.get("/auth-default", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 401
         assert "Authentication required" in response.data.decode()
 
-        # Test auth default endpoint with invalid Bearer token format
         response = client.get(
             "/auth-default",
             headers={
@@ -392,12 +377,10 @@ def test_authentication_failures_blocked(auth_decorator_app: Flask) -> None:
         assert response.status_code == 401
         assert "Authentication required" in response.data.decode()
 
-        # Test auth basic endpoint without Basic auth
         response = client.get("/auth-basic", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 401
         assert "Authentication required" in response.data.decode()
 
-        # Test auth basic endpoint with invalid Basic auth format
         response = client.get(
             "/auth-basic",
             headers={
@@ -426,6 +409,5 @@ def test_auth_passive_mode(security_config: SecurityConfig) -> None:
     FlaskAPIGuard(app, config=security_config)
 
     with app.test_client() as client:
-        # Missing auth - should pass in passive mode
         response = client.get("/auth-test", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 200

@@ -18,7 +18,9 @@ from flaskapi_guard.models import SecurityConfig
 @pytest.fixture
 def mock_httpx_client() -> Generator[Mock, None, None]:
     """Mock httpx.Client for all fetch functions."""
-    with patch("flaskapi_guard.handlers.cloud_handler.httpx.Client") as mock_client_class:
+    with patch(
+        "flaskapi_guard.handlers.cloud_handler.httpx.Client"
+    ) as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value.__enter__ = Mock(return_value=mock_client)
         mock_client_class.return_value.__exit__ = Mock(return_value=False)
@@ -82,7 +84,9 @@ def test_cloud_ip_ranges() -> None:
     with (
         patch("flaskapi_guard.handlers.cloud_handler.fetch_aws_ip_ranges") as mock_aws,
         patch("flaskapi_guard.handlers.cloud_handler.fetch_gcp_ip_ranges") as mock_gcp,
-        patch("flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges") as mock_azure,
+        patch(
+            "flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges"
+        ) as mock_azure,
     ):
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.0.0/24")}
         mock_gcp.return_value = {ipaddress.IPv4Network("172.16.0.0/12")}
@@ -101,7 +105,9 @@ def test_cloud_ip_refresh() -> None:
     with (
         patch("flaskapi_guard.handlers.cloud_handler.fetch_aws_ip_ranges") as mock_aws,
         patch("flaskapi_guard.handlers.cloud_handler.fetch_gcp_ip_ranges") as mock_gcp,
-        patch("flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges") as mock_azure,
+        patch(
+            "flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges"
+        ) as mock_azure,
     ):
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.0.0/24")}
         mock_gcp.return_value = {ipaddress.IPv4Network("172.16.0.0/12")}
@@ -121,20 +127,21 @@ def test_cloud_ip_refresh_subset() -> None:
     with (
         patch("flaskapi_guard.handlers.cloud_handler.fetch_aws_ip_ranges") as mock_aws,
         patch("flaskapi_guard.handlers.cloud_handler.fetch_gcp_ip_ranges") as mock_gcp,
-        patch("flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges") as mock_azure,
+        patch(
+            "flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges"
+        ) as mock_azure,
     ):
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.0.0/24")}
         mock_gcp.return_value = {ipaddress.IPv4Network("172.16.0.0/12")}
         mock_azure.return_value = {ipaddress.IPv4Network("10.0.0.0/8")}
 
         providers = ["AWS", "GCP", "Azure"]
-        for r in range(1, 4):  # Test combinations of 1-3 providers
+        for r in range(1, 4):
             for combo in itertools.combinations(providers, r):
                 provider_set = set(combo)
                 cloud_handler.ip_ranges = {}
                 cloud_handler._refresh_sync(provider_set)
 
-                # Verify each provider in the combination works
                 if "AWS" in provider_set:
                     assert cloud_handler.is_cloud_ip("192.168.0.1")
                 if "GCP" in provider_set:
@@ -142,7 +149,6 @@ def test_cloud_ip_refresh_subset() -> None:
                 if "Azure" in provider_set:
                     assert cloud_handler.is_cloud_ip("10.0.0.1")
 
-                # Verify providers not in combination don't match
                 if "AWS" not in provider_set:
                     assert not cloud_handler.is_cloud_ip("192.168.0.1")
                 if "GCP" not in provider_set:
@@ -194,7 +200,9 @@ def test_cloud_manager_refresh_handling() -> None:
     with (
         patch("flaskapi_guard.handlers.cloud_handler.fetch_aws_ip_ranges") as mock_aws,
         patch("flaskapi_guard.handlers.cloud_handler.fetch_gcp_ip_ranges") as mock_gcp,
-        patch("flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges") as mock_azure,
+        patch(
+            "flaskapi_guard.handlers.cloud_handler.fetch_azure_ip_ranges"
+        ) as mock_azure,
     ):
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.0.0/24")}
         mock_gcp.return_value = {ipaddress.IPv4Network("172.16.0.0/12")}
@@ -242,32 +250,25 @@ def test_cloud_ip_redis_caching(security_config_redis: SecurityConfig) -> None:
     ):
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.0.0/24")}
 
-        # Create manager and initialize Redis
         redis_mgr = RedisManager(security_config_redis)
         redis_mgr.initialize()
 
-        # Initialize Redis and perform initial refresh
         cloud_handler.initialize_redis(redis_mgr)
 
-        # Verify initial fetch and cache
         assert cloud_handler.is_cloud_ip("192.168.0.1", {"AWS"})
         cached = redis_mgr.get_key("cloud_ranges", "AWS")
         assert cached == "192.168.0.0/24"
 
-        # Change mock return value and refresh
         mock_aws.return_value = {ipaddress.IPv4Network("192.168.1.0/24")}
         cloud_handler.refresh()
 
-        # Clear Redis cache to force refresh
         redis_mgr.delete("cloud_ranges", "AWS")
         cloud_handler.refresh()
 
-        # Test error handling
         mock_aws.side_effect = Exception("API Error")
         cloud_handler.refresh()
         assert cloud_handler.is_cloud_ip("192.168.1.1", {"AWS"})
 
-        # Test refresh without Redis
         cloud_handler.redis_handler = None
         cloud_handler.refresh()
 
@@ -279,13 +280,10 @@ def test_cloud_ip_redis_cache_hit(security_config_redis: SecurityConfig) -> None
     redis_mgr = RedisManager(security_config_redis)
     redis_mgr.initialize()
 
-    # Pre-populate Redis cache
     redis_mgr.set_key("cloud_ranges", "AWS", "192.168.0.0/24")
 
-    # Initialize manager with Redis
     cloud_handler.initialize_redis(redis_mgr)
 
-    # Verify manager uses cached value
     with patch("flaskapi_guard.handlers.cloud_handler.fetch_aws_ip_ranges") as mock_aws:
         assert cloud_handler.is_cloud_ip("192.168.0.1", {"AWS"})
         mock_aws.assert_not_called()
@@ -303,14 +301,11 @@ def test_cloud_ip_redis_error_handling(
         redis_mgr = RedisManager(security_config_redis)
         redis_mgr.initialize()
 
-        # Clear any existing Redis data
         redis_mgr.delete("cloud_ranges", "AWS")
 
-        # Initialize Redis and test error handling
         mock_aws.side_effect = Exception("API Error")
         cloud_handler.initialize_redis(redis_mgr)
 
-        # Test provider not in ip_ranges during error
         cloud_handler.ip_ranges.pop("AWS", None)
         cloud_handler.refresh({"AWS"})
 

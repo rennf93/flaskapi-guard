@@ -1,4 +1,3 @@
-# flaskapi_guard/core/behavioral/__init__.py
 """Behavioral rule processing module."""
 
 from flaskapi_guard.core.behavioral.context import BehavioralContext

@@ -1,4 +1,3 @@
-# flaskapi_guard/detection_engine/preprocessor.py
 import re
 import unicodedata
 from typing import Any
@@ -171,10 +170,8 @@ class ContentPreprocessor:
         Returns:
             Content with normalized whitespace
         """
-        # Replace multiple spaces with single space
         content = re.sub(r"\s+", " ", content)
 
-        # Remove leading/trailing whitespace
         content = content.strip()
 
         return content
@@ -189,12 +186,10 @@ class ContentPreprocessor:
         Returns:
             List of (start, end) tuples for attack regions
         """
-        # Limit number of regions to prevent memory DoS
         max_regions = min(100, self.max_content_length // 100)
         regions = []
 
         for indicator in self.compiled_indicators:
-            # Use timeout protection for regex
             import concurrent.futures
 
             def _find_all(pattern: re.Pattern, text: str) -> list[tuple[int, int]]:
@@ -202,7 +197,6 @@ class ContentPreprocessor:
                 for match in pattern.finditer(text):
                     if len(found) >= max_regions:
                         break
-                    # Extend region by 100 chars before and after
                     start = max(0, match.start() - 100)
                     end = min(len(text), match.end() + 100)
                     found.append((start, end))
@@ -211,16 +205,14 @@ class ContentPreprocessor:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_find_all, indicator, content)
                 try:
-                    indicator_regions = future.result(timeout=0.5)  # 500ms timeout
+                    indicator_regions = future.result(timeout=0.5)
                     regions.extend(indicator_regions)
                 except concurrent.futures.TimeoutError:
-                    # Skip this indicator if it times out
                     continue
 
             if len(regions) >= max_regions:
                 break
 
-        # Merge overlapping regions
         if regions:
             regions.sort()
             merged = [regions[0]]
@@ -229,7 +221,7 @@ class ContentPreprocessor:
                     merged[-1] = (merged[-1][0], max(merged[-1][1], end))
                 else:
                     merged.append((start, end))
-            return merged[:max_regions]  # Ensure we don't exceed limit
+            return merged[:max_regions]
 
         return []
 
@@ -308,11 +300,9 @@ class ContentPreprocessor:
         result_parts = []
         remaining = self.max_content_length - attack_length
 
-        # Add attack regions
         for start, end in attack_regions:
             result_parts.append(content[start:end])
 
-        # Add non-attack content to fill remaining space
         self._add_non_attack_content(content, attack_regions, result_parts, remaining)
 
         return "".join(result_parts)
@@ -333,21 +323,16 @@ class ContentPreprocessor:
         if not self.preserve_attack_patterns:
             return content[: self.max_content_length]
 
-        # Find attack regions
         attack_regions = self.extract_attack_regions(content)
 
         if not attack_regions:
-            # No attack patterns found, simple truncation
             return content[: self.max_content_length]
 
-        # Calculate total length of attack regions
         attack_length = sum(end - start for start, end in attack_regions)
 
         if attack_length >= self.max_content_length:
-            # Attack regions exceed max length, concatenate them
             return self._extract_and_concatenate_attack_regions(content, attack_regions)
 
-        # Include attack regions and fill remaining space
         return self._build_result_with_attack_regions_and_context(
             content, attack_regions
         )
@@ -362,10 +347,8 @@ class ContentPreprocessor:
         Returns:
             Content without null bytes
         """
-        # Remove null bytes
         content = content.replace("\x00", "")
 
-        # Remove other dangerous control characters
         control_chars = "".join(chr(i) for i in range(32) if i not in (9, 10, 13))
         translator = str.maketrans("", "", control_chars)
         return content.translate(translator)
@@ -380,14 +363,12 @@ class ContentPreprocessor:
         Returns:
             Decoded content
         """
-        # Limit decoding iterations to prevent DoS
-        max_decode_iterations = 3  # Configurable but with a safe default
+        max_decode_iterations = 3
         iterations = 0
 
         while iterations < max_decode_iterations:
             original = content
 
-            # URL decode
             try:
                 import urllib.parse
 
@@ -395,7 +376,6 @@ class ContentPreprocessor:
                 if decoded != content:
                     content = decoded
             except Exception as e:
-                # Log URL decode error but continue processing
                 self._send_preprocessor_event(
                     event_type="decoding_error",
                     action_taken="decode_failed",
@@ -404,7 +384,6 @@ class ContentPreprocessor:
                     error_type="url_decode",
                 )
 
-            # HTML entity decode
             try:
                 import html
 
@@ -412,7 +391,6 @@ class ContentPreprocessor:
                 if decoded != content:
                     content = decoded
             except Exception as e:
-                # Log HTML decode error but continue processing
                 self._send_preprocessor_event(
                     event_type="decoding_error",
                     action_taken="decode_failed",
@@ -421,7 +399,6 @@ class ContentPreprocessor:
                     error_type="html_decode",
                 )
 
-            # If nothing changed, stop decoding
             if content == original:
                 break
 
@@ -442,7 +419,6 @@ class ContentPreprocessor:
         if not content:
             return ""
 
-        # Apply preprocessing steps in order
         content = self.normalize_unicode(content)
         content = self.decode_common_encodings(content)
         content = self.remove_null_bytes(content)

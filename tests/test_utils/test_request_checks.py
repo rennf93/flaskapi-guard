@@ -285,7 +285,6 @@ def test_detect_penetration_attempt_http_header_injection() -> None:
     function with an HTTP header injection attempt.
     """
     app = Flask(__name__)
-    # Werkzeug rejects \r\n in header values, so inject via environ directly
     with app.test_request_context(
         "/",
         method="GET",
@@ -311,11 +310,11 @@ def test_get_ip_country(mocker: MockerFixture) -> None:
     )
 
     country = check_ip_country("1.1.1.1", config, mock_db)
-    assert not country  # Not blocked
+    assert not country
 
     mock_db.get_country.return_value = "CN"
     country = check_ip_country("1.1.1.1", config, mock_db)
-    assert country  # Blocked
+    assert country
 
 
 def test_is_ip_allowed_cloud_providers(
@@ -529,7 +528,6 @@ def test_detect_penetration_attempt_body_error() -> None:
     ):
         from flask import request
 
-        # Mock get_data to raise an exception
         with patch.object(
             request, "get_data", side_effect=Exception("Body read error")
         ):
@@ -563,7 +561,6 @@ def test_detect_penetration_attempt_regex_timeout() -> None:
         from flask import request
 
         def mock_detect_with_timeout(*args: Any, **kwargs: Any) -> dict[str, Any]:
-            # Simulate a timeout by returning a result with timeouts
             return {
                 "is_threat": False,
                 "threat_score": 0.0,
@@ -571,9 +568,9 @@ def test_detect_penetration_attempt_regex_timeout() -> None:
                 "context": kwargs.get("context", "unknown"),
                 "original_length": len(kwargs.get("content", "")),
                 "processed_length": len(kwargs.get("content", "")),
-                "execution_time": 2.1,  # Simulate timeout
+                "execution_time": 2.1,
                 "detection_method": "enhanced",
-                "timeouts": ["test_pattern"],  # Indicate timeout occurred
+                "timeouts": ["test_pattern"],
                 "correlation_id": kwargs.get("correlation_id"),
             }
 
@@ -588,7 +585,6 @@ def test_detect_penetration_attempt_regex_timeout() -> None:
 
             result, trigger = detect_penetration_attempt(request)
 
-            # Should not detect as attack when timeout occurs
             assert not result
             assert trigger == ""
 
@@ -602,7 +598,6 @@ def test_detect_penetration_attempt_regex_exception() -> None:
     ):
         from flask import request
 
-        # Mock the SusPatternsManager's detect method to raise an exception
         def mock_detect_with_exception(*args: Any, **kwargs: Any) -> dict[str, Any]:
             raise Exception("Unexpected detection error")
 
@@ -614,11 +609,9 @@ def test_detect_penetration_attempt_regex_exception() -> None:
         ):
             result, trigger = detect_penetration_attempt(request)
 
-            # Should not detect as attack when exception occurs
             assert not result
             assert trigger == ""
 
-            # Check that error was logged
             mock_error.assert_called()
             error_msg = mock_error.call_args[0][0]
             assert "Enhanced detection failed" in error_msg
@@ -628,7 +621,6 @@ def test_detect_penetration_json_non_regex_threat() -> None:
     """Test JSON field detection with non-regex threat types."""
     app = Flask(__name__)
 
-    # Create JSON payload
     json_payload = '{"username": "admin", "password": "test_password"}'
 
     with app.test_request_context(
@@ -637,7 +629,6 @@ def test_detect_penetration_json_non_regex_threat() -> None:
     ):
         from flask import request
 
-        # Mock detect to return a non-regex threat for JSON field
         def mock_detect(*args: Any, **kwargs: Any) -> dict[str, Any]:
             content = args[0] if args else kwargs.get("content", "")
             if "test_password" in content:
@@ -665,7 +656,6 @@ def test_detect_penetration_semantic_threat() -> None:
     ):
         from flask import request
 
-        # Mock detect to return semantic threat
         def mock_detect(*args: Any, **kwargs: Any) -> dict[str, Any]:
             return {
                 "is_threat": True,
@@ -694,7 +684,6 @@ def test_detect_penetration_semantic_threat_with_score() -> None:
     ):
         from flask import request
 
-        # Mock detect to return semantic threat with threat_score
         def mock_detect(*args: Any, **kwargs: Any) -> dict[str, Any]:
             return {
                 "is_threat": True,
@@ -723,13 +712,11 @@ def test_detect_penetration_fallback_pattern_match() -> None:
     ):
         from flask import request
 
-        # Mock detect to raise exception
         def mock_detect_error(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
             raise RuntimeError("Detection engine failure")
 
-        # Create a mock pattern that will match
         mock_pattern = MagicMock()
-        mock_pattern.search.return_value = MagicMock()  # Truthy value
+        mock_pattern.search.return_value = MagicMock()
 
         with (
             patch.object(sus_patterns_handler, "detect", side_effect=mock_detect_error),
@@ -745,7 +732,6 @@ def test_detect_penetration_fallback_pattern_match() -> None:
             assert result is True
             assert "Value matched pattern (fallback)" in trigger
 
-            # Verify error was logged
             mock_error.assert_called()
             error_msg = mock_error.call_args[0][0]
             assert "Enhanced detection failed" in error_msg
@@ -760,11 +746,9 @@ def test_detect_penetration_fallback_pattern_exception() -> None:
     ):
         from flask import request
 
-        # Mock detect to raise exception
         def mock_detect_error(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
             raise RuntimeError("Detection engine failure")
 
-        # Create a mock pattern that raises exception
         mock_pattern = MagicMock()
         mock_pattern.search.side_effect = Exception("Pattern error")
 
@@ -779,13 +763,10 @@ def test_detect_penetration_fallback_pattern_exception() -> None:
         ):
             result, trigger = detect_penetration_attempt(request)
 
-            # Should continue and return False when pattern fails
             assert result is False
             assert trigger == ""
 
-            # Verify error was logged (multiple times for different checks)
             assert mock_log_error.call_count >= 1
-            # Check that all calls were for the expected error
             for call in mock_log_error.call_args_list:
                 assert "Enhanced detection failed" in call[0][0]
                 assert "Detection engine failure" in call[0][0]
@@ -795,7 +776,6 @@ def test_detect_penetration_short_body() -> None:
     """Test request body logging when body is short."""
     app = Flask(__name__)
 
-    # Create a short body payload
     short_body = b"<script>XSS</script>"
 
     with app.test_request_context(
@@ -811,7 +791,6 @@ def test_detect_penetration_short_body() -> None:
             assert result is True
             assert "Request body:" in trigger
 
-            # Check that the short body was logged in full
             warning_calls = mock_warning.call_args_list
             body_logged = False
             for call in warning_calls:
@@ -825,7 +804,6 @@ def test_detect_penetration_empty_threat_fallback() -> None:
     """Test empty threats array fallback."""
     app = Flask(__name__)
 
-    # Create JSON payload
     json_payload = '{"field": "suspicious_value"}'
 
     with app.test_request_context(
@@ -834,12 +812,10 @@ def test_detect_penetration_empty_threat_fallback() -> None:
     ):
         from flask import request
 
-        # Mock detect to return threat with empty threats array
         def mock_detect(*args: Any, **kwargs: Any) -> dict[str, Any]:
-            # This test always expects "suspicious_value" in content
             return {
                 "is_threat": True,
-                "threats": [],  # Empty threats array
+                "threats": [],
             }
 
         with patch.object(sus_patterns_handler, "detect", side_effect=mock_detect):
@@ -858,7 +834,6 @@ def test_detect_penetration_unknown_threat_type() -> None:
     ):
         from flask import request
 
-        # Mock detect to return unknown threat type
         def mock_detect(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
             return {
                 "is_threat": True,

@@ -1,4 +1,3 @@
-# flaskapi_guard/core/routing/resolver.py
 from typing import Any
 
 from flask import Request, current_app
@@ -34,17 +33,17 @@ class RouteConfigResolver:
         Returns:
             BaseSecurityDecorator instance or None if not available
         """
-        # Try to get decorator from app extensions first
         if app:
             flaskapi_guard_ext = app.extensions.get("flaskapi_guard", {})
             if isinstance(flaskapi_guard_ext, dict):
                 app_guard_decorator = flaskapi_guard_ext.get("guard_decorator")
             else:
-                app_guard_decorator = getattr(flaskapi_guard_ext, "guard_decorator", None)
+                app_guard_decorator = getattr(
+                    flaskapi_guard_ext, "guard_decorator", None
+                )
             if isinstance(app_guard_decorator, BaseSecurityDecorator):
                 return app_guard_decorator
 
-        # Fall back to context-level decorator
         return self.context.guard_decorator if self.context.guard_decorator else None
 
     def get_route_config(self, request: Request) -> RouteConfig | None:
@@ -59,19 +58,16 @@ class RouteConfigResolver:
         """
         app = current_app
 
-        # Get decorator instance
         guard_decorator = self.get_guard_decorator(app)
         if not guard_decorator:
             return None
 
-        # Use Flask's endpoint resolution to find the view function
         if request.endpoint is None:
             return None
         view_func = current_app.view_functions.get(request.endpoint)
         if view_func is None:
             return None
 
-        # Check if the view function has a guard route ID
         if hasattr(view_func, "_guard_route_id"):
             route_id = view_func._guard_route_id
             return guard_decorator.get_route_config(route_id)

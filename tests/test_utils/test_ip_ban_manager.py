@@ -77,16 +77,13 @@ def test_ip_ban_manager_with_redis(security_config_redis: SecurityConfig) -> Non
     ip = "192.168.1.1"
     duration = 2
 
-    # Test banning
     ip_ban_manager.ban_ip(ip, duration)
     assert ip_ban_manager.is_ip_banned(ip)
 
-    # Test Redis persistence
     new_manager = ip_ban_manager
     new_manager.initialize_redis(redis_mgr)
     assert new_manager.is_ip_banned(ip)
 
-    # Test expiration
     time.sleep(2.1)
     assert not ip_ban_manager.is_ip_banned(ip)
     assert not new_manager.is_ip_banned(ip)
@@ -102,17 +99,14 @@ def test_ip_ban_manager_redis_reset(
     redis_mgr.initialize()
     ip_ban_manager.initialize_redis(redis_mgr)
 
-    # Ban multiple IPs
     ips = ["192.168.1.1", "192.168.1.2", "192.168.1.3"]
     for ip in ips:
         ip_ban_manager.ban_ip(ip, 3600)
         assert ip_ban_manager.is_ip_banned(ip)
 
-    # Reset and verify
     ip_ban_manager.reset()
     for ip in ips:
         assert not ip_ban_manager.is_ip_banned(ip)
-        # Verify Redis keys are also cleared
         assert not redis_mgr.exists("banned_ips", ip)
 
     redis_mgr.close()
@@ -129,19 +123,15 @@ def test_ip_ban_manager_redis_expired_cleanup(
     ip = "192.168.1.1"
     duration = 1
 
-    # Ban the IP
     ip_ban_manager.ban_ip(ip, duration)
     assert ip_ban_manager.is_ip_banned(ip)
 
-    # Clear local cache and manually set expired time in Redis
     ip_ban_manager.banned_ips.clear()
     past_expiry = str(time.time() - 10)
     redis_mgr.set_key("banned_ips", ip, past_expiry)
 
-    # Check ban status - this should trigger the cleanup
     assert not ip_ban_manager.is_ip_banned(ip)
 
-    # Verify the key was deleted from Redis
     assert not redis_mgr.exists("banned_ips", ip)
 
     redis_mgr.close()
@@ -156,17 +146,13 @@ def test_ban_in_redis_not_in_cache(security_config_redis: SecurityConfig) -> Non
     ip_ban_manager.banned_ips.clear()
 
     ip = "192.168.100.100"
-    # Future expiry in Redis (active ban)
-    future_expiry = str(time.time() + 3600)  # 1 hour in the future
+    future_expiry = str(time.time() + 3600)
     redis_mgr.set_key("banned_ips", ip, future_expiry)
 
-    # Before check - IP should not be in local cache
     assert ip not in ip_ban_manager.banned_ips
 
-    # Finding active ban in Redis
     assert ip_ban_manager.is_ip_banned(ip)
 
-    # IP in local cache with correct expiry
     assert ip in ip_ban_manager.banned_ips
     assert abs(ip_ban_manager.banned_ips[ip] - float(future_expiry)) < 0.01
 

@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/route_config.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -21,7 +20,6 @@ class RouteConfigCheck(SecurityCheck):
         route_config = None
         if self.middleware.route_resolver is not None:
             route_config = self.middleware.route_resolver.get_route_config(request)
-        # Store in flask.g for other checks to access
         g.route_config = route_config
         g.client_ip = extract_client_ip(
             request, self.config, self.middleware.agent_handler

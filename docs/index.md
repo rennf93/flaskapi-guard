@@ -6,8 +6,7 @@ keywords: flask, security, extension, python, ip control, rate limiting, penetra
 
 ---
 
-FlaskAPI Guard
-==============
+# FlaskAPI Guard
 
 [![PyPI version](https://badge.fury.io/py/flaskapi-guard.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4)](https://badge.fury.io/py/flaskapi-guard)
 [![Release](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml)
@@ -19,8 +18,7 @@ FlaskAPI Guard
 
 ___
 
-Quick Start
------------
+## Quick Start
 
 ### Installation
 
@@ -77,15 +75,13 @@ def create_app():
 
 ___
 
-Example App
------------
+## Example App
 
 Inside [examples](https://github.com/rennf93/flaskapi-guard/tree/master/examples), you can find a simple example app that demonstrates how to use FlaskAPI Guard.
 
 ___
 
-Docker Container
-----------------
+## Docker Container
 
 You can also download the example app as a Docker container from [GitHub Container Registry](https://github.com/orgs/rennf93/packages/container/flaskapi-guard-example).
 
@@ -99,8 +95,7 @@ docker pull ghcr.io/rennf93/flaskapi-guard-example:v0.1.0
 
 ___
 
-Running the Example App
------------------------
+## Running the Example App
 
 ### Using Docker Compose (Recommended)
 
@@ -150,8 +145,7 @@ flask --app examples.main run --debug
 
 ___
 
-Features
---------
+## Features
 
 - **IP Whitelisting and Blacklisting**: Control access based on IP addresses with CIDR support.
 - **User Agent Filtering**: Block requests from specific user agents.
@@ -176,8 +170,7 @@ Features
 
 ___
 
-Architecture Overview
----------------------
+## Architecture Overview
 
 FlaskAPI Guard uses the standard Flask extension pattern with `before_request`/`after_request` hooks instead of WSGI middleware. This is a deliberate design choice -- WSGI middleware fires before Flask routing, so it cannot access route-specific configuration, decorator metadata, or `url_rule` information.
 
@@ -225,8 +218,7 @@ The pipeline uses a Chain of Responsibility pattern with 17 checks executed in o
 
 ___
 
-Route-Level Security
---------------------
+## Route-Level Security
 
 FlaskAPI Guard provides a decorator system for per-route security overrides:
 
@@ -273,8 +265,7 @@ def unprotected():
 
 ___
 
-Detection Engine
-----------------
+## Detection Engine
 
 FlaskAPI Guard includes a detection engine for identifying penetration attempts via pattern matching, semantic analysis, and anomaly detection. Attack categories detected include:
 
@@ -292,8 +283,7 @@ FlaskAPI Guard includes a detection engine for identifying penetration attempts 
 
 ___
 
-Configuration
--------------
+## Configuration
 
 FlaskAPI Guard uses a Pydantic model (`SecurityConfig`) for validated configuration. Key configuration areas include:
 
@@ -364,8 +354,7 @@ guard = FlaskAPIGuard(app, config=config)
 
 ___
 
-Key Differences from FastAPI Guard
------------------------------------
+## Key Differences from FastAPI Guard
 
 FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) adapted for Flask's synchronous WSGI model:
 
@@ -384,8 +373,7 @@ FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fa
 
 ___
 
-Documentation
--------------
+## Documentation
 
 - [Release Notes](release-notes.md)
 - [GitHub Repository](https://github.com/rennf93/flaskapi-guard)

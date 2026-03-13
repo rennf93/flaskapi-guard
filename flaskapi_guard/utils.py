@@ -1,4 +1,3 @@
-# flaskapi_guard/utils.py
 import logging
 import re
 from datetime import datetime, timezone
@@ -29,9 +28,7 @@ def _sanitize_for_log(value: str) -> str:
     """
     if not value:
         return value
-    # Replace newlines, carriage returns, and other control characters
     sanitized = value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    # Remove other control characters (ASCII 0-31 except tab, newline, carriage return)
     sanitized = "".join(
         char if ord(char) >= 32 or char in "\t\n\r" else f"\\x{ord(char):02x}"
         for char in sanitized
@@ -68,7 +65,6 @@ def send_agent_event(
         return
 
     try:
-        # Extract request information if available
         endpoint = None
         method = None
         user_agent = None
@@ -96,7 +92,6 @@ def send_agent_event(
 
         agent_handler.send_event(event)
     except Exception as e:
-        # Don't let agent errors break the main functionality
         logging.getLogger(__name__).error(f"Failed to send agent event: {e}")
 
 
@@ -111,14 +106,12 @@ def setup_custom_logging(log_file: str | None = None) -> logging.Logger:
     logger = logging.getLogger("flaskapi_guard")
     logger.handlers.clear()
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(
         logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
 
-    # File handler
     if log_file:
         try:
             import os
@@ -135,11 +128,9 @@ def setup_custom_logging(log_file: str | None = None) -> logging.Logger:
             )
             logger.addHandler(file_handler)
         except Exception as e:
-            # Log to console if file handler fails
             logger.warning(f"Failed to create log file {log_file}: {e}")
 
     logger.setLevel(logging.INFO)
-    # Allow propagation so tests can capture logs (pytest-cov)
 
     return logger
 
@@ -153,13 +144,11 @@ def _check_ip_spoofing(
 ) -> None:
     """Check and log potential IP spoofing attempts."""
     if forwarded_for and not config.trusted_proxies:
-        # Sanitize user-controlled header value before logging to prevent log injection
         safe_forwarded_for = _sanitize_for_log(forwarded_for)
         logging.warning(
             f"Potential IP spoof attempt: X-Forwarded-For header "  # nosemgrep
             f"({safe_forwarded_for}) received from untrusted IP {connecting_ip}"
         )
-        # Send agent event for IP spoofing attempt
         send_agent_event(
             agent_handler,
             "suspicious_request",
@@ -176,10 +165,10 @@ def _is_trusted_proxy(connecting_ip: str, trusted_proxies: list[str]) -> bool:
         connecting_ip_obj = ip_address(connecting_ip)
 
         for proxy in trusted_proxies:
-            if "/" in proxy:  # CIDR notation
+            if "/" in proxy:
                 if connecting_ip_obj in ip_network(proxy, strict=False):
                     return True
-            elif connecting_ip == proxy:  # Direct IP match
+            elif connecting_ip == proxy:
                 return True
         return False
     except ValueError:
@@ -191,7 +180,6 @@ def _extract_from_forwarded_header(forwarded_for: str, proxy_depth: int) -> str 
     if not forwarded_for:
         return None
 
-    # Parse the header
     ips = [ip.strip() for ip in forwarded_for.split(",")]
 
     if len(ips) >= proxy_depth:
@@ -241,26 +229,20 @@ def extract_client_ip(
 
     forwarded_for = request.headers.get("X-Forwarded-For")
 
-    # Check for IP spoofing attempts
     _check_ip_spoofing(connecting_ip, forwarded_for, config, request, agent_handler)
 
-    # Don't trust X-Forwarded-For if no trusted proxies
     if not config.trusted_proxies:
         return connecting_ip
 
-    # Check if connecting IP is trusted
     is_trusted = _is_trusted_proxy(connecting_ip, config.trusted_proxies)
 
     if not is_trusted:
         if forwarded_for:
-            # Sanitize user-controlled header value
-            # before logging to prevent log injection
             safe_forwarded_for = _sanitize_for_log(forwarded_for)
             logging.warning(
                 f"Potential IP spoof attempt: X-Forwarded-For header "  # nosemgrep
                 f"({safe_forwarded_for}) received from untrusted IP {connecting_ip}"
             )
-            # Send agent event for IP spoofing attempt from untrusted proxy
             send_agent_event(
                 agent_handler,
                 "suspicious_request",
@@ -271,7 +253,6 @@ def extract_client_ip(
             )
         return connecting_ip
 
-    # Process X-Forwarded-For from trusted proxy
     try:
         if not forwarded_for:
             return connecting_ip
@@ -284,7 +265,6 @@ def extract_client_ip(
     except (ValueError, IndexError) as e:
         logging.warning(f"Error processing client IP: {str(e)}")
 
-    # Fall back to connecting IP
     return connecting_ip
 
 
@@ -395,10 +375,8 @@ def log_activity(
     if level is None:
         return
 
-    # Extract request context
     context = _extract_request_context(request)
 
-    # Build message based on log type
     if log_type == "request":
         details, reason_message = _build_log_message_for_request(context)
     elif log_type == "suspicious":
@@ -408,7 +386,6 @@ def log_activity(
     else:
         details, reason_message = _build_log_message_generic(context, log_type, reason)
 
-    # Combine and log
     msg = f"{details} - {reason_message}"
     _log_at_level(logger, level, msg)
 
@@ -478,15 +455,12 @@ def _evaluate_country_access(country: str, config: SecurityConfig) -> tuple[bool
     Returns:
         Tuple of (is_blocked, result_type)
     """
-    # Whitelist takes precedence
     if config.whitelist_countries and country in config.whitelist_countries:
         return False, "whitelisted"
 
-    # Then check blocklist
     if config.blocked_countries and country in config.blocked_countries:
         return True, "blocked"
 
-    # Not affected by rules
     return False, "not_affected"
 
 
@@ -513,26 +487,21 @@ def check_ip_country(
             country or in the whitelist,
             False otherwise.
     """
-    # Early return if no country rules configured
     if not _has_country_rules(config):
         ip = _extract_ip_from_request(request)
         _log_country_check_result(ip, None, "no_rules")
         return False
 
-    # Ensure GeoIP handler is initialized
     if not geo_ip_handler.is_initialized:
         geo_ip_handler.initialize()
 
-    # Extract IP and get country
     ip = _extract_ip_from_request(request)
     country = geo_ip_handler.get_country(ip)
 
-    # Handle geolocation failure
     if not country:
         _log_country_check_result(ip, None, "no_geolocation")
         return False
 
-    # Evaluate access based on country
     is_blocked, result_type = _evaluate_country_access(country, config)
     _log_country_check_result(ip, country, result_type)
 
@@ -542,10 +511,10 @@ def check_ip_country(
 def _check_blacklist(ip_addr: Any, ip: str, config: SecurityConfig) -> bool:
     if config.blacklist:
         for blocked in config.blacklist:
-            if "/" in blocked:  # CIDR
+            if "/" in blocked:
                 if ip_addr in ip_network(blocked, strict=False):
                     return False
-            elif ip == blocked:  # Direct match
+            elif ip == blocked:
                 return False
     return True
 
@@ -553,12 +522,12 @@ def _check_blacklist(ip_addr: Any, ip: str, config: SecurityConfig) -> bool:
 def _check_whitelist(ip_addr: Any, ip: str, config: SecurityConfig) -> bool:
     if config.whitelist:
         for allowed in config.whitelist:
-            if "/" in allowed:  # CIDR
+            if "/" in allowed:
                 if ip_addr in ip_network(allowed, strict=False):
                     return True
-            elif ip == allowed:  # Direct match
+            elif ip == allowed:
                 return True
-        return False  # If whitelist exists but IP not in it
+        return False
     return True
 
 
@@ -618,7 +587,7 @@ def is_ip_allowed(
 
         return True
     except ValueError:
-        return False  # Invalid IP
+        return False
     except Exception as e:
         logging.error(f"Error checking IP {ip}: {str(e)}")
         return True
@@ -668,7 +637,7 @@ def _try_check_json_value(
         if isinstance(data, dict):
             return _check_json_fields(data, context, client_ip, correlation_id)
     except json.JSONDecodeError:
-        pass  # Not JSON, caller will check as plain string
+        pass
     return None
 
 
@@ -701,12 +670,10 @@ def _check_value_enhanced(
     correlation_id: str,
 ) -> tuple[bool, str]:
     """Enhanced threat detection for a single value."""
-    # First check if value looks like JSON
     json_result = _try_check_json_value(value, context, client_ip, correlation_id)
     if json_result is not None:
         return json_result
 
-    # Use enhanced detection engine
     try:
         result = sus_patterns_handler.detect(
             content=value,
@@ -718,7 +685,6 @@ def _check_value_enhanced(
         if not result["is_threat"]:
             return False, ""
 
-        # Build informative trigger message from threats
         if result["threats"]:
             threat = result["threats"][0]
             return True, _build_threat_message(threat)
@@ -726,7 +692,6 @@ def _check_value_enhanced(
         return True, "Threat detected"
 
     except Exception as e:
-        # Log error but fall back to basic detection
         logging.error(f"Enhanced detection failed: {e}, falling back to basic check")
         return _fallback_pattern_check(value)
 
@@ -752,6 +717,73 @@ def _check_request_component(
     return detected, trigger
 
 
+_EXCLUDED_HEADERS = frozenset(
+    {
+        "host",
+        "user-agent",
+        "accept",
+        "accept-encoding",
+        "connection",
+        "origin",
+        "referer",
+        "sec-fetch-site",
+        "sec-fetch-mode",
+        "sec-fetch-dest",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+    }
+)
+
+
+def _check_query_params(
+    request: Request, client_ip: str, correlation_id: str
+) -> tuple[bool, str]:
+    """Check query parameters for penetration attempts."""
+    for key, value in request.args.items():
+        detected, trigger = _check_request_component(
+            value,
+            f"query_param:{key}",
+            f"query param '{key}'",
+            client_ip,
+            correlation_id,
+        )
+        if detected:
+            return True, f"Query param '{key}': {trigger}"
+    return False, ""
+
+
+def _check_headers_for_threats(
+    request: Request, client_ip: str, correlation_id: str
+) -> tuple[bool, str]:
+    """Check request headers for penetration attempts."""
+    for key, value in request.headers:
+        if key.lower() not in _EXCLUDED_HEADERS:
+            detected, trigger = _check_request_component(
+                value, f"header:{key}", f"header '{key}'", client_ip, correlation_id
+            )
+            if detected:
+                return True, f"Header '{key}': {trigger}"
+    return False, ""
+
+
+def _check_body_for_threats(
+    request: Request, client_ip: str, correlation_id: str
+) -> tuple[bool, str]:
+    """Check request body for penetration attempts."""
+    try:
+        body = request.get_data(as_text=True)
+    except Exception:
+        return False, ""
+    if body:
+        detected, trigger = _check_request_component(
+            body, "request_body", "request body", client_ip, correlation_id
+        )
+        if detected:
+            return True, f"Request body: {trigger}"
+    return False, ""
+
+
 def detect_penetration_attempt(request: Request) -> tuple[bool, str]:
     """
     Detect potential penetration
@@ -774,65 +806,25 @@ def detect_penetration_attempt(request: Request) -> tuple[bool, str]:
     """
     import uuid
 
-    # Extract client IP for tracking
     client_ip = request.remote_addr or "unknown"
-
-    # Generate correlation ID for this request
     correlation_id = str(uuid.uuid4())
 
-    # Check query params
-    for key, value in request.args.items():
-        detected, trigger = _check_request_component(
-            value,
-            f"query_param:{key}",
-            f"query param '{key}'",
-            client_ip,
-            correlation_id,
-        )
-        if detected:
-            return True, f"Query param '{key}': {trigger}"
+    detected, trigger = _check_query_params(request, client_ip, correlation_id)
+    if detected:
+        return True, trigger
 
-    # Check path
     detected, trigger = _check_request_component(
         request.path, "url_path", "URL path", client_ip, correlation_id
     )
     if detected:
         return True, f"URL path: {trigger}"
 
-    # Check headers
-    excluded_headers = {
-        "host",
-        "user-agent",
-        "accept",
-        "accept-encoding",
-        "connection",
-        "origin",
-        "referer",
-        "sec-fetch-site",
-        "sec-fetch-mode",
-        "sec-fetch-dest",
-        "sec-ch-ua",
-        "sec-ch-ua-mobile",
-        "sec-ch-ua-platform",
-    }
-    for key, value in request.headers:
-        if key.lower() not in excluded_headers:
-            detected, trigger = _check_request_component(
-                value, f"header:{key}", f"header '{key}'", client_ip, correlation_id
-            )
-            if detected:
-                return True, f"Header '{key}': {trigger}"
+    detected, trigger = _check_headers_for_threats(request, client_ip, correlation_id)
+    if detected:
+        return True, trigger
 
-    # Check body
-    try:
-        body = request.get_data(as_text=True)
-        if body:
-            detected, trigger = _check_request_component(
-                body, "request_body", "request body", client_ip, correlation_id
-            )
-            if detected:
-                return True, f"Request body: {trigger}"
-    except Exception:
-        pass
+    detected, trigger = _check_body_for_threats(request, client_ip, correlation_id)
+    if detected:
+        return True, trigger
 
     return False, ""

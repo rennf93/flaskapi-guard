@@ -49,15 +49,13 @@
 
 ---
 
-Documentation
-=============
+# Documentation
 
 📚 **[Documentation](https://rennf93.github.io/flaskapi-guard)** - Full technical documentation and deep dive into its inner workings.
 
 ___
 
-Features
---------
+## Features
 
 - **IP Whitelisting and Blacklisting**: Control access based on IP addresses.
 - **User Agent Filtering**: Block requests from specific user agents.
@@ -78,8 +76,7 @@ Features
 
 ___
 
-Installation
-------------
+## Installation
 
 To install `flaskapi-guard`, use pip:
 
@@ -89,11 +86,9 @@ pip install flaskapi-guard
 
 ___
 
-Usage
------------
+## Usage
 
-Basic Setup
------------
+## Basic Setup
 
 To use `flaskapi-guard`, you need to configure the extension in your Flask application. Here's a basic example:
 
@@ -153,8 +148,7 @@ def create_app():
     return app
 ```
 
-IP Whitelisting and Blacklisting
----------------------------------
+## IP Whitelisting and Blacklisting
 
 You can control access based on IP addresses using the `whitelist` and `blacklist` options in the `SecurityConfig`.
 
@@ -165,8 +159,7 @@ config = SecurityConfig(
 )
 ```
 
-User Agent Filtering
---------------------
+## User Agent Filtering
 
 Block requests from specific user agents by adding patterns to the `blocked_user_agents` list.
 
@@ -176,8 +169,7 @@ config = SecurityConfig(
 )
 ```
 
-Rate Limiting
--------------
+## Rate Limiting
 
 Limit the number of requests from a single IP using the `rate_limit` option.
 
@@ -187,8 +179,7 @@ config = SecurityConfig(
 )
 ```
 
-Automatic IP Banning
---------------------
+## Automatic IP Banning
 
 Automatically ban IPs after a certain number of suspicious requests using the `auto_ban_threshold` and `auto_ban_duration` options.
 
@@ -199,8 +190,7 @@ config = SecurityConfig(
 )
 ```
 
-Penetration Attempt Detection
------------------------------
+## Penetration Attempt Detection
 
 Enable penetration attempt detection using the `enable_penetration_detection` option.
 
@@ -218,8 +208,7 @@ config = SecurityConfig(
 )
 ```
 
-Custom Penetration Detection
-----------------------------
+## Custom Penetration Detection
 
 Detect and log potential penetration attempts using the `detect_penetration_attempt` function.
 
@@ -237,8 +226,7 @@ def submit_data():
     return jsonify({"message": "Data submitted successfully"})
 ```
 
-Custom Logging
---------------
+## Custom Logging
 
 Log security events with console output (always enabled) and optional file logging:
 
@@ -251,8 +239,7 @@ config = SecurityConfig(
 
 **Note:** Console output is always enabled for visibility. File logging is only activated when `custom_log_file` is provided.
 
-HTTP Security Headers
----------------------
+## HTTP Security Headers
 
 Configure comprehensive security headers following OWASP best practices:
 
@@ -299,8 +286,7 @@ Key security headers supported:
 - **Header Injection Prevention**: Automatic validation against injection attacks
 - **CORS Security**: Secure wildcard and credentials handling
 
-CORS Configuration
-------------------
+## CORS Configuration
 
 Configure CORS settings for your Flask application using the `enable_cors` and related options.
 
@@ -316,8 +302,7 @@ config = SecurityConfig(
 )
 ```
 
-Cloud Provider IP Blocking
----------------------------
+## Cloud Provider IP Blocking
 
 Block requests from cloud provider IPs (AWS, GCP, Azure) using the `block_cloud_providers` option.
 
@@ -327,8 +312,7 @@ config = SecurityConfig(
 )
 ```
 
-IP Geolocation and Country Blocking
-------------------------------------
+## IP Geolocation and Country Blocking
 
 If you want to use `flaskapi-guard`'s built-in country filtering features, you'll need to obtain an IPInfo token:
 
@@ -344,13 +328,11 @@ Note: This is only required if you use country filtering (`blocked_countries`, `
 
 ___
 
-Route-Level Security with Decorators
-------------------------------------
+## Route-Level Security with Decorators
 
 FlaskAPI Guard provides powerful decorators that allow you to apply security controls to individual routes, giving you fine-grained control over your API endpoints.
 
-. Basic Decorator Usage
---------------------
+### Basic Decorator Usage
 
 ```python
 from flask import Flask
@@ -383,8 +365,7 @@ def restricted_endpoint():
     return {"data": "restricted"}
 ```
 
-. Available Decorators
--------------------
+### Available Decorators
 
 Access Control
 - `@guard_deco.require_ip(whitelist=[], blacklist=[])` - IP address filtering
@@ -418,8 +399,7 @@ Advanced Controls
 - `@guard_deco.honeypot_detection(trap_fields=["hidden_field"])` - Detect bots using honeypot fields
 - `@guard_deco.bypass(checks=["rate_limit"])` - Bypass specific security checks
 
-. Complex Route Protection
------------------------
+### Complex Route Protection
 
 Combine multiple decorators for comprehensive protection:
 
@@ -445,8 +425,7 @@ def rewards_endpoint():
     return {"reward": "rare_item", "value": 1000}
 ```
 
-. Decorator Configuration Priority
--------------------------------
+### Decorator Configuration Priority
 
 Security settings are applied in the following priority order:
 
@@ -458,11 +437,9 @@ This allows routes to override global settings while maintaining sensible defaul
 
 ___
 
-Advanced Usage
---------------
+## Advanced Usage
 
-. Secure Proxy Configuration
----------------------------
+### Secure Proxy Configuration
 
 Configure trusted proxies to securely handle X-Forwarded-For headers:
 
@@ -479,8 +456,7 @@ When `trusted_proxies` is configured, FlaskAPI Guard will:
 2. Extract the appropriate client IP based on proxy depth
 3. Prevent IP spoofing attacks through header manipulation
 
-. Custom Geolocation Handler
----------------------------
+### Custom Geolocation Handler
 
 The library implements a handler that uses IPInfo's [IP to Country database](https://ipinfo.io/products/free-ip-database), which provides:
 
@@ -539,8 +515,7 @@ config = SecurityConfig(
 )
 ```
 
-. Custom Request Check
---------------------
+### Custom Request Check
 
 You can define a custom function to perform additional checks on the request using the `custom_request_check` option.
 
@@ -558,8 +533,7 @@ config = SecurityConfig(
 )
 ```
 
-. Custom Response Modifier
-------------------------
+### Custom Response Modifier
 
 You can define a custom function to modify the response before it's sent using the `custom_response_modifier` option.
 
@@ -593,8 +567,7 @@ The example above shows how to:
 
 ___
 
-Redis Configuration
--------------------
+## Redis Configuration
 
 Enable distributed state management across multiple instances:
 
@@ -614,8 +587,7 @@ The Redis integration provides:
 
 ___
 
-Emergency Mode
---------------
+## Emergency Mode
 
 Block all incoming traffic except from explicitly whitelisted IPs. Useful during active attacks or maintenance windows:
 
@@ -628,8 +600,7 @@ config = SecurityConfig(
 
 ___
 
-Behavioral Analysis
--------------------
+## Behavioral Analysis
 
 FlaskAPI Guard includes a behavioral analysis engine for detecting anomalous usage patterns. This works both at the global level and per-route via decorators:
 
@@ -655,16 +626,13 @@ Behavioral actions include:
 
 ___
 
-Detailed Configuration Options
-------------------------------
+## Detailed Configuration Options
 
-. SecurityConfig
---------------
+### SecurityConfig
 
 The `SecurityConfig` class defines the structure for security configuration, including IP whitelists and blacklists, blocked countries, blocked user agents, rate limiting, automatic IP banning, HTTPS enforcement, custom hooks, CORS settings, and blocking of cloud provider IPs.
 
-. Attributes
-----------
+### Attributes
 
 - **geo_ip_handler**: ```GeoIPHandler``` - Protocol that allows for IP geolocation functionality.
 - **enable_redis**: ```bool``` - Enable Redis for distributed state (default: True). When disabled, uses in-memory storage.
@@ -708,8 +676,7 @@ The `SecurityConfig` class defines the structure for security configuration, inc
 
 ___
 
-Detection Engine
-----------------
+## Detection Engine
 
 FlaskAPI Guard includes a comprehensive detection engine for identifying penetration attempts. It uses pattern matching, semantic analysis, and anomaly detection to catch a wide range of attack vectors.
 
@@ -742,8 +709,7 @@ FlaskAPI Guard includes a comprehensive detection engine for identifying penetra
 
 ___
 
-Key Differences from FastAPI Guard
------------------------------------
+## Key Differences from FastAPI Guard
 
 FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fastapi-guard) to the Flask/WSGI ecosystem. The security logic is identical, but adapted for Flask's synchronous model:
 
@@ -764,29 +730,25 @@ FlaskAPI Guard is a direct port of [FastAPI Guard](https://github.com/rennf93/fa
 
 ___
 
-Contributing
-------------
+## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 
 ___
 
-License
--------
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ___
 
-Author
-------
+## Author
 
 Renzo Franceschini - [rennf93@users.noreply.github.com](mailto:rennf93@users.noreply.github.com) .
 
 ___
 
-Acknowledgements
-----------------
+## Acknowledgements
 
 - [Flask](https://flask.palletsprojects.com/)
 - [Werkzeug](https://werkzeug.palletsprojects.com/)

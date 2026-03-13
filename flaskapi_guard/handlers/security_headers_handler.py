@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/security_headers_handler.py
 import hashlib
 import json
 import logging
@@ -27,7 +26,6 @@ class SecurityHeadersManager:
     hsts_config: dict[str, Any] | None
     cors_config: dict[str, Any] | None
 
-    # Default security headers configuration
     default_headers: dict[str, str] = {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
@@ -44,7 +42,6 @@ class SecurityHeadersManager:
     def __new__(cls: type["SecurityHeadersManager"]) -> "SecurityHeadersManager":
         if cls._instance is None:
             with cls._lock:
-                # Double-check inside lock to prevent race conditions
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance.headers_cache = TTLCache(maxsize=1000, ttl=300)
@@ -58,7 +55,6 @@ class SecurityHeadersManager:
                     cls._instance.csp_config = None
                     cls._instance.hsts_config = None
                     cls._instance.cors_config = None
-                    # Create instance copy of default headers
                     cls._instance.default_headers = cls.default_headers.copy()
         return cls._instance
 
@@ -68,7 +64,6 @@ class SecurityHeadersManager:
             raise ValueError(f"Invalid header value contains newline: {value}")
         if len(value) > 8192:
             raise ValueError(f"Header value too long: {len(value)} bytes")
-        # Remove control characters except tab
         sanitized = "".join(char for char in value if ord(char) >= 32 or char == "\t")
         return sanitized
 
@@ -96,17 +91,14 @@ class SecurityHeadersManager:
             return
 
         try:
-            # Load CSP configuration
             csp_config = self.redis_handler.get_key("security_headers", "csp_config")
             if csp_config:
                 self.csp_config = json.loads(csp_config)
 
-            # Load HSTS configuration
             hsts_config = self.redis_handler.get_key("security_headers", "hsts_config")
             if hsts_config:
                 self.hsts_config = json.loads(hsts_config)
 
-            # Load custom headers
             custom_headers = self.redis_handler.get_key(
                 "security_headers", "custom_headers"
             )
@@ -122,7 +114,6 @@ class SecurityHeadersManager:
             return
 
         self.csp_config = csp
-        # Warn about unsafe directives
         for directive, sources in csp.items():
             if "'unsafe-inline'" in sources or "'unsafe-eval'" in sources:
                 self.logger.warning(
@@ -139,7 +130,6 @@ class SecurityHeadersManager:
         if hsts_max_age is None:
             return
 
-        # Validate HSTS preload requirements
         if hsts_preload:
             if hsts_max_age < 31536000:
                 self.logger.warning("HSTS preload requires max_age >= 31536000")
@@ -166,7 +156,6 @@ class SecurityHeadersManager:
             self.cors_config = None
             return
 
-        # NOTE: Never allow credentials when using wildcard
         if "*" in cors_origins and cors_allow_credentials:
             self.logger.error(
                 "CORS config error: Wildcard origin disallowed with credentials"
@@ -211,8 +200,6 @@ class SecurityHeadersManager:
                     self._validate_header_value(permissions_policy)
                 )
             else:
-                # Remove Permissions-Policy only if
-                # explicitly set to None, empty string or False
                 self.default_headers.pop("Permissions-Policy", None)
 
     def _add_custom_headers(self, custom_headers: dict[str, str] | None) -> None:
@@ -264,7 +251,6 @@ class SecurityHeadersManager:
         """
         self.enabled = enabled
 
-        # Configure each component
         self._configure_csp(csp)
         self._configure_hsts(hsts_max_age, hsts_include_subdomains, hsts_preload)
         self._configure_cors(
@@ -285,7 +271,6 @@ class SecurityHeadersManager:
             return
 
         try:
-            # Store configurations as JSON
             if self.csp_config:
                 self.redis_handler.set_key(
                     "security_headers",
@@ -359,7 +344,6 @@ class SecurityHeadersManager:
         if not self.enabled:
             return {}
 
-        # Check cache first with secure key generation
         cache_key = self._generate_cache_key(request_path)
         if cache_key in self.headers_cache:
             cached = self.headers_cache[cache_key]
@@ -368,21 +352,16 @@ class SecurityHeadersManager:
 
         headers = self.default_headers.copy()
 
-        # Add CSP header
         if self.csp_config:
             headers["Content-Security-Policy"] = self._build_csp(self.csp_config)
 
-        # Add HSTS header
         if self.hsts_config:
             headers["Strict-Transport-Security"] = self._build_hsts(self.hsts_config)
 
-        # Add custom headers
         headers.update(self.custom_headers)
 
-        # Cache the result
         self.headers_cache[cache_key] = headers
 
-        # Send event to agent if configured
         if self.agent_handler and request_path:
             self._send_headers_applied_event(request_path, headers)
 
@@ -419,7 +398,6 @@ class SecurityHeadersManager:
         allow_methods = self.cors_config.get("allow_methods", ["GET", "POST"])
         allow_headers = self.cors_config.get("allow_headers", ["*"])
 
-        # Validate types
         if not isinstance(allow_methods, list):
             allow_methods = ["GET", "POST"]
         if not isinstance(allow_headers, list):
@@ -464,15 +442,12 @@ class SecurityHeadersManager:
         if not isinstance(allowed_origins, list):
             return {}
 
-        # Check for invalid wildcard + credentials configuration
         if self._is_wildcard_with_credentials(allowed_origins):
             return {}
 
-        # Check if origin is allowed
         if not self._is_origin_allowed(origin, allowed_origins):
             return {}
 
-        # Get validated config and build headers
         allow_methods, allow_headers = self._get_validated_cors_config()
         return self._build_cors_headers(
             origin, allowed_origins, allow_methods, allow_headers
@@ -514,14 +489,12 @@ class SecurityHeadersManager:
         if not all(field in csp_report for field in required_fields):
             return False
 
-        # Log the violation
         self.logger.warning(
             f"CSP Violation: {csp_report.get('violated-directive')} "
             f"blocked {csp_report.get('blocked-uri')} "
             f"on {csp_report.get('document-uri')}"
         )
 
-        # Send to agent if configured
         if self.agent_handler:
             self._send_csp_violation_event(csp_report)
 
@@ -556,7 +529,6 @@ class SecurityHeadersManager:
         self.hsts_config = None
         self.cors_config = None
         self.enabled = True
-        # Reset default headers to original state
         self.default_headers = self.__class__.default_headers.copy()
 
         if self.redis_handler:
@@ -571,7 +543,6 @@ class SecurityHeadersManager:
                 self.logger.warning(f"Failed to clear Redis cache: {e}")
 
 
-# Singleton instance
 security_headers_manager = SecurityHeadersManager()
 
 

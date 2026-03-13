@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/cloud_ip_refresh.py
 import time
 
 from flask import Request, Response

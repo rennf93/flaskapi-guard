@@ -1,4 +1,3 @@
-# tests/test_handlers/test_agent_events.py
 """Tests for _send_*_event methods across ALL handlers using mocked guard_agent."""
 
 import sys
@@ -24,7 +23,6 @@ def _mock_guard_agent_module() -> types.ModuleType:
     mock_mod.SecurityEvent = MockSecurityEvent  # type: ignore[attr-defined]
     original = sys.modules.get("guard_agent")
     sys.modules["guard_agent"] = mock_mod
-    # Also set guard_agent.models so nested imports don't fail
     sys.modules["guard_agent.models"] = mock_mod
     yield mock_mod
     if original is not None:
@@ -33,10 +31,6 @@ def _mock_guard_agent_module() -> types.ModuleType:
         sys.modules.pop("guard_agent", None)
     sys.modules.pop("guard_agent.models", None)
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _make_config(**overrides: object) -> SecurityConfig:
     """Create a minimal SecurityConfig with redis disabled."""
@@ -49,10 +43,6 @@ def _make_config(**overrides: object) -> SecurityConfig:
     defaults.update(overrides)
     return SecurityConfig(**defaults)  # type: ignore[arg-type]
 
-
-# =========================================================================
-# IPBanManager events
-# =========================================================================
 
 class TestIPBanManagerEvents:
     """Tests for IPBanManager._send_ban_event and _send_unban_event."""
@@ -81,13 +71,10 @@ class TestIPBanManagerEvents:
 
     def test_send_ban_event_no_agent(self) -> None:
         self.manager.agent_handler = None
-        # _send_ban_event is only called when agent_handler is set (from ban_ip),
-        # but calling directly should not raise
         self.manager._send_ban_event("10.0.0.1", 3600, "test")
 
     def test_send_ban_event_exception_handled(self) -> None:
         self.manager.agent_handler.send_event.side_effect = Exception("agent down")
-        # Should not raise
         self.manager._send_ban_event("10.0.0.1", 3600, "test")
 
     def test_send_unban_event_sends_correct_event(self) -> None:
@@ -103,10 +90,6 @@ class TestIPBanManagerEvents:
         self.manager.agent_handler.send_event.side_effect = Exception("agent down")
         self.manager._send_unban_event("10.0.0.2")
 
-
-# =========================================================================
-# RedisManager events
-# =========================================================================
 
 class TestRedisManagerEvents:
     """Tests for RedisManager._send_redis_event."""
@@ -138,17 +121,12 @@ class TestRedisManagerEvents:
 
     def test_send_redis_event_no_agent(self) -> None:
         self.manager.agent_handler = None
-        # Should return early without error
         self.manager._send_redis_event("redis_connection", "test", "test")
 
     def test_send_redis_event_exception_handled(self) -> None:
         self.manager.agent_handler.send_event.side_effect = Exception("agent down")
         self.manager._send_redis_event("redis_error", "failed", "reason")
 
-
-# =========================================================================
-# RateLimitManager events
-# =========================================================================
 
 class TestRateLimitManagerEvents:
     """Tests for RateLimitManager._send_rate_limit_event."""
@@ -187,8 +165,6 @@ class TestRateLimitManagerEvents:
         with self.app.test_request_context("/api/test"):
             from flask import request
 
-            # Should not raise — the caller guards with `if self.agent_handler`
-            # but calling directly still works (try/except inside)
             self.manager._send_rate_limit_event(request, "1.2.3.4", 10)
 
     def test_send_rate_limit_event_exception_handled(self) -> None:
@@ -198,10 +174,6 @@ class TestRateLimitManagerEvents:
 
             self.manager._send_rate_limit_event(request, "1.2.3.4", 10)
 
-
-# =========================================================================
-# CloudManager events
-# =========================================================================
 
 class TestCloudManagerEvents:
     """Tests for CloudManager._send_cloud_event and send_cloud_detection_event."""
@@ -234,16 +206,11 @@ class TestCloudManagerEvents:
 
     def test_send_cloud_event_no_agent(self) -> None:
         self.manager.agent_handler = None
-        # Should return early
-        self.manager._send_cloud_event(
-            "cloud_blocked", "1.2.3.4", "blocked", "reason"
-        )
+        self.manager._send_cloud_event("cloud_blocked", "1.2.3.4", "blocked", "reason")
 
     def test_send_cloud_event_exception_handled(self) -> None:
         self.manager.agent_handler.send_event.side_effect = Exception("agent down")
-        self.manager._send_cloud_event(
-            "cloud_blocked", "1.2.3.4", "blocked", "reason"
-        )
+        self.manager._send_cloud_event("cloud_blocked", "1.2.3.4", "blocked", "reason")
 
     def test_send_cloud_detection_event(self) -> None:
         self.manager.send_cloud_detection_event(
@@ -261,13 +228,8 @@ class TestCloudManagerEvents:
 
     def test_send_cloud_detection_event_no_agent(self) -> None:
         self.manager.agent_handler = None
-        # Should return early without error
         self.manager.send_cloud_detection_event("1.2.3.4", "GCP", "10.0.0.0/8")
 
-
-# =========================================================================
-# BehaviorTracker events
-# =========================================================================
 
 class TestBehaviorTrackerEvents:
     """Tests for BehaviorTracker._send_behavior_event."""
@@ -309,10 +271,6 @@ class TestBehaviorTrackerEvents:
         )
 
 
-# =========================================================================
-# IPInfoManager events
-# =========================================================================
-
 class TestIPInfoManagerEvents:
     """Tests for IPInfoManager._send_geo_event and check_country_access."""
 
@@ -345,15 +303,11 @@ class TestIPInfoManagerEvents:
 
     def test_send_geo_event_no_agent(self) -> None:
         self.manager.agent_handler = None
-        self.manager._send_geo_event(
-            "country_blocked", "8.8.8.8", "blocked", "test"
-        )
+        self.manager._send_geo_event("country_blocked", "8.8.8.8", "blocked", "test")
 
     def test_send_geo_event_exception_handled(self) -> None:
         self.manager.agent_handler.send_event.side_effect = Exception("agent down")
-        self.manager._send_geo_event(
-            "country_blocked", "8.8.8.8", "blocked", "test"
-        )
+        self.manager._send_geo_event("country_blocked", "8.8.8.8", "blocked", "test")
 
     def test_check_country_access_whitelist_fail_closed(self) -> None:
         """Unknown country (None) should be blocked when whitelist is set."""

@@ -69,7 +69,6 @@ class TestCloudProviderEdgeCases:
             g.is_whitelisted = False
             mock_request = Mock(spec=Request)
 
-            # Replace route_resolver with new mock
             cloud_check.middleware.route_resolver = Mock()
             cloud_check.middleware.route_resolver.should_bypass_check = Mock(
                 return_value=True
@@ -118,7 +117,6 @@ class TestCloudProviderEdgeCases:
             g.is_whitelisted = False
             mock_request = Mock(spec=Request)
 
-            # Replace route_resolver with new mock
             cloud_check.middleware.route_resolver = Mock()
             cloud_check.middleware.route_resolver.should_bypass_check = Mock(
                 return_value=False

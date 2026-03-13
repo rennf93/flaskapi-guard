@@ -182,7 +182,7 @@ class FlaskAPIGuardStressTest:
         try:
             response = client.request(method, url, **kwargs)
             duration = time.time() - start_time
-            response.text
+            _ = response.text
 
             # Determine if security was triggered
             status = response.status_code
@@ -237,22 +237,16 @@ class FlaskAPIGuardStressTest:
         headers = {"X-Forwarded-For": ip_address}
         url = f"{self.base_url}/"
 
-        return self.make_request(
-            client, "GET", url, "rate_limiting", headers=headers
-        )
+        return self.make_request(client, "GET", url, "rate_limiting", headers=headers)
 
-    def test_strict_rate_limit(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_strict_rate_limit(self, client: httpx.Client) -> RequestResult:
         """Test strict rate limit endpoint (1 req/10s)."""
         url = f"{self.base_url}/rate/strict-limit"
         return self.make_request(
             client, "GET", url, "rate_limiting", expected_block=True
         )
 
-    def test_custom_rate_limit(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_custom_rate_limit(self, client: httpx.Client) -> RequestResult:
         """Test custom rate limit endpoint (5 req/60s)."""
         url = f"{self.base_url}/rate/custom-limit"
         return self.make_request(client, "GET", url, "rate_limiting")
@@ -294,9 +288,7 @@ class FlaskAPIGuardStressTest:
             client, "POST", url, "penetration_detection", expected_block=True
         )
 
-    def test_path_traversal(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_path_traversal(self, client: httpx.Client) -> RequestResult:
         """Test path traversal attack detection."""
         paths = [
             "../../../etc/passwd",
@@ -310,9 +302,7 @@ class FlaskAPIGuardStressTest:
             client, "GET", url, "penetration_detection", expected_block=True
         )
 
-    def test_command_injection(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_command_injection(self, client: httpx.Client) -> RequestResult:
         """Test command injection detection."""
         commands = [
             "; ls -la",
@@ -373,9 +363,7 @@ class FlaskAPIGuardStressTest:
             client, "GET", url, "access_control", headers=headers, expected_block=True
         )
 
-    def test_cloud_blocking(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_cloud_blocking(self, client: httpx.Client) -> RequestResult:
         """Test cloud provider IP blocking."""
         url = f"{self.base_url}/access/no-cloud"
         return self.make_request(client, "GET", url, "access_control")
@@ -412,32 +400,24 @@ class FlaskAPIGuardStressTest:
 
     # ==================== Behavioral Tests ====================
 
-    def test_usage_monitoring(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_usage_monitoring(self, client: httpx.Client) -> RequestResult:
         """Test endpoint usage monitoring."""
         url = f"{self.base_url}/behavior/usage-monitor"
         return self.make_request(client, "GET", url, "behavioral")
 
-    def test_frequency_detection(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_frequency_detection(self, client: httpx.Client) -> RequestResult:
         """Test suspicious request frequency detection."""
         url = f"{self.base_url}/behavior/suspicious-frequency"
         return self.make_request(client, "GET", url, "behavioral")
 
     # ==================== Headers & Content Tests ====================
 
-    def test_security_headers(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_security_headers(self, client: httpx.Client) -> RequestResult:
         """Test security headers presence."""
         url = f"{self.base_url}/headers/"
         return self.make_request(client, "GET", url, "security_headers")
 
-    def test_content_filtering(
-        self, client: httpx.Client
-    ) -> RequestResult:
+    def test_content_filtering(self, client: httpx.Client) -> RequestResult:
         """Test content type filtering."""
         url = f"{self.base_url}/content/json-only"
         # Send wrong content type
@@ -474,7 +454,8 @@ class FlaskAPIGuardStressTest:
                 worker_results.append(result)
 
                 if self.verbose and len(worker_results) % 100 == 0:
-                    print(f"Worker {worker_id}: {len(worker_results)} requests completed")
+                    n = len(worker_results)
+                    print(f"Worker {worker_id}: {n} requests completed")
 
                 if self.delay > 0:
                     time.sleep(self.delay)
@@ -497,9 +478,7 @@ class FlaskAPIGuardStressTest:
         self.stop_event.clear()
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            futures = [
-                executor.submit(self.worker, i) for i in range(self.concurrency)
-            ]
+            futures = [executor.submit(self.worker, i) for i in range(self.concurrency)]
 
             # Wait for the test duration, then signal workers to stop
             time.sleep(self.duration)
@@ -812,7 +791,8 @@ def main() -> int:
         security = results["security"]
         if security["penetration_block_rate"] < 50:
             print(
-                f"\nWARNING: Low penetration block rate ({security['penetration_block_rate']:.1f}%)"
+                "\nWARNING: Low penetration block rate"
+                f" ({security['penetration_block_rate']:.1f}%)"
             )
             return 1
 

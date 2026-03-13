@@ -1,4 +1,3 @@
-# flaskapi_guard/decorators/base.py
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -25,9 +24,7 @@ class RouteConfig:
         self.custom_validators: list[Callable] = []
         self.blocked_user_agents: list[str] = []
         self.required_headers: dict[str, str] = {}
-        # Behavioral analysis fields
         self.behavior_rules: list[BehaviorRule] = []
-        # Additional security fields
         self.block_cloud_providers: set[str] = set()
         self.max_request_size: int | None = None
         self.allowed_content_types: list[str] | None = None
@@ -82,7 +79,6 @@ class BaseSecurityDecorator:
     def _apply_route_config(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Apply route configuration to a function."""
         route_id = self._get_route_id(func)
-        # NOTE: Setting metadata attribute on function object — inherently untyped
         func._guard_route_id = route_id  # type: ignore[attr-defined]
         return func
 
@@ -94,7 +90,6 @@ class BaseSecurityDecorator:
     def initialize_agent(self, agent_handler: Any) -> None:
         """Initialize agent integration for decorator-based security."""
         self.agent_handler = agent_handler
-        # Initialize behavior tracker with agent
         self.behavior_tracker.initialize_agent(agent_handler)
 
     def send_decorator_event(
@@ -111,7 +106,6 @@ class BaseSecurityDecorator:
             return
 
         try:
-            # Extract client IP using existing utility
             from flaskapi_guard.utils import extract_client_ip
 
             client_ip = extract_client_ip(request, self.config, self.agent_handler)
@@ -122,7 +116,7 @@ class BaseSecurityDecorator:
                 timestamp=datetime.now(timezone.utc),
                 event_type=event_type,
                 ip_address=client_ip,
-                country=None,  # Will be enriched by geo handler if available
+                country=None,
                 user_agent=request.headers.get("User-Agent"),
                 action_taken=action_taken,
                 reason=reason,
@@ -135,7 +129,6 @@ class BaseSecurityDecorator:
             self.agent_handler.send_event(event)
 
         except Exception as e:
-            # Don't let agent errors break decorator functionality
             import logging
 
             logging.getLogger("flaskapi_guard.decorators.base").error(
@@ -214,7 +207,6 @@ class BaseSecurityDecorator:
         )
 
 
-# Extract route config from Flask route
 def get_route_decorator_config(
     request: Request, decorator_handler: BaseSecurityDecorator
 ) -> RouteConfig | None:

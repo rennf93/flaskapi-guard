@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/suspicious_activity.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -72,7 +71,6 @@ class SuspiciousActivityCheck(SecurityCheck):
         """
         sus_specs = f"{client_ip} - {trigger_info}"
 
-        # Check if IP should be banned
         if (
             self.config.enable_ip_banning
             and self.middleware.suspicious_request_counts[client_ip]
@@ -96,7 +94,6 @@ class SuspiciousActivityCheck(SecurityCheck):
                 default_message="IP has been banned",
             )
 
-        # Block request without banning
         log_activity(
             request,
             self.logger,
@@ -139,7 +136,6 @@ class SuspiciousActivityCheck(SecurityCheck):
         if not client_ip:
             return None
 
-        # Detect penetration patterns using helper function
         should_bypass = None
         if self.middleware.route_resolver is not None:
             should_bypass = self.middleware.route_resolver.should_bypass_check
@@ -150,7 +146,6 @@ class SuspiciousActivityCheck(SecurityCheck):
             should_bypass,
         )
 
-        # Detection disabled by decorator - send event
         if trigger_info == "disabled_by_decorator":
             if self.middleware.event_bus is not None:
                 self.middleware.event_bus.send_middleware_event(
@@ -166,12 +161,10 @@ class SuspiciousActivityCheck(SecurityCheck):
         if not detection_result:
             return None
 
-        # Update request count for this IP
         self.middleware.suspicious_request_counts[client_ip] = (
             self.middleware.suspicious_request_counts.get(client_ip, 0) + 1
         )
 
-        # Handle based on mode
         if self.config.passive_mode:
             self._handle_suspicious_passive_mode(request, client_ip, trigger_info)
             return None

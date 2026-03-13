@@ -65,7 +65,6 @@ def test_database_retry_success(tmp_path: Path) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.content = b"test data"
 
-    # Use a closure to track the number of calls
     call_count = 0
 
     def side_effect_function(*args: Any, **kwargs: Any) -> Mock:
@@ -225,14 +224,11 @@ def test_redis_cache_hit(tmp_path: Path) -> None:
     with patch("maxminddb.open_database", return_value=mock_reader) as mock_open:
         db.initialize()
 
-        # Verify Redis cache check
         db.redis_handler.get_key.assert_called_once_with("ipinfo", "database")
 
-        # Verify file write with proper bytes handling
         with open(db.db_path, "rb") as f:
             assert f.read() == b"mock_db_data"
 
-        # Verify database initialization
         mock_open.assert_called_once_with(str(db.db_path))
         assert db.reader is mock_reader
 
@@ -252,7 +248,6 @@ def test_redis_cache_update(tmp_path: Path) -> None:
     ):
         db._download_database()
 
-        # Verify Redis storage with raw bytes
         db.redis_handler.set_key.assert_called_once_with(
             "ipinfo", "database", b"new_db_data".decode("latin-1"), ttl=86400
         )
@@ -292,34 +287,28 @@ def test_redirect_handling(tmp_path: Path) -> None:
     """Test that redirects are properly followed during download"""
     db = IPInfoManager(token="test", db_path=tmp_path / "test.mmdb")
 
-    # Create mock redirect response (302)
     redirect_response = Mock()
     redirect_response.status_code = 302
     redirect_response.headers = {
         "Location": "https://ipinfo.io/data/free/country_asn.mmdb"
     }
 
-    # Create final response after redirect
     final_response = Mock()
     final_response.raise_for_status = Mock()
     final_response.content = b"valid_db_content"
     final_response.status_code = 200
-    # httpx tracks redirect history
     final_response.history = [redirect_response]
 
     with patch("httpx.Client.get", return_value=final_response) as mock_get:
         db._download_database()
 
-        # Verify the file was written with final response content
         assert db.db_path.exists()
         with open(db.db_path, "rb") as f:
             assert f.read() == b"valid_db_content"
 
-        # Verify follow_redirects=True was used (which enables redirect handling)
         mock_get.assert_called_once()
         call_kwargs = mock_get.call_args[1]
         assert call_kwargs.get("follow_redirects") is True
 
-        # Verify the response has redirect history
         assert len(final_response.history) == 1
         assert final_response.history[0].status_code == 302

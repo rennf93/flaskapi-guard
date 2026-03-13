@@ -1,11 +1,4 @@
-"""
-Test configuration specific to flaskapi-guard-agent integration tests.
-
-This conftest.py is only loaded for tests in the test_agent directory.
-
-These tests require the `guard_agent` package (future: `flaskapi-guard-agent`).
-When the package is not installed, all tests in this directory are skipped.
-"""
+"""Test configuration for flaskapi-guard-agent integration tests."""
 
 from collections.abc import Generator
 from typing import Any
@@ -16,10 +9,6 @@ import pytest
 try:
     from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
 except ModuleNotFoundError:
-    # Placeholder types when guard_agent is not installed
-    # (future: flaskapi-guard-agent)
-    # Tests in this directory will fail at runtime but won't
-    # break collection of other test directories.
     AgentConfig = type("AgentConfig", (), {})
     SecurityEvent = type("SecurityEvent", (), {})
     SecurityMetric = type("SecurityMetric", (), {})
@@ -44,7 +33,6 @@ def mock_guard_agent() -> Generator[Any, Any, Any]:
     mock_models_module.AgentConfig = AgentConfig
     mock_guard_agent_module.models = mock_models_module
 
-    # Mock guard_agent function to return a mock agent handler
     mock_agent_handler = MagicMock()
     mock_guard_agent_func = MagicMock(return_value=mock_agent_handler)
     mock_guard_agent_module.guard_agent = mock_guard_agent_func
@@ -137,7 +125,6 @@ def mock_guard_agent() -> Generator[Any, Any, Any]:
         try:
             yield mock_guard_agent_module
         finally:
-            # Restore original modules
             for module_name in modules_to_mock:
                 if module_name in original_modules:
                     sys.modules[module_name] = original_modules[module_name]
@@ -145,7 +132,6 @@ def mock_guard_agent() -> Generator[Any, Any, Any]:
                     del sys.modules[module_name]
 
 
-# Mock Redis, IPInfo, and CloudManager to prevent initialization issues
 @pytest.fixture(autouse=True)
 def mock_dependencies(mock_guard_agent: MagicMock) -> Generator[Any, Any, Any]:
     """Mock external dependencies to prevent connection attempts."""
@@ -156,9 +142,10 @@ def mock_dependencies(mock_guard_agent: MagicMock) -> Generator[Any, Any, Any]:
         patch(
             "flaskapi_guard.handlers.ipinfo_handler.IPInfoManager.__new__"
         ) as mock_ipinfo,
-        patch("flaskapi_guard.handlers.cloud_handler.CloudManager.__new__") as mock_cloud,
+        patch(
+            "flaskapi_guard.handlers.cloud_handler.CloudManager.__new__"
+        ) as mock_cloud,
     ):
-        # Return mock instances
         mock_ipinfo_instance = MagicMock()
         mock_ipinfo.return_value = mock_ipinfo_instance
 
@@ -169,7 +156,6 @@ def mock_dependencies(mock_guard_agent: MagicMock) -> Generator[Any, Any, Any]:
 
 @pytest.fixture
 def config() -> SecurityConfig:
-    """Create a test security config."""
     return SecurityConfig(
         enable_agent=True,
         agent_api_key="test-api-key",
@@ -187,7 +173,6 @@ def config() -> SecurityConfig:
 
 @pytest.fixture
 def mock_agent_handler() -> MagicMock:
-    """Create a mock agent handler."""
     handler = MagicMock()
     handler.get_dynamic_rules = MagicMock()
     handler.send_event = MagicMock()
@@ -196,5 +181,4 @@ def mock_agent_handler() -> MagicMock:
 
 @pytest.fixture
 def mock_redis_handler() -> MagicMock:
-    """Create a mock redis handler."""
     return MagicMock()

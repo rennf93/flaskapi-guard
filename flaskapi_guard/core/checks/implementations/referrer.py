@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/referrer.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -91,11 +90,9 @@ class ReferrerCheck(SecurityCheck):
 
         referrer = request.headers.get("referer", "")
 
-        # Handle missing referrer
         if not referrer:
             return self._handle_missing_referrer(request, route_config)
 
-        # Check if referrer domain is allowed using helper function
         if not is_referrer_domain_allowed(referrer, route_config.require_referrer):
             return self._handle_invalid_referrer(request, referrer, route_config)
 

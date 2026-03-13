@@ -212,56 +212,44 @@ def test_no_duplicate_logs(caplog: pytest.LogCaptureFixture, tmp_path: Any) -> N
     This verifies that even though we allow propagation, the hierarchical
     namespace prevents duplicate console output.
     """
-    # Create a custom log file
     log_file = tmp_path / "test_no_duplicates.log"
 
-    # Setup custom logging
     guard_logger = setup_custom_logging(str(log_file))
 
-    # Simulate user's logging config
     root_logger = logging.getLogger()
     original_handlers = root_logger.handlers.copy()
     original_level = root_logger.level
 
-    # Simulate user's setup
     root_handler = logging.StreamHandler()
     root_handler.setFormatter(logging.Formatter("ROOT: %(message)s"))
     root_logger.addHandler(root_handler)
     root_logger.setLevel(logging.INFO)
 
     try:
-        # Clear caplog and set level
         caplog.clear()
         caplog.set_level(logging.INFO)
 
-        # Log a test message to guard_logger
         test_message = "Test message for duplicate check"
         guard_logger.info(test_message)
 
-        # Check the message
         matching_records = [r for r in caplog.records if test_message in r.message]
 
-        # We should see the message only once per handler, not duplicated
         assert len(matching_records) > 0, "Message should be logged"
 
-        # Check that we don't have exact duplicates (same logger, same message)
         seen = set()
         for record in matching_records:
             key = (record.name, record.message, record.levelname)
             assert key not in seen, f"Duplicate log found: {key}"
             seen.add(key)
 
-        # Verify the log file has the message
         with open(log_file) as f:
             file_content = f.read()
             assert test_message in file_content
-            # Count occurrences in file - should be exactly once
             assert file_content.count(test_message) == 1, (
                 "Message should appear once in log file"
             )
 
     finally:
-        # Restore root logger state
         root_logger.handlers = original_handlers
         root_logger.setLevel(original_level)
 
@@ -272,21 +260,17 @@ def test_hierarchical_namespace_isolation() -> None:
 
     This ensures that flaskapi_guard.* loggers are separate from user loggers.
     """
-    # Get different loggers
     guard_logger = logging.getLogger("flaskapi_guard")
     guard_handler_logger = logging.getLogger("flaskapi_guard.handlers.redis")
     user_logger = logging.getLogger("myapp")
 
-    # Check namespace hierarchy
     assert guard_handler_logger.parent == guard_logger
-    assert guard_logger.parent == logging.getLogger()  # root logger
-    assert user_logger.parent == logging.getLogger()  # root logger
+    assert guard_logger.parent == logging.getLogger()
+    assert user_logger.parent == logging.getLogger()
 
-    # Verify they're different instances
     assert guard_logger is not user_logger
     assert guard_handler_logger is not user_logger
 
-    # Verify the namespace
     assert guard_logger.name == "flaskapi_guard"
     assert guard_handler_logger.name == "flaskapi_guard.handlers.redis"
     assert user_logger.name == "myapp"
@@ -296,24 +280,19 @@ def test_custom_log_file_configuration(tmp_path: Any) -> None:
     """
     Test that custom_log_file configuration is properly used.
     """
-    # Test with custom log file
     custom_log_path = tmp_path / "my_custom_security.log"
     logger = setup_custom_logging(str(custom_log_path))
 
-    # Log a test message
     test_message = "Custom log file test"
     logger.info(test_message)
 
-    # Verify the custom log file was created and contains the message
     assert custom_log_path.exists(), "Custom log file should be created"
     with open(custom_log_path) as f:
         content = f.read()
         assert test_message in content
 
-    # Test with None (no file logging)
     logger_no_file = setup_custom_logging(None)
 
-    # Should still have console handler but no file handler
     file_handlers = [
         h for h in logger_no_file.handlers if isinstance(h, logging.FileHandler)
     ]
@@ -331,7 +310,6 @@ def test_console_always_enabled(caplog: pytest.LogCaptureFixture) -> None:
     """
     Test that console output is ALWAYS enabled regardless of file configuration.
     """
-    # Setup without file
     logger_no_file = setup_custom_logging(None)
 
     caplog.clear()
@@ -340,10 +318,8 @@ def test_console_always_enabled(caplog: pytest.LogCaptureFixture) -> None:
     test_message = "Console output test - no file"
     logger_no_file.info(test_message)
 
-    # Message should appear in console (caplog)
     assert test_message in caplog.text, "Console output should work without file"
 
-    # Setup with file
     import tempfile
 
     with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as tmp_file:
@@ -353,10 +329,8 @@ def test_console_always_enabled(caplog: pytest.LogCaptureFixture) -> None:
         test_message_2 = "Console output test - with file"
         logger_with_file.info(test_message_2)
 
-        # Message should appear in console (caplog) even with file
         assert test_message_2 in caplog.text, "Console output should work with file"
 
-        # Clean up
         os.unlink(tmp_file.name)
 
 
@@ -364,28 +338,21 @@ def test_setup_custom_logging_creates_directory(tmp_path: Any) -> None:
     """
     Test that setup_custom_logging creates directory if it doesn't exist.
     """
-    # Create a path with a non-existent subdirectory
     non_existent_dir = tmp_path / "logs" / "subdirectory" / "deep"
     log_file_path = non_existent_dir / "test.log"
 
-    # Ensure the directory doesn't exist
     assert not non_existent_dir.exists(), "Directory should not exist initially"
 
-    # Setup logging with file in non-existent directory
     logger = setup_custom_logging(str(log_file_path))
 
-    # Directory should have been created
     assert non_existent_dir.exists(), "Directory should be created"
 
-    # Verify file handler was added successfully
     file_handlers = [h for h in logger.handlers if isinstance(h, logging.FileHandler)]
     assert len(file_handlers) == 1, "Should have exactly one file handler"
 
-    # Test that logging works
     test_message = "Directory creation test"
     logger.info(test_message)
 
-    # Verify the log file was created and contains the message
     assert log_file_path.exists(), "Log file should be created"
     with open(log_file_path) as f:
         content = f.read()
@@ -398,36 +365,27 @@ def test_setup_custom_logging_file_handler_exception(
     """
     Test that setup_custom_logging handles exceptions when creating file handler.
     """
-    # Mock os.path.exists to return True so os.makedirs is skipped
     mocker.patch("os.path.exists", return_value=True)
-    # Mock FileHandler to raise an exception
     mocker.patch(
         "flaskapi_guard.utils.logging.FileHandler",
         side_effect=PermissionError("Permission denied: cannot create log file"),
     )
 
-    # Clear existing logs
     caplog.clear()
     caplog.set_level(logging.WARNING, logger="flaskapi_guard")
 
-    # Try to setup logging with a file that will fail
     logger = setup_custom_logging("/invalid/path/test.log")
 
-    # Should have logged a warning about the failure
     assert "Failed to create log file /invalid/path/test.log" in caplog.text
     assert "Permission denied" in caplog.text or "cannot create log file" in caplog.text
 
-    # Logger should still work (console only)
     assert logger is not None
 
-    # Should have only stream handler (console), no file handler
-    # Since FileHandler was mocked and failed, we should only have StreamHandler
     assert len(logger.handlers) == 1, "Should have exactly one handler"
     assert isinstance(logger.handlers[0], logging.StreamHandler), (
         "Should have console handler"
     )
 
-    # Test that console logging still works
     caplog.clear()
     caplog.set_level(logging.INFO, logger="flaskapi_guard")
     test_message = "Console still works after file handler failure"
@@ -476,7 +434,6 @@ def test_passive_mode_rate_limiting_scenarios(
     """
     Test passive mode rate limiting.
     """
-    # Endpoint-specific rate limit in passive mode
     security_config.passive_mode = True
     security_config.enable_redis = False
     security_config.endpoint_rate_limits = {"/api/test": (1, 60)}
@@ -484,7 +441,6 @@ def test_passive_mode_rate_limiting_scenarios(
     app = Flask(__name__)
     guard = FlaskAPIGuard(app, config=security_config)
 
-    # In passive mode, rate limiting should not block
     route_config = RouteConfig()
     route_config.rate_limit = 5
     route_config.rate_limit_window = 30
@@ -492,7 +448,6 @@ def test_passive_mode_rate_limiting_scenarios(
     with app.test_request_context("/test"):
         from flask import request
 
-        # Should return None in passive mode
         result = guard._check_rate_limit(request, "127.0.0.1", route_config)
         assert result is None
 

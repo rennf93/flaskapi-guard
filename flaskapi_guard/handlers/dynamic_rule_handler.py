@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/dynamic_rule_handler.py
 import logging
 import threading
 import time
@@ -40,7 +39,6 @@ class DynamicRuleManager:
         """Initialize agent integration."""
         self.agent_handler = agent_handler
 
-        # Start background rule update thread if dynamic rules are enabled
         if self.config.enable_dynamic_rules and not self._update_thread:
             self._stop_event = threading.Event()
             self._update_thread = threading.Thread(
@@ -60,7 +58,6 @@ class DynamicRuleManager:
                 self.update_rules()
             except Exception as e:
                 self.logger.error(f"Error in dynamic rule update loop: {e}")
-            # Wait for the interval or stop event
             if self._stop_event is not None:
                 self._stop_event.wait(timeout=self.config.dynamic_rule_interval)
 
@@ -69,7 +66,6 @@ class DynamicRuleManager:
         if not self.current_rules:
             return True
 
-        # Only update if rules have changed
         return not (
             rules.rule_id == self.current_rules.rule_id
             and rules.version <= self.current_rules.version
@@ -109,29 +105,23 @@ class DynamicRuleManager:
             return
 
         try:
-            # Fetch rules from agent
             rules = self.agent_handler.get_dynamic_rules()
             if not rules:
                 return
 
-            # Check if rules should be updated
             if not self._should_update_rules(rules):
                 return
 
-            # Notify that rules were received
             self._send_rule_received_event(rules)
 
-            # Log and apply the rules
             self.logger.info(
                 f"Applying dynamic rules: {rules.rule_id} v{rules.version}"
             )
             self._apply_rules(rules)
 
-            # Cache the rules
             self.current_rules = rules
             self.last_update = time.time()
 
-            # Send completion event
             self._send_rule_applied_event(rules)
 
         except Exception as e:
@@ -164,20 +154,15 @@ class DynamicRuleManager:
     def _apply_rules(self, rules: DynamicRules) -> None:
         """Apply dynamic rules to existing handlers."""
         try:
-            # Apply IP-related rules
             self._apply_ip_rules(rules)
 
-            # Apply blocking rules
             self._apply_blocking_rules(rules)
 
-            # Apply rate limiting rules
             if rules.global_rate_limit or rules.endpoint_rate_limits:
                 self._apply_rate_limit_rules(rules)
 
-            # Apply feature toggles
             self._apply_feature_toggles(rules)
 
-            # Handle emergency mode
             if rules.emergency_mode:
                 self._activate_emergency_mode(rules.emergency_whitelist)
 
@@ -209,7 +194,6 @@ class DynamicRuleManager:
 
     def _apply_country_rules(self, blocked: list[str], allowed: list[str]) -> None:
         """Apply dynamic country blocking rules."""
-        # Update the global config (this affects future requests)
         if blocked:
             self.config.blocked_countries = blocked
             self.logger.info(f"Dynamic rule: Blocked countries {blocked}")
@@ -220,7 +204,6 @@ class DynamicRuleManager:
 
     def _apply_rate_limit_rules(self, rules: DynamicRules) -> None:
         """Apply dynamic rate limiting rules."""
-        # Update global rate limits
         if rules.global_rate_limit:
             self.config.rate_limit = rules.global_rate_limit
             if rules.global_rate_window:
@@ -229,7 +212,6 @@ class DynamicRuleManager:
             details = f"per {rules.global_rate_window}s"
             self.logger.info(f"Dynamic rule: {message} {details}")
 
-        # Endpoint-specific rate limits (agent feature)
         if rules.endpoint_rate_limits:
             self.config.endpoint_rate_limits = rules.endpoint_rate_limits.copy()
             self.logger.info(
@@ -252,7 +234,6 @@ class DynamicRuleManager:
         """Apply dynamic suspicious pattern rules."""
         from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
 
-        # Add patterns to the existing handler
         for pattern in patterns:
             sus_patterns_handler.add_pattern(pattern)
         self.logger.info(f"Dynamic rule: Added suspicious patterns {patterns}")
@@ -285,14 +266,12 @@ class DynamicRuleManager:
         self.config.emergency_mode = True
         self.config.emergency_whitelist = emergency_whitelist
 
-        # Enhanced security: Auto-ban becomes more aggressive
         original_threshold = self.config.auto_ban_threshold
         self.config.auto_ban_threshold = max(1, original_threshold // 2)
         message = "Reduced auto-ban threshold"
         details = f"from {original_threshold} to {self.config.auto_ban_threshold}"
         self.logger.warning(f"[EMERGENCY MODE] {message} {details}")
 
-        # Send critical alert
         if self.agent_handler:
             self._send_emergency_event(emergency_whitelist)
 
@@ -338,7 +317,7 @@ class DynamicRuleManager:
                 reason="[EMERGENCY MODE] activated via dynamic rules",
                 metadata={
                     "whitelist_count": len(whitelist),
-                    "whitelist": whitelist[:10],  # Limit for logging
+                    "whitelist": whitelist[:10],
                 },
             )
             self.agent_handler.send_event(event)
@@ -363,5 +342,4 @@ class DynamicRuleManager:
             self.logger.info("Stopped dynamic rule update loop")
 
 
-# Instance
 dynamic_rule_manager = DynamicRuleManager

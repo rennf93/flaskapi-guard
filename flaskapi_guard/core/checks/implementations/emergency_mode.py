@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/emergency_mode.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -17,14 +16,12 @@ class EmergencyModeCheck(SecurityCheck):
         if not self.config.emergency_mode:
             return None
 
-        # Get client IP from flask.g (set by RouteConfigCheck)
         client_ip = getattr(g, "client_ip", None)
         if not client_ip:
             client_ip = extract_client_ip(
                 request, self.config, self.middleware.agent_handler
             )
 
-        # Allow only emergency whitelist IPs
         if client_ip not in self.config.emergency_whitelist:
             log_activity(
                 request,
@@ -35,7 +32,6 @@ class EmergencyModeCheck(SecurityCheck):
                 passive_mode=self.config.passive_mode,
             )
 
-            # Send emergency mode blocking event
             if self.middleware.event_bus is not None:
                 self.middleware.event_bus.send_middleware_event(
                     event_type="emergency_mode_block",
@@ -54,7 +50,6 @@ class EmergencyModeCheck(SecurityCheck):
                     default_message="Service temporarily unavailable",
                 )
         else:
-            # Log allowed emergency access
             log_activity(
                 request,
                 self.logger,

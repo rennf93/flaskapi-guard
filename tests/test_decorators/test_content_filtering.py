@@ -86,7 +86,6 @@ def test_content_filtering_decorators_applied(
     description: str,
 ) -> None:
     """Test that content filtering decorators are applied correctly."""
-    # Map route path to endpoint name
     endpoint_map = {
         "/block-agents": "block_agents_endpoint",
         "/content-filter": "content_filter_endpoint",
@@ -187,7 +186,6 @@ def test_content_filtering_decorators_unit(
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
     mock_func.__module__ = "test_module"
 
-    # Test block_user_agents
     user_agent_decorator = decorator.block_user_agents(["bot", "spider"])
     decorated_func = user_agent_decorator(mock_func)
 
@@ -196,7 +194,6 @@ def test_content_filtering_decorators_unit(
     assert route_config is not None
     assert route_config.blocked_user_agents == ["bot", "spider"]
 
-    # Test content_type_filter
     mock_func2 = Mock()
     mock_func2.__name__ = mock_func2.__qualname__ = "test_func2"
     mock_func2.__module__ = "test_module"
@@ -209,7 +206,6 @@ def test_content_filtering_decorators_unit(
     assert route_config2 is not None
     assert route_config2.allowed_content_types == ["application/json"]
 
-    # Test max_request_size
     mock_func3 = Mock()
     mock_func3.__name__ = mock_func3.__qualname__ = "test_func3"
     mock_func3.__module__ = "test_module"
@@ -222,7 +218,6 @@ def test_content_filtering_decorators_unit(
     assert route_config3 is not None
     assert route_config3.max_request_size == 2048
 
-    # Test require_referrer
     mock_func4 = Mock()
     mock_func4.__name__ = mock_func4.__qualname__ = "test_func4"
     mock_func4.__module__ = "test_module"
@@ -235,7 +230,6 @@ def test_content_filtering_decorators_unit(
     assert route_config4 is not None
     assert route_config4.require_referrer == ["example.com"]
 
-    # Test custom_validation
     mock_func5 = Mock()
     mock_func5.__name__ = mock_func5.__qualname__ = "test_func5"
     mock_func5.__module__ = "test_module"
@@ -252,7 +246,6 @@ def test_content_filtering_decorators_unit(
     assert len(route_config5.custom_validators) == 1
     assert route_config5.custom_validators[0] == test_validator
 
-    # Test that the validator returns None
     result = test_validator(Mock())
     assert result is None
 
@@ -274,11 +267,9 @@ def test_referrer_passive_mode(security_config: SecurityConfig) -> None:
     FlaskAPIGuard(app, config=security_config)
 
     with app.test_client() as client:
-        # Missing referrer - should pass in passive mode
         response = client.get("/referrer-test", headers={"X-Forwarded-For": "8.8.8.8"})
         assert response.status_code == 200
 
-        # Invalid referrer - should pass in passive mode
         response = client.get(
             "/referrer-test",
             headers={"X-Forwarded-For": "8.8.8.8", "Referer": "https://evil.com"},

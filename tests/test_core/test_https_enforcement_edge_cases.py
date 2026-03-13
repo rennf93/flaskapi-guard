@@ -3,7 +3,9 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from flask import Flask, Request, g
 
-from flaskapi_guard.core.checks.implementations.authentication import AuthenticationCheck
+from flaskapi_guard.core.checks.implementations.authentication import (
+    AuthenticationCheck,
+)
 from flaskapi_guard.core.checks.implementations.emergency_mode import EmergencyModeCheck
 from flaskapi_guard.core.checks.implementations.https_enforcement import (
     HttpsEnforcementCheck,
@@ -60,7 +62,6 @@ class TestHttpsEnforcementEdgeCases:
         self, https_check: HttpsEnforcementCheck
     ) -> None:
         """Test _is_trusted_proxy with CIDR range match."""
-        # CIDR comparison returns True
         result = https_check._is_trusted_proxy("192.168.1.100")
         assert result is True
 
@@ -68,7 +69,6 @@ class TestHttpsEnforcementEdgeCases:
         self, https_check: HttpsEnforcementCheck
     ) -> None:
         """Test _is_trusted_proxy with CIDR range no match."""
-        # return False when no proxy matches
         result = https_check._is_trusted_proxy("172.16.0.1")
         assert result is False
 
@@ -76,7 +76,6 @@ class TestHttpsEnforcementEdgeCases:
         self, https_check: HttpsEnforcementCheck
     ) -> None:
         """Test _is_trusted_proxy with single IP that doesn't match."""
-        # return False when single IP doesn't match
         result = https_check._is_trusted_proxy("10.0.0.2")
         assert result is False
 
@@ -84,7 +83,6 @@ class TestHttpsEnforcementEdgeCases:
         self, https_check: HttpsEnforcementCheck, security_config: SecurityConfig
     ) -> None:
         """Test check in passive mode returns None instead of redirect."""
-        # return None in passive mode
         security_config.passive_mode = True
 
         mock_request = Mock(spec=Request)
@@ -102,28 +100,26 @@ class TestHttpsEnforcementEdgeCases:
         self, https_check: HttpsEnforcementCheck
     ) -> None:
         """Test check with CIDR-matched proxy forwarding HTTPS."""
-        # CIDR match allows X-Forwarded-Proto
         mock_request = Mock(spec=Request)
         mock_request.scheme = "http"
-        mock_request.remote_addr = "192.168.1.50"  # Within CIDR range
+        mock_request.remote_addr = "192.168.1.50"
         mock_request.headers = {"X-Forwarded-Proto": "https"}
 
         app = Flask(__name__)
         with app.test_request_context():
             g.route_config = None
-            # Should pass because trusted proxy forwarded HTTPS
             result = https_check.check(mock_request)
             assert result is None
 
     @pytest.mark.parametrize(
         "connecting_ip,expected",
         [
-            ("192.168.1.1", True),  # In CIDR range
-            ("192.168.1.255", True),  # In CIDR range
-            ("192.168.2.1", False),  # Outside CIDR range
-            ("10.0.0.1", True),  # Exact single IP match
-            ("10.0.0.2", False),  # Different single IP
-            ("8.8.8.8", False),  # Completely different IP
+            ("192.168.1.1", True),
+            ("192.168.1.255", True),
+            ("192.168.2.1", False),
+            ("10.0.0.1", True),
+            ("10.0.0.2", False),
+            ("8.8.8.8", False),
         ],
     )
     def test_is_trusted_proxy_various_ips(
@@ -139,7 +135,6 @@ class TestReferrerCheckPassiveModeUnit:
 
     def test_handle_missing_referrer_passive_mode_unit(self) -> None:
         """Test _handle_missing_referrer returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -164,7 +159,6 @@ class TestReferrerCheckPassiveModeUnit:
 
     def test_handle_invalid_referrer_passive_mode_unit(self) -> None:
         """Test _handle_invalid_referrer returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -195,7 +189,6 @@ class TestAuthenticationCheckPassiveModeUnit:
 
     def test_authentication_check_passive_mode_unit(self) -> None:
         """Test authentication check returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -228,7 +221,6 @@ class TestEmergencyModeCheckPassiveModeUnit:
 
     def test_emergency_mode_check_no_client_ip_extracts_unit(self) -> None:
         """Test emergency mode extracts IP when client_ip is None - UNIT TEST."""
-        # client_ip extracted when None
         config = SecurityConfig()
         config.emergency_mode = True
         config.emergency_whitelist = ["192.168.1.1"]
@@ -250,18 +242,17 @@ class TestEmergencyModeCheckPassiveModeUnit:
             g.client_ip = None
             with patch(
                 "flaskapi_guard.core.checks.implementations.emergency_mode.extract_client_ip",
-                return_value="8.8.8.8",  # Extracted IP not in whitelist
+                return_value="8.8.8.8",
             ):
                 with patch(
                     "flaskapi_guard.core.checks.implementations.emergency_mode.log_activity",
                     return_value=MagicMock(),
                 ):
                     result = check.check(request)
-                    assert result is not None  # Blocked because not in whitelist
+                    assert result is not None
 
     def test_emergency_mode_check_passive_mode_unit(self) -> None:
         """Test emergency mode check returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
         config.emergency_mode = True
@@ -278,7 +269,7 @@ class TestEmergencyModeCheckPassiveModeUnit:
 
         app = Flask(__name__)
         with app.test_request_context():
-            g.client_ip = "8.8.8.8"  # Not in whitelist
+            g.client_ip = "8.8.8.8"
             with patch(
                 "flaskapi_guard.core.checks.implementations.emergency_mode.log_activity",
                 return_value=MagicMock(),
@@ -292,7 +283,6 @@ class TestRequestSizeContentCheckPassiveModeUnit:
 
     def test_check_request_size_limit_passive_mode_unit(self) -> None:
         """Test _check_request_size_limit returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -318,7 +308,6 @@ class TestRequestSizeContentCheckPassiveModeUnit:
 
     def test_check_content_type_allowed_passive_mode_unit(self) -> None:
         """Test _check_content_type_allowed returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -348,7 +337,6 @@ class TestRequiredHeadersCheckPassiveModeUnit:
 
     def test_required_headers_check_passive_mode_unit(self) -> None:
         """Test required headers check returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
 
@@ -395,13 +383,12 @@ class TestEmergencyModeWhitelistedIP:
 
         app = Flask(__name__)
         with app.test_request_context():
-            g.client_ip = "1.2.3.4"  # In whitelist
+            g.client_ip = "1.2.3.4"
             with patch(
                 "flaskapi_guard.core.checks.implementations.emergency_mode.log_activity",
             ) as mock_log:
                 result = check.check(request)
-                assert result is None  # Allowed
-                # Verify the "allowed" log was called
+                assert result is None
                 mock_log.assert_called_once()
                 call_kwargs = mock_log.call_args
                 assert "Allowed access" in call_kwargs[1]["reason"]
@@ -416,16 +403,14 @@ class TestUserAgentRouteSpecificBlock:
 
         config = SecurityConfig()
         config.passive_mode = False
-        config.blocked_user_agents = []  # No global blocks
+        config.blocked_user_agents = []
 
         guard = Mock()
         guard.config = config
         guard.logger = Mock()
         guard.event_bus = Mock()
         guard.event_bus.send_middleware_event = MagicMock()
-        guard.create_error_response = MagicMock(
-            return_value=Mock(status_code=403)
-        )
+        guard.create_error_response = MagicMock(return_value=Mock(status_code=403))
 
         check = UserAgentCheck(guard)
 
@@ -449,7 +434,6 @@ class TestUserAgentRouteSpecificBlock:
                     result = check.check(request)
                     assert result is not None
                     assert result.status_code == 403
-                    # Verify decorator_violation event was sent
                     guard.event_bus.send_middleware_event.assert_called_once()
                     call_kwargs = guard.event_bus.send_middleware_event.call_args[1]
                     assert call_kwargs["event_type"] == "decorator_violation"
@@ -493,7 +477,6 @@ class TestSuspiciousActivityCheckPassiveModeUnit:
 
     def test_suspicious_activity_check_no_client_ip_unit(self) -> None:
         """Test suspicious activity check returns None when no client_ip - UNIT TEST."""
-        # return None when client_ip is None
         config = SecurityConfig()
         config.passive_mode = False
         config.enable_penetration_detection = True
@@ -512,7 +495,7 @@ class TestSuspiciousActivityCheckPassiveModeUnit:
 
         app = Flask(__name__)
         with app.test_request_context():
-            g.client_ip = None  # No client IP
+            g.client_ip = None
             g.route_config = None
             g.is_whitelisted = False
             result = check.check(request)
@@ -520,7 +503,6 @@ class TestSuspiciousActivityCheckPassiveModeUnit:
 
     def test_suspicious_activity_check_passive_mode_unit(self) -> None:
         """Test suspicious activity check returns None in passive mode - UNIT TEST."""
-        # return None in passive mode
         config = SecurityConfig()
         config.passive_mode = True
         config.enable_penetration_detection = True
@@ -532,7 +514,7 @@ class TestSuspiciousActivityCheckPassiveModeUnit:
         guard.event_bus.send_middleware_event = MagicMock()
         guard.route_resolver = Mock()
         guard.route_resolver.should_bypass_check = Mock(return_value=False)
-        guard.suspicious_request_counts = {}  # Dict, not Mock
+        guard.suspicious_request_counts = {}
 
         check = SuspiciousActivityCheck(guard)
 
@@ -553,5 +535,4 @@ class TestSuspiciousActivityCheckPassiveModeUnit:
                 ):
                     result = check.check(request)
                     assert result is None
-                    # Verify count was incremented
                     assert guard.suspicious_request_counts["1.2.3.4"] == 1

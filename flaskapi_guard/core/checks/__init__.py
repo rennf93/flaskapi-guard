@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/__init__.py
 """Security checks module with modular architecture."""
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -24,10 +23,8 @@ from flaskapi_guard.core.checks.implementations import (
 from flaskapi_guard.core.checks.pipeline import SecurityCheckPipeline
 
 __all__ = [
-    # Base
     "SecurityCheck",
     "SecurityCheckPipeline",
-    # Implementations
     "RouteConfigCheck",
     "EmergencyModeCheck",
     "HttpsEnforcementCheck",

@@ -37,7 +37,6 @@ def test_get_endpoint_id_with_route() -> None:
     mock_request.method = "GET"
     mock_request.path = "/test"
 
-    # When there's a matching view function with module/qualname
     mock_view_func = Mock()
     mock_view_func.__module__ = "test_module"
     mock_view_func.__qualname__ = "test_function"
@@ -47,7 +46,6 @@ def test_get_endpoint_id_with_route() -> None:
         endpoint_id = guard._get_endpoint_id(mock_request)
         assert endpoint_id == "test_module.test_function"
 
-    # When there's no matching view function
     mock_request.endpoint = "nonexistent"
     with app.test_request_context("/test"):
         endpoint_id = guard._get_endpoint_id(mock_request)
@@ -100,15 +98,12 @@ def test_check_route_ip_access_blacklist() -> None:
     mock_route_config.blocked_countries = None
     mock_route_config.whitelist_countries = None
 
-    # Test blocked IP
     result = guard._check_route_ip_access("192.168.1.100", mock_route_config)
     assert result is False
 
-    # Test blocked CIDR
     result = guard._check_route_ip_access("10.0.0.1", mock_route_config)
     assert result is False
 
-    # Test allowed IP
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is None
 
@@ -125,15 +120,12 @@ def test_check_route_ip_access_whitelist() -> None:
     mock_route_config.blocked_countries = None
     mock_route_config.whitelist_countries = None
 
-    # Test allowed IP
     result = guard._check_route_ip_access("192.168.1.100", mock_route_config)
     assert result is True
 
-    # Test allowed CIDR
     result = guard._check_route_ip_access("10.0.0.1", mock_route_config)
     assert result is True
 
-    # Test blocked IP (not in whitelist)
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is False
 
@@ -144,7 +136,6 @@ def test_check_route_ip_access_countries() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Mock geo IP handler
     mock_geo_handler = Mock()
     guard.geo_ip_handler = mock_geo_handler
 
@@ -152,7 +143,6 @@ def test_check_route_ip_access_countries() -> None:
     mock_route_config.ip_blacklist = None
     mock_route_config.ip_whitelist = None
 
-    # Test blocked countries
     mock_route_config.blocked_countries = ["XX"]
     mock_route_config.whitelist_countries = None
     mock_geo_handler.get_country.return_value = "XX"
@@ -160,7 +150,6 @@ def test_check_route_ip_access_countries() -> None:
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is False
 
-    # Test allowed countries
     mock_route_config.blocked_countries = None
     mock_route_config.whitelist_countries = ["US"]
     mock_geo_handler.get_country.return_value = "US"
@@ -168,12 +157,10 @@ def test_check_route_ip_access_countries() -> None:
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is True
 
-    # Test country not in allowed list
     mock_geo_handler.get_country.return_value = "XX"
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is False
 
-    # Test no country data
     mock_geo_handler.get_country.return_value = None
     result = guard._check_route_ip_access("8.8.8.8", mock_route_config)
     assert result is False
@@ -185,7 +172,6 @@ def test_check_user_agent_allowed() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Test with route config blocking user agents
     mock_route_config = Mock()
     mock_route_config.blocked_user_agents = [r"badbot"]
 
@@ -196,7 +182,6 @@ def test_check_user_agent_allowed() -> None:
         result = guard._check_user_agent_allowed("goodbot", mock_route_config)
         assert result is True
 
-    # Test without route config
     with patch(
         "flaskapi_guard.utils.is_user_agent_allowed", return_value=False
     ) as mock_global:
@@ -211,7 +196,6 @@ def test_time_window_error_handling() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Test with invalid time restrictions
     invalid_time_restrictions = {"invalid": "data"}
 
     with patch.object(guard.validator.context.logger, "error") as mock_error:
@@ -228,19 +212,16 @@ def test_time_window_overnight() -> None:
 
     time_restrictions = {"start": "22:00", "end": "06:00"}
 
-    # Test time within overnight window (after start)
     with patch("flaskapi_guard.core.validation.validator.datetime") as mock_datetime:
         mock_datetime.now.return_value.strftime.return_value = "23:00"
         result = guard._check_time_window(time_restrictions)
         assert result is True
 
-    # Test time within overnight window (before end)
     with patch("flaskapi_guard.core.validation.validator.datetime") as mock_datetime:
         mock_datetime.now.return_value.strftime.return_value = "05:00"
         result = guard._check_time_window(time_restrictions)
         assert result is True
 
-    # Test time outside overnight window
     with patch("flaskapi_guard.core.validation.validator.datetime") as mock_datetime:
         mock_datetime.now.return_value.strftime.return_value = "12:00"
         result = guard._check_time_window(time_restrictions)
@@ -255,13 +236,11 @@ def test_time_window_normal() -> None:
 
     time_restrictions = {"start": "09:00", "end": "17:00"}
 
-    # Test time within normal window
     with patch("flaskapi_guard.core.validation.validator.datetime") as mock_datetime:
         mock_datetime.now.return_value.strftime.return_value = "12:00"
         result = guard._check_time_window(time_restrictions)
         assert result is True
 
-    # Test time outside normal window
     with patch("flaskapi_guard.core.validation.validator.datetime") as mock_datetime:
         mock_datetime.now.return_value.strftime.return_value = "20:00"
         result = guard._check_time_window(time_restrictions)
@@ -274,14 +253,12 @@ def test_behavioral_rules_without_guard_decorator() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Ensure guard_decorator is None
     guard.guard_decorator = None
 
     mock_request = Mock()
     mock_route_config = Mock()
     mock_route_config.behavior_rules = [BehaviorRule("usage", threshold=5, window=3600)]
 
-    # Should not raise any errors and return without processing
     guard._process_decorator_usage_rules(mock_request, "127.0.0.1", mock_route_config)
     guard._process_decorator_return_rules(
         mock_request, Mock(), "127.0.0.1", mock_route_config
@@ -294,7 +271,6 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Mock guard decorator with behavior tracker
     mock_guard_decorator = Mock()
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
@@ -309,7 +285,6 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     usage_rule = BehaviorRule("usage", threshold=5, window=3600)
     mock_route_config.behavior_rules = [usage_rule]
 
-    # Test when threshold not exceeded
     def mock_track_usage(*args: Any, **kwargs: Any) -> bool:
         return False  # pragma: no cover
 
@@ -318,7 +293,6 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     guard._process_decorator_usage_rules(mock_request, "127.0.0.1", mock_route_config)
     mock_behavior_tracker.apply_action.assert_not_called()
 
-    # Test when threshold exceeded
     def mock_track_usage_exceeded(*args: Any, **kwargs: Any) -> bool:
         return True  # pragma: no cover
 
@@ -337,7 +311,6 @@ def test_behavioral_return_rules_with_decorator() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Mock guard decorator with behavior tracker
     mock_guard_decorator = Mock()
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
@@ -355,7 +328,6 @@ def test_behavioral_return_rules_with_decorator() -> None:
     )
     mock_route_config.behavior_rules = [return_rule]
 
-    # Test when pattern not detected
     def mock_track_pattern(*args: Any, **kwargs: Any) -> bool:
         return False  # pragma: no cover
 
@@ -366,7 +338,6 @@ def test_behavioral_return_rules_with_decorator() -> None:
     )
     mock_behavior_tracker.apply_action.assert_not_called()
 
-    # Test when pattern detected
     def mock_track_pattern_detected(*args: Any, **kwargs: Any) -> bool:
         return True  # pragma: no cover
 
@@ -401,7 +372,6 @@ def test_get_route_decorator_config_no_guard_decorator() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
-    # Remove guard_decorator from extensions
     guard.set_decorator_handler(None)
 
     with app.test_request_context("/test"):
@@ -546,7 +516,6 @@ def test_route_specific_extension_validations(
 
     decorator = SecurityDecorator(config)
 
-    # Create route with appropriate config
     route_config = RouteConfig()
     for attr, value in test_case.items():
         if attr != "headers":
@@ -556,7 +525,6 @@ def test_route_specific_extension_validations(
     def test_endpoint() -> str:
         return "ok"
 
-    # Apply the route config to the view function
     route_id = f"{test_endpoint.__module__}.{test_endpoint.__qualname__}"
     decorator._route_configs[route_id] = route_config
     test_endpoint._guard_route_id = route_id
@@ -569,8 +537,6 @@ def test_route_specific_extension_validations(
         headers = {"X-Forwarded-For": "127.0.0.1"}
         headers.update(test_case["headers"])
 
-        # Use POST with body for max_request_size tests so content-length
-        # header is preserved (Werkzeug strips it on GET without body)
         use_post = "max_request_size" in test_case
         with patch(
             "flaskapi_guard.core.checks.helpers.detect_penetration_attempt",
@@ -592,7 +558,6 @@ def test_route_specific_rate_limit_with_redis() -> None:
 
     decorator = SecurityDecorator(config)
 
-    # Mock route config with rate limit
     route_config = RouteConfig()
     route_config.rate_limit = 5
     route_config.rate_limit_window = 60
@@ -601,7 +566,6 @@ def test_route_specific_rate_limit_with_redis() -> None:
     def test_endpoint() -> str:
         return "ok"
 
-    # Apply the route config
     route_id = f"{test_endpoint.__module__}.{test_endpoint.__qualname__}"
     decorator._route_configs[route_id] = route_config
     test_endpoint._guard_route_id = route_id
@@ -610,7 +574,6 @@ def test_route_specific_rate_limit_with_redis() -> None:
     guard = FlaskAPIGuard(app, config=config)
     app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
 
-    # Mock Redis handler
     mock_redis_handler = Mock()
     guard.redis_handler = mock_redis_handler
 

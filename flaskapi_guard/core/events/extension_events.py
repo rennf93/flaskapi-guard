@@ -1,4 +1,3 @@
-# flaskapi_guard/core/events/extension_events.py
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -60,13 +59,11 @@ class SecurityEventBus:
         try:
             client_ip = extract_client_ip(request, self.config, self.agent_handler)
 
-            # Get country information if available
             country = None
             if self.geo_ip_handler:
                 try:
                     country = self.geo_ip_handler.get_country(client_ip)
                 except Exception:
-                    # Don't let geo IP lookup failures break event sending
                     pass
 
             from guard_agent import SecurityEvent
@@ -86,7 +83,6 @@ class SecurityEventBus:
 
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break the extension
             self.logger.error(f"Failed to send security event to agent: {e}")
 
     def send_https_violation_event(
@@ -102,7 +98,6 @@ class SecurityEventBus:
         https_url = request.url.replace("http://", "https://", 1)
 
         if route_config and route_config.require_https:
-            # Route-specific HTTPS requirement
             self.send_middleware_event(
                 event_type="decorator_violation",
                 request=request,
@@ -114,7 +109,6 @@ class SecurityEventBus:
                 redirect_url=https_url,
             )
         else:
-            # Global HTTPS enforcement
             self.send_middleware_event(
                 event_type="https_enforced",
                 request=request,
@@ -144,7 +138,6 @@ class SecurityEventBus:
             cloud_handler: Cloud handler instance
             passive_mode: Whether extension is in passive mode
         """
-        # Send event to cloud handler if details available
         cloud_details = cloud_handler.get_cloud_provider_details(
             client_ip, set(cloud_providers_to_check)
         )
@@ -157,7 +150,6 @@ class SecurityEventBus:
                 "request_blocked" if not passive_mode else "logged_only",
             )
 
-        # Send decorator violation event for route-specific blocks
         if route_config and route_config.block_cloud_providers:
             self.send_middleware_event(
                 event_type="decorator_violation",

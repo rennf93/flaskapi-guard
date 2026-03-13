@@ -1,4 +1,3 @@
-# flaskapi_guard/core/validation/validator.py
 from datetime import datetime, timezone
 from ipaddress import ip_address, ip_network
 
@@ -26,10 +25,8 @@ class RequestValidator:
         Returns:
             True if request is HTTPS or forwarded as HTTPS from trusted proxy
         """
-        # Direct HTTPS check
         is_https = request.scheme == "https"
 
-        # Check X-Forwarded-Proto from trusted proxies
         if (
             self.context.config.trust_x_forwarded_proto
             and self.context.config.trusted_proxies
@@ -45,11 +42,9 @@ class RequestValidator:
         """Check if connecting IP is a trusted proxy."""
         for proxy in self.context.config.trusted_proxies:
             if "/" not in proxy:
-                # Single IP comparison
                 if connecting_ip == proxy:
                     return True
             else:
-                # CIDR range comparison
                 if ip_address(connecting_ip) in ip_network(proxy, strict=False):
                     return True
         return False
@@ -63,7 +58,6 @@ class RequestValidator:
             current_time = datetime.now(timezone.utc)
             current_hour_minute = current_time.strftime("%H:%M")
 
-            # Handle overnight time windows (e.g., 22:00 to 06:00)
             if start_time > end_time:
                 return (
                     current_hour_minute >= start_time or current_hour_minute <= end_time
@@ -73,14 +67,13 @@ class RequestValidator:
 
         except Exception as e:
             self.context.logger.error(f"Error checking time window: {e!s}")
-            return True  # Allow access if time check fails
+            return True
 
     def is_path_excluded(self, request: Request) -> bool:
         """Check if the request path is excluded from security checks."""
         if any(
             request.path.startswith(path) for path in self.context.config.exclude_paths
         ):
-            # Send path exclusion event for monitoring
             self.context.event_bus.send_middleware_event(
                 event_type="path_excluded",
                 request=request,

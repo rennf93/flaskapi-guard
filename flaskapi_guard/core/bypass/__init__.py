@@ -1,4 +1,3 @@
-# flaskapi_guard/core/bypass/__init__.py
 """Bypass handler module."""
 
 from flaskapi_guard.core.bypass.context import BypassContext

@@ -1,4 +1,3 @@
-# tests/test_agent/test_behavior_agent_integration.py
 import logging
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -10,10 +9,7 @@ from flaskapi_guard.models import SecurityConfig
 
 
 class TestBehaviorTrackerAgentIntegration:
-    """Test BehaviorTracker agent integration."""
-
     def test_initialize_agent(self) -> None:
-        """Test initialize_agent method."""
         config = SecurityConfig()
         tracker = BehaviorTracker(config)
         mock_agent = MagicMock()
@@ -23,12 +19,10 @@ class TestBehaviorTrackerAgentIntegration:
         assert tracker.agent_handler is mock_agent
 
     def test_send_behavior_event_no_agent_handler(self) -> None:
-        """Test _send_behavior_event when agent_handler is None."""
         config = SecurityConfig()
         tracker = BehaviorTracker(config)
         tracker.agent_handler = None
 
-        # Should return early without any action
         tracker._send_behavior_event(
             event_type="behavioral_violation",
             ip_address="192.168.1.1",
@@ -36,10 +30,7 @@ class TestBehaviorTrackerAgentIntegration:
             reason="test reason",
         )
 
-        # Test passes if no exception is raised
-
     def test_send_behavior_event_success(self) -> None:
-        """Test _send_behavior_event success path."""
         config = SecurityConfig()
         tracker = BehaviorTracker(config)
         mock_agent = MagicMock()
@@ -56,11 +47,9 @@ class TestBehaviorTrackerAgentIntegration:
             window=3600,
         )
 
-        # Verify event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
-        # Verify event properties
         assert sent_event.event_type == "behavioral_violation"
         assert sent_event.ip_address == "192.168.1.100"
         assert sent_event.action_taken == "ban"
@@ -73,17 +62,14 @@ class TestBehaviorTrackerAgentIntegration:
     def test_send_behavior_event_exception_handling(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test _send_behavior_event exception handling."""
         config = SecurityConfig()
         tracker = BehaviorTracker(config)
         mock_agent = MagicMock()
         mock_agent.send_event.side_effect = Exception("Network error")
         tracker.agent_handler = mock_agent
 
-        # Enable logging
         caplog.set_level(logging.ERROR)
 
-        # Should not raise exception
         tracker._send_behavior_event(
             event_type="behavioral_violation",
             ip_address="192.168.1.101",
@@ -91,17 +77,14 @@ class TestBehaviorTrackerAgentIntegration:
             reason="Test failure",
         )
 
-        # Verify error was logged
         assert "Failed to send behavior event to agent: Network error" in caplog.text
 
     def test_apply_action_with_behavior_event(self) -> None:
-        """Test apply_action sends behavior event when agent is configured."""
         config = SecurityConfig()
         tracker = BehaviorTracker(config)
         mock_agent = MagicMock()
         tracker.agent_handler = mock_agent
 
-        # Import BehaviorRule
         from flaskapi_guard.handlers.behavior_handler import BehaviorRule
 
         rule = BehaviorRule(rule_type="usage", threshold=5, window=300, action="log")
@@ -113,7 +96,6 @@ class TestBehaviorTrackerAgentIntegration:
             details="Exceeded usage threshold",
         )
 
-        # Verify behavior event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -127,10 +109,8 @@ class TestBehaviorTrackerAgentIntegration:
         assert sent_event.metadata["window"] == 300
 
 
-# Patch SecurityEvent for all tests in this module
 @pytest.fixture(autouse=True)
 def patch_security_event() -> Any:
-    """Patch SecurityEvent for behavior handler tests."""
     with patch(
         "flaskapi_guard.handlers.behavior_handler.SecurityEvent", create=True
     ) as mock_event:

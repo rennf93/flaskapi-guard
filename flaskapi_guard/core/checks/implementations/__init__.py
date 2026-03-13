@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/__init__.py
 """Security check implementations - one file per check."""
 
 from flaskapi_guard.core.checks.implementations.authentication import (

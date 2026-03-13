@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/request_size_content.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -24,7 +23,6 @@ class RequestSizeContentCheck(SecurityCheck):
         if not content_length or int(content_length) <= route_config.max_request_size:
             return None
 
-        # Request size exceeds limit
         message = f"Request size {content_length} exceeds limit"
 
         log_activity(
@@ -67,7 +65,6 @@ class RequestSizeContentCheck(SecurityCheck):
         if content_type in route_config.allowed_content_types:
             return None
 
-        # Content type not allowed
         log_activity(
             request,
             self.logger,
@@ -106,10 +103,8 @@ class RequestSizeContentCheck(SecurityCheck):
         if not route_config:
             return None
 
-        # Check request size limit
         size_response = self._check_request_size_limit(request, route_config)
         if size_response:
             return size_response
 
-        # Check content type allowed
         return self._check_content_type_allowed(request, route_config)

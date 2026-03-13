@@ -1,4 +1,3 @@
-# tests/test_agent/test_decorator_agent_integration.py
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -11,34 +10,26 @@ from flaskapi_guard.models import SecurityConfig
 
 
 class TestDecoratorAgentIntegration:
-    """Test agent integration in BaseSecurityDecorator."""
-
     def test_initialize_agent(self, config: SecurityConfig) -> None:
-        """Test initialize_agent method."""
         decorator = BaseSecurityDecorator(config)
 
-        # Mock agent and behavior tracker
         mock_agent = MagicMock()
         with patch.object(
             decorator.behavior_tracker, "initialize_agent", MagicMock()
         ) as mock_init:
             decorator.initialize_agent(mock_agent)
 
-            # Verify agent set and behavior tracker initialized
             assert decorator.agent_handler is mock_agent
             mock_init.assert_called_once_with(mock_agent)
 
     def test_initialize_agent_with_real_behavior_tracker(
         self, config: SecurityConfig
     ) -> None:
-        """Test initialize_agent with real behavior tracker initialization."""
         decorator = BaseSecurityDecorator(config)
 
-        # Mock agent
         mock_agent = MagicMock()
         decorator.initialize_agent(mock_agent)
 
-        # Verify agent set on both decorator and behavior tracker
         assert decorator.agent_handler is mock_agent
         assert decorator.behavior_tracker.agent_handler is mock_agent
 
@@ -95,31 +86,26 @@ class TestDecoratorAgentIntegration:
         expected_ip: str,
         test_scenario: str,
     ) -> None:
-        """Test decorator event sending with various scenarios."""
         decorator = BaseSecurityDecorator(config)
         decorator.agent_handler = MagicMock()
 
-        # Mock request
         request = MagicMock(spec=Request)
         request.path = "/api/test"
         request.method = "POST"
         request.headers = {"User-Agent": user_agent} if user_agent else {}
 
-        # Mock extract_client_ip
         with patch(
-            "flaskapi_guard.utils.extract_client_ip", MagicMock(return_value=expected_ip)
+            "flaskapi_guard.utils.extract_client_ip",
+            MagicMock(return_value=expected_ip),
         ):
             decorator.send_decorator_event(
                 event_type, request, action, reason, decorator_type, **metadata
             )
 
-            # Verify event was sent to agent
             decorator.agent_handler.send_event.assert_called_once()
 
-            # Get the event that was sent
             sent_event = decorator.agent_handler.send_event.call_args[0][0]
 
-            # Verify event created with correct fields
             assert isinstance(sent_event, SecurityEvent)
             assert sent_event.event_type == event_type
             assert sent_event.ip_address == expected_ip
@@ -178,7 +164,6 @@ class TestDecoratorAgentIntegration:
         kwargs: dict[str, Any],
         expected_reason: str,
     ) -> None:
-        """Test helper methods for sending specific event types."""
         decorator = BaseSecurityDecorator(config)
         decorator.agent_handler = MagicMock()
 
@@ -187,12 +172,10 @@ class TestDecoratorAgentIntegration:
         request.method = "GET"
         request.headers = {"User-Agent": "test-agent"}
 
-        # Mock send_decorator_event
         with patch.object(decorator, "send_decorator_event", MagicMock()) as mock_send:
             method = getattr(decorator, helper_method)
             method(request, *args, **kwargs)
 
-            # Verify correct parameters passed
             expected_decorator_type = (
                 "authentication"
                 if helper_method == "send_authentication_failed_event"
@@ -200,7 +183,7 @@ class TestDecoratorAgentIntegration:
                 if helper_method == "send_rate_limit_event"
                 else args[0]
                 if helper_method == "send_decorator_violation_event"
-                else args[1]  # send_access_denied_event: second arg is decorator_type
+                else args[1]
             )
 
             expected_kwargs = {
@@ -212,7 +195,6 @@ class TestDecoratorAgentIntegration:
                 **kwargs,
             }
 
-            # Special handling for different helper methods
             if helper_method == "send_authentication_failed_event":
                 expected_kwargs["auth_type"] = args[1]
             elif helper_method == "send_rate_limit_event":
@@ -244,7 +226,6 @@ class TestDecoratorAgentIntegration:
         side_effect: Any,
         expected_log_message: str,
     ) -> None:
-        """Test error conditions during event sending."""
         decorator = BaseSecurityDecorator(config)
         decorator.agent_handler = MagicMock()
 
@@ -262,7 +243,7 @@ class TestDecoratorAgentIntegration:
                 decorator.send_decorator_event(
                     "config_violation", request, "action", "reason", "test_decorator"
                 )
-        else:  # ip_extraction_failure
+        else:
             with patch(
                 "flaskapi_guard.utils.extract_client_ip",
                 MagicMock(side_effect=Exception("IP extraction failed")),
@@ -271,17 +252,14 @@ class TestDecoratorAgentIntegration:
                     "config_violation", request, "action", "reason", "test_decorator"
                 )
 
-        # Should log error but not raise
         assert expected_log_message in caplog.text
 
     def test_send_decorator_event_no_agent(self, config: SecurityConfig) -> None:
-        """Test event sending without agent."""
         decorator = BaseSecurityDecorator(config)
-        decorator.agent_handler = None  # No agent
+        decorator.agent_handler = None
 
         request = MagicMock(spec=Request)
 
-        # Should not raise any errors
         decorator.send_decorator_event(
             "config_violation", request, "action", "reason", "decorator_type"
         )
@@ -289,7 +267,6 @@ class TestDecoratorAgentIntegration:
     def test_multiple_event_sends(
         self, config: SecurityConfig, mock_guard_agent: Any
     ) -> None:
-        """Test sending multiple events in sequence."""
         decorator = BaseSecurityDecorator(config)
         decorator.agent_handler = MagicMock()
 
@@ -298,12 +275,10 @@ class TestDecoratorAgentIntegration:
         request.method = "GET"
         request.headers = {"User-Agent": "test-agent"}
 
-        # Mock extract_client_ip
         with patch(
             "flaskapi_guard.utils.extract_client_ip",
             MagicMock(return_value="192.168.1.1"),
         ):
-            # Send multiple events
             decorator.send_decorator_event(
                 "decorator_violation", request, "action1", "reason1", "decorator1"
             )
@@ -314,44 +289,34 @@ class TestDecoratorAgentIntegration:
                 "authentication_failed", request, "action3", "reason3", "decorator3"
             )
 
-            # Verify all events were sent
             assert decorator.agent_handler.send_event.call_count == 3
 
     def test_decorator_initialization(self, config: SecurityConfig) -> None:
-        """Test BaseSecurityDecorator initialization."""
         config = SecurityConfig(enable_penetration_detection=True)
         decorator = BaseSecurityDecorator(config)
 
-        # Verify initial state
         assert decorator.config is config
         assert decorator._route_configs == {}
         assert decorator.behavior_tracker is not None
         assert decorator.agent_handler is None
 
     def test_get_route_config(self, config: SecurityConfig) -> None:
-        """Test getting route configuration."""
         decorator = BaseSecurityDecorator(config)
 
-        # Mock function
         def test_func() -> None:
             pass  # pragma: no cover
 
-        # Ensure route config exists
         route_config = decorator._ensure_route_config(test_func)
         route_id = decorator._get_route_id(test_func)
 
-        # Test get_route_config
         retrieved_config = decorator.get_route_config(route_id)
         assert retrieved_config is route_config
 
-        # Test non-existent route
         assert decorator.get_route_config("non_existent") is None
 
     def test_route_id_generation(self, config: SecurityConfig) -> None:
-        """Test route ID generation."""
         decorator = BaseSecurityDecorator(config)
 
-        # Test function
         def test_function() -> None:
             pass  # pragma: no cover
 
@@ -371,7 +336,6 @@ class TestDecoratorAgentIntegration:
         enable_penetration_detection: bool,
         expected_suspicious_detection: bool,
     ) -> None:
-        """Test route config creation with different penetration detection settings."""
         config.enable_penetration_detection = enable_penetration_detection
         decorator = BaseSecurityDecorator(config)
 
@@ -382,17 +346,14 @@ class TestDecoratorAgentIntegration:
         assert route_config.enable_suspicious_detection is expected_suspicious_detection
 
     def test_apply_route_config(self, config: SecurityConfig) -> None:
-        """Test applying route configuration to function."""
         decorator = BaseSecurityDecorator(config)
 
         def test_func() -> None:
             pass  # pragma: no cover
 
-        # Apply route config
         decorated_func = decorator._apply_route_config(test_func)
         route_id = decorator._get_route_id(test_func)
 
-        # Verify route ID was attached
         assert hasattr(decorated_func, "_guard_route_id")
         assert decorated_func._guard_route_id == route_id
 
@@ -409,7 +370,6 @@ class TestDecoratorAgentIntegration:
         redis_handler: MagicMock | None,
         should_initialize: bool,
     ) -> None:
-        """Test behavior tracking initialization."""
         decorator = BaseSecurityDecorator(config)
 
         if should_initialize:
@@ -419,5 +379,4 @@ class TestDecoratorAgentIntegration:
                 decorator.initialize_behavior_tracking(redis_handler)
                 mock_init.assert_called_once_with(redis_handler)
         else:
-            # Should not raise any errors
             decorator.initialize_behavior_tracking(redis_handler)

@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/ip_security.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -30,7 +29,6 @@ class IpSecurityCheck(SecurityCheck):
         if not ip_ban_manager.is_ip_banned(client_ip):
             return None
 
-        # Log banned IP access attempt
         log_activity(
             request,
             self.logger,
@@ -54,11 +52,9 @@ class IpSecurityCheck(SecurityCheck):
         """Check route-specific IP restrictions."""
         route_allowed = check_route_ip_access(client_ip, route_config, self.middleware)
 
-        # None means no route-specific rules, fall back to global
         if route_allowed is None or route_allowed:
             return None
 
-        # IP not allowed by route config
         log_activity(
             request,
             self.logger,
@@ -68,7 +64,6 @@ class IpSecurityCheck(SecurityCheck):
             passive_mode=self.config.passive_mode,
         )
 
-        # Send decorator violation event to agent
         if self.middleware.event_bus is not None:
             self.middleware.event_bus.send_middleware_event(
                 event_type="decorator_violation",
@@ -97,13 +92,11 @@ class IpSecurityCheck(SecurityCheck):
             client_ip, self.config, self.middleware.geo_ip_handler
         )
 
-        # Set whitelist flag for other checks to use
         g.is_whitelisted = is_allowed and bool(self.config.whitelist)
 
         if is_allowed:
             return None
 
-        # Log blocked IP
         log_activity(
             request,
             self.logger,
@@ -113,7 +106,6 @@ class IpSecurityCheck(SecurityCheck):
             passive_mode=self.config.passive_mode,
         )
 
-        # Send global IP filtering event to agent
         if self.middleware.event_bus is not None:
             self.middleware.event_bus.send_middleware_event(
                 event_type="ip_blocked",
@@ -141,23 +133,17 @@ class IpSecurityCheck(SecurityCheck):
         if not client_ip:
             return None
 
-        # Check IP banning first
         ban_response = self._check_banned_ip(request, client_ip, route_config)
         if ban_response:
             return ban_response
 
-        # Check IP allowlist/blocklist (with route overrides)
         if (
             self.middleware.route_resolver is not None
-            and self.middleware.route_resolver.should_bypass_check(
-                "ip", route_config
-            )
+            and self.middleware.route_resolver.should_bypass_check("ip", route_config)
         ):
             return None
 
-        # Route-specific IP restrictions
         if route_config:
             return self._check_route_ip_restrictions(request, client_ip, route_config)
 
-        # Global IP restrictions
         return self._check_global_ip_restrictions(request, client_ip)

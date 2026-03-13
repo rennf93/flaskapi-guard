@@ -1,4 +1,3 @@
-# flaskapi_guard/detection_engine/compiler.py
 import re
 import threading
 import time
@@ -30,10 +29,10 @@ class PatternCompiler:
             max_cache_size: Maximum number of compiled patterns to cache
         """
         self.default_timeout = default_timeout
-        self.max_cache_size = min(max_cache_size, 5000)  # Hard upper limit
+        self.max_cache_size = min(max_cache_size, 5000)
         self._compiled_cache: dict[str, re.Pattern] = {}
-        self._cache_order: list[str] = []  # Track insertion order for LRU
-        self._lock = threading.Lock()  # Thread safety for cache operations
+        self._cache_order: list[str] = []
+        self._lock = threading.Lock()
 
     def compile_pattern(
         self, pattern: str, flags: int = re.IGNORECASE | re.MULTILINE
@@ -51,24 +50,17 @@ class PatternCompiler:
         Raises:
             re.error: If the pattern is invalid
         """
-        # Sanitize cache key to prevent injection
         cache_key = f"{hash(pattern)}:{flags}"
 
-        # Fast path: check cache without lock
         if cache_key in self._compiled_cache:
             with self._lock:
-                # Double-check inside lock
                 if cache_key in self._compiled_cache:
-                    # Move to end for LRU
                     self._cache_order.remove(cache_key)
                     self._cache_order.append(cache_key)
                     return self._compiled_cache[cache_key]
 
-        # Compile and cache with lock
         with self._lock:
-            # Check again in case another thread added it
             if cache_key not in self._compiled_cache:
-                # Enforce cache size limit (LRU eviction)
                 if len(self._compiled_cache) >= self.max_cache_size:
                     oldest_key = self._cache_order.pop(0)
                     del self._compiled_cache[oldest_key]
@@ -94,7 +86,6 @@ class PatternCompiler:
         Raises:
             re.error: If the pattern is invalid
         """
-        # For sync usage, just compile without caching to avoid complexity
         return re.compile(pattern, flags)
 
     def validate_pattern_safety(
@@ -110,7 +101,6 @@ class PatternCompiler:
         Returns:
             Tuple of (is_safe, reason)
         """
-        # Check for dangerous patterns
         dangerous_patterns = [
             r"\(\.\*\)\+",  # (.*)+
             r"\(\.\+\)\+",  # (.+)+
@@ -124,7 +114,6 @@ class PatternCompiler:
             if re.search(dangerous, pattern):
                 return False, f"Pattern contains dangerous construct: {dangerous}"
 
-        # If no test strings provided, generate some
         if test_strings is None:
             test_strings = [
                 "a" * 10,
@@ -134,7 +123,6 @@ class PatternCompiler:
                 "<" * 100 + ">" * 100,
             ]
 
-        # Test pattern performance using thread-based timeout
         try:
             compiled = self.compile_pattern_sync(pattern)
             import concurrent.futures
@@ -148,7 +136,7 @@ class PatternCompiler:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                     future = executor.submit(_search)
                     try:
-                        future.result(timeout=0.1)  # 100ms timeout for testing
+                        future.result(timeout=0.1)
                     except concurrent.futures.TimeoutError:
                         return (
                             False,
@@ -157,7 +145,7 @@ class PatternCompiler:
                         )
 
                 elapsed = time.time() - start_time
-                if elapsed > 0.05:  # 50ms threshold
+                if elapsed > 0.05:
                     return (
                         False,
                         f"Pattern timed out on test string of length {len(test_str)}",
@@ -193,7 +181,6 @@ class PatternCompiler:
             Returns:
                 Match object if found, None otherwise
             """
-            # Use thread-based timeout instead of signal-based
             import concurrent.futures
 
             def _search() -> re.Match | None:
@@ -204,11 +191,9 @@ class PatternCompiler:
                 try:
                     return future.result(timeout=match_timeout)
                 except concurrent.futures.TimeoutError:
-                    # Attempt to cancel the thread
                     future.cancel()
                     return None
                 except Exception:
-                    # Don't leak exceptions
                     return None
 
         return safe_match
@@ -231,12 +216,10 @@ class PatternCompiler:
             if validate:
                 is_safe, reason = self.validate_pattern_safety(pattern)
                 if not is_safe:
-                    # Skip unsafe patterns or handle as needed
                     continue
             try:
                 compiled_patterns[pattern] = self.compile_pattern(pattern)
             except re.error:
-                # Skip invalid patterns
                 continue
         return compiled_patterns
 

@@ -44,9 +44,8 @@ class FailingCheck(SecurityCheck):
 def mock_guard() -> Mock:
     """Create a mock guard instance."""
     guard = Mock()
-    # Use Mock for config to allow arbitrary attributes
     guard.config = Mock()
-    guard.config.fail_secure = False  # Default to fail-open
+    guard.config.fail_secure = False
     guard.config.passive_mode = False
     guard.logger = Mock()
     guard.event_bus = Mock()
@@ -121,13 +120,11 @@ class TestSecurityCheckPipeline:
         failing_check = FailingCheck(mock_guard, "failing_check")
         passing_check = MockCheck(mock_guard, "passing_check", should_block=False)
 
-        # Ensure fail_secure is False (fail-open)
         mock_guard.config.fail_secure = False
 
         pipeline = SecurityCheckPipeline([failing_check, passing_check])
         result = pipeline.execute(mock_request)
 
-        # Should continue after exception (fail-open)
         assert result is None
 
     def test_execute_with_exception_fail_secure(
@@ -137,13 +134,11 @@ class TestSecurityCheckPipeline:
         failing_check = FailingCheck(mock_guard, "failing_check")
         passing_check = MockCheck(mock_guard, "passing_check", should_block=False)
 
-        # Enable fail_secure mode
         mock_guard.config.fail_secure = True
 
         pipeline = SecurityCheckPipeline([failing_check, passing_check])
         result = pipeline.execute(mock_request)
 
-        # Should block due to fail-secure
         assert result is not None
         assert result.status_code == 500
 
@@ -153,14 +148,12 @@ class TestSecurityCheckPipeline:
         """Test exception handling when fail_secure attribute doesn't exist."""
         failing_check = FailingCheck(mock_guard, "failing_check")
 
-        # Remove fail_secure attribute
         if hasattr(mock_guard.config, "fail_secure"):
             delattr(mock_guard.config, "fail_secure")
 
         pipeline = SecurityCheckPipeline([failing_check])
         result = pipeline.execute(mock_request)
 
-        # Should fail-open when no fail_secure attribute
         assert result is None
 
     def test_add_check(self, mock_guard: Mock) -> None:

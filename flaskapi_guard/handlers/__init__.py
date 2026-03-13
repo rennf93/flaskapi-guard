@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/__init__.py
 from .behavior_handler import BehaviorTracker
 from .cloud_handler import CloudManager
 from .dynamic_rule_handler import DynamicRuleManager

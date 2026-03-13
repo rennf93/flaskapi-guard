@@ -1,4 +1,3 @@
-# tests/test_core/test_metrics.py
 """Tests for flaskapi_guard/core/events/metrics.py — MetricsCollector."""
 
 import sys
@@ -32,10 +31,6 @@ def _mock_guard_agent_module() -> types.ModuleType:
         sys.modules.pop("guard_agent", None)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _make_config(**overrides: object) -> SecurityConfig:
     defaults: dict[str, object] = {
         "enable_redis": False,
@@ -45,10 +40,6 @@ def _make_config(**overrides: object) -> SecurityConfig:
     defaults.update(overrides)
     return SecurityConfig(**defaults)  # type: ignore[arg-type]
 
-
-# =========================================================================
-# MetricsCollector tests
-# =========================================================================
 
 class TestMetricsCollector:
     """Tests for MetricsCollector.send_metric and collect_request_metrics."""
@@ -72,13 +63,11 @@ class TestMetricsCollector:
     def test_send_metric_no_agent(self) -> None:
         """send_metric returns early when no agent_handler is set."""
         collector = MetricsCollector(None, self.config)
-        # Should not raise
         collector.send_metric("response_time", 0.5)
 
     def test_send_metric_exception(self) -> None:
         """send_metric logs error but does not raise on exception."""
         self.agent_handler.send_metric.side_effect = Exception("agent down")
-        # Should not raise
         self.collector.send_metric("response_time", 0.5)
 
     def test_collect_request_metrics_success(self) -> None:

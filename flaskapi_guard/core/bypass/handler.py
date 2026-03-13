@@ -1,4 +1,3 @@
-# flaskapi_guard/core/bypass/handler.py
 from flask import Request, Response
 
 from flaskapi_guard.core.bypass.context import BypassContext
@@ -29,11 +28,9 @@ class BypassHandler:
         Returns:
             None to let Flask proceed with the request
         """
-        # No client information
         if not request.remote_addr:
             return None
 
-        # Excluded paths
         if self.context.validator.is_path_excluded(request):
             return None
 
@@ -55,7 +52,6 @@ class BypassHandler:
         ):
             return None
 
-        # Send security bypass event for monitoring
         self.context.event_bus.send_middleware_event(
             event_type="security_bypass",
             request=request,

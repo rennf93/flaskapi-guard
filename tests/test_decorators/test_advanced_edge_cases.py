@@ -23,7 +23,6 @@ class TestHoneypotEdgeCases:
 
     def test_honeypot_form_exception_caught(self, decorator: SecurityDecorator) -> None:
         """Test honeypot form validation when form() raises exception."""
-        # Lines 94-95: except Exception: pass
         mock_func = Mock()
         mock_func.__name__ = mock_func.__qualname__ = "test_func"
         mock_func.__module__ = "test_module"
@@ -36,7 +35,6 @@ class TestHoneypotEdgeCases:
         assert route_config is not None
         validator = route_config.custom_validators[0]
 
-        # Create request that will cause form access to raise exception
         mock_request = MagicMock()
         mock_request.method = "POST"
         mock_request.headers.get = lambda key, default="": (
@@ -46,13 +44,11 @@ class TestHoneypotEdgeCases:
             lambda self: (_ for _ in ()).throw(Exception("Form parsing error"))
         )
 
-        # Should catch exception and return None
         result = validator(mock_request)
         assert result is None
 
     def test_honeypot_non_post_method(self, decorator: SecurityDecorator) -> None:
         """Test honeypot validator with non-POST method."""
-        # Line 109: return None when method not in ["POST", "PUT", "PATCH"]
         mock_func = Mock()
         mock_func.__name__ = mock_func.__qualname__ = "test_func"
         mock_func.__module__ = "test_module"
@@ -65,14 +61,12 @@ class TestHoneypotEdgeCases:
         assert route_config is not None
         validator = route_config.custom_validators[0]
 
-        # Test with GET method
         mock_request = MagicMock()
         mock_request.method = "GET"
 
         result = validator(mock_request)
         assert result is None
 
-        # Test with DELETE method
         mock_request.method = "DELETE"
         result = validator(mock_request)
         assert result is None
@@ -81,7 +75,6 @@ class TestHoneypotEdgeCases:
         self, decorator: SecurityDecorator
     ) -> None:
         """Test honeypot validator with unsupported content type."""
-        # Line 118: return None when content-type doesn't match form or json
         mock_func = Mock()
         mock_func.__name__ = mock_func.__qualname__ = "test_func"
         mock_func.__module__ = "test_module"
@@ -94,7 +87,6 @@ class TestHoneypotEdgeCases:
         assert route_config is not None
         validator = route_config.custom_validators[0]
 
-        # Test with unsupported content-type
         mock_request = MagicMock()
         mock_request.method = "POST"
         mock_request.headers.get = lambda key, default="": (
@@ -104,7 +96,6 @@ class TestHoneypotEdgeCases:
         result = validator(mock_request)
         assert result is None
 
-        # Test with multipart/form-data (not explicitly supported)
         mock_request.headers.get = lambda key, default="": (
             "multipart/form-data" if key == "content-type" else default
         )
@@ -158,7 +149,6 @@ class TestHoneypotEdgeCases:
         assert route_config is not None
         validator = route_config.custom_validators[0]
 
-        # POST/PUT/PATCH without supported content-type
         mock_request = MagicMock()
         mock_request.method = method
         mock_request.headers.get = lambda key, default="": (

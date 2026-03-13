@@ -42,10 +42,8 @@ class TestIpSecurityEdgeCases:
 
     def test_check_banned_ip_bypass(self, ip_security_check: IpSecurityCheck) -> None:
         """Test _check_banned_ip when ip_ban check is bypassed."""
-        # return None when should_bypass_check returns True
         route_config = RouteConfig()
         mock_request = Mock(spec=Request)
-        # Replace route_resolver with new mock
         ip_security_check.middleware.route_resolver = Mock()
         ip_security_check.middleware.route_resolver.should_bypass_check = Mock(
             return_value=True
@@ -62,7 +60,6 @@ class TestIpSecurityEdgeCases:
         security_config: SecurityConfig,
     ) -> None:
         """Test _check_banned_ip in passive mode returns None."""
-        # return None in passive mode
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
@@ -87,7 +84,6 @@ class TestIpSecurityEdgeCases:
         security_config: SecurityConfig,
     ) -> None:
         """Test _check_route_ip_restrictions in passive mode returns None."""
-        # return None in passive mode
         security_config.passive_mode = True
         route_config = RouteConfig()
         mock_request = Mock(spec=Request)
@@ -95,7 +91,6 @@ class TestIpSecurityEdgeCases:
         with patch(
             "flaskapi_guard.core.checks.implementations.ip_security.check_route_ip_access"
         ) as mock_check:
-            # Return False to trigger IP not allowed path
             mock_check.return_value = False
 
             with patch(
@@ -116,7 +111,6 @@ class TestIpSecurityEdgeCases:
         with app.test_request_context():
             g.client_ip = None
             g.route_config = None
-            # return None when client_ip is None
             result = ip_security_check.check(mock_request)
             assert result is None
 
@@ -126,7 +120,6 @@ class TestIpSecurityEdgeCases:
         security_config: SecurityConfig,
     ) -> None:
         """Test _check_global_ip_restrictions in passive mode."""
-        # return None in passive mode
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
@@ -158,15 +151,12 @@ class TestIpSecurityEdgeCases:
         with app.test_request_context():
             g.client_ip = "1.2.3.4"
             g.route_config = None
-            # Setup to bypass IP ban check first
             with patch(
                 "flaskapi_guard.core.checks.implementations.ip_security.ip_ban_manager"
             ) as mock_ban_mgr:
                 mock_ban_mgr.is_ip_banned = MagicMock(return_value=False)
 
-                # Now bypass the main IP check - recreate the mock properly
                 mock_bypass = Mock(side_effect=lambda check, config: check == "ip")
-                # Replace route_resolver with new mock
                 ip_security_check.middleware.route_resolver = Mock()
                 ip_security_check.middleware.route_resolver.should_bypass_check = (
                     mock_bypass

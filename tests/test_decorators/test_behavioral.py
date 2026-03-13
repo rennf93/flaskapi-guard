@@ -92,7 +92,6 @@ def test_behavioral_decorators_applied(
     description: str,
 ) -> None:
     """Test that behavioral decorators are applied correctly."""
-    # Map route path to endpoint name
     endpoint_map = {
         "/usage-ban": "usage_ban_endpoint",
         "/usage-log": "usage_log_endpoint",
@@ -239,13 +238,11 @@ def test_behavior_analysis_multiple_rules(
     assert route_config is not None
     assert len(route_config.behavior_rules) == 2
 
-    # Check first rule (usage)
     usage_rule = route_config.behavior_rules[0]
     assert usage_rule.rule_type == "usage"
     assert usage_rule.threshold == 10
     assert usage_rule.window == 3600
 
-    # Check second rule (return_pattern)
     pattern_rule = route_config.behavior_rules[1]
     assert pattern_rule.rule_type == "return_pattern"
     assert pattern_rule.threshold == 3
@@ -301,7 +298,6 @@ def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
     mock_func.__module__ = "test_module"
 
-    # Test usage_monitor
     usage_decorator = decorator.usage_monitor(max_calls=5, window=3600, action="ban")
     decorated_func = usage_decorator(mock_func)
 
@@ -314,7 +310,6 @@ def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
     assert route_config.behavior_rules[0].window == 3600
     assert route_config.behavior_rules[0].action == "ban"
 
-    # Test return_monitor
     mock_func2 = Mock()
     mock_func2.__name__ = mock_func2.__qualname__ = "test_func2"
     mock_func2.__module__ = "test_module"
@@ -334,7 +329,6 @@ def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
     assert route_config2.behavior_rules[0].window == 86400
     assert route_config2.behavior_rules[0].action == "log"
 
-    # Test behavior_analysis
     mock_func3 = Mock()
     mock_func3.__name__ = mock_func3.__qualname__ = "test_func3"
     mock_func3.__module__ = "test_module"
@@ -353,7 +347,6 @@ def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
     assert route_config3.behavior_rules[0].rule_type == "usage"
     assert route_config3.behavior_rules[1].rule_type == "return_pattern"
 
-    # Test suspicious_frequency
     mock_func4 = Mock()
     mock_func4.__name__ = mock_func4.__qualname__ = "test_func4"
     mock_func4.__module__ = "test_module"
@@ -368,6 +361,6 @@ def test_behavioral_decorators_unit(security_config: SecurityConfig) -> None:
     assert route_config4 is not None
     assert len(route_config4.behavior_rules) == 1
     assert route_config4.behavior_rules[0].rule_type == "frequency"
-    assert route_config4.behavior_rules[0].threshold == 150  # 0.5 * 300
+    assert route_config4.behavior_rules[0].threshold == 150
     assert route_config4.behavior_rules[0].window == 300
     assert route_config4.behavior_rules[0].action == "throttle"

@@ -1,4 +1,3 @@
-# flaskapi_guard/detection_engine/semantic.py
 import ast
 import re
 from collections import Counter
@@ -16,7 +15,6 @@ class SemanticAnalyzer:
 
     def __init__(self) -> None:
         """Initialize the SemanticAnalyzer."""
-        # Attack keywords grouped by category
         self.attack_keywords = {
             "xss": {
                 "script",
@@ -79,7 +77,6 @@ class SemanticAnalyzer:
             },
         }
 
-        # Suspicious character patterns
         self.suspicious_chars = {
             "brackets": r"[<>{}()\[\]]",
             "quotes": r"['\"`]",
@@ -88,7 +85,6 @@ class SemanticAnalyzer:
             "wildcards": r"[*?]",
         }
 
-        # Common attack structures
         self.attack_structures = {
             "tag_like": r"<[^>]+>",
             "function_call": r"\w+\s*\([^)]*\)",
@@ -107,37 +103,32 @@ class SemanticAnalyzer:
         Returns:
             List of tokens
         """
-        # Limit content length
         MAX_CONTENT_LENGTH = 50000
         if len(content) > MAX_CONTENT_LENGTH:
             content = content[:MAX_CONTENT_LENGTH]
 
-        # Remove excessive whitespace
         content = re.sub(r"\s+", " ", content)
 
-        # Extract alphanumeric tokens with limit
         MAX_TOKENS = 1000
         tokens = re.findall(r"\b\w+\b", content.lower())[:MAX_TOKENS]
 
-        # Also extract special patterns with timeout
         special_patterns = []
         import concurrent.futures
 
         for _, pattern in self.attack_structures.items():
 
             def _find_pattern(p: str, c: str) -> list[str]:
-                return re.findall(p, c, re.IGNORECASE)[:10]  # Limit matches
+                return re.findall(p, c, re.IGNORECASE)[:10]
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_find_pattern, pattern, content)
                 try:
-                    matches = future.result(timeout=0.1)  # 100ms timeout
+                    matches = future.result(timeout=0.1)
                     special_patterns.extend(matches)
                 except concurrent.futures.TimeoutError:
-                    # Skip pattern if timeout
                     continue
 
-            if len(special_patterns) >= 50:  # Limit special patterns
+            if len(special_patterns) >= 50:
                 break
 
         return (tokens + special_patterns)[:MAX_TOKENS]
@@ -157,23 +148,19 @@ class SemanticAnalyzer:
         if not content:
             return 0.0
 
-        # Limit content length to prevent DoS
         MAX_ENTROPY_LENGTH = 10000
         if len(content) > MAX_ENTROPY_LENGTH:
             content = content[:MAX_ENTROPY_LENGTH]
 
-        # Count character frequencies
         char_counts = Counter(content)
         length = len(content)
 
-        # Calculate entropy
         import math
 
         entropy = 0.0
         for count in char_counts.values():
             probability = count / length
             if probability > 0:
-                # Use proper Shannon entropy formula
                 entropy -= probability * math.log2(probability)
 
         return entropy
@@ -188,30 +175,24 @@ class SemanticAnalyzer:
         Returns:
             Number of detected encoding layers
         """
-        # Limit content length
         MAX_SCAN_LENGTH = 10000
         if len(content) > MAX_SCAN_LENGTH:
             content = content[:MAX_SCAN_LENGTH]
 
         layers = 0
 
-        # Check for URL encoding
         if re.search(r"%[0-9a-fA-F]{2}", content):
             layers += 1
 
-        # Check for base64
         if re.search(r"[A-Za-z0-9+/]{4,}={0,2}", content):
             layers += 1
 
-        # Check for hex encoding
         if re.search(r"(?:0x)?[0-9a-fA-F]{4,}", content):
             layers += 1
 
-        # Check for unicode encoding
         if re.search(r"\\u[0-9a-fA-F]{4}", content):
             layers += 1
 
-        # Check for HTML entities
         if re.search(r"&[#\w]+;", content):
             layers += 1
 
@@ -245,7 +226,6 @@ class SemanticAnalyzer:
         Returns:
             Boost value (0.0 to 0.3)
         """
-        # Mapping of attack types to their structural pattern checks
         pattern_checks = {
             "xss": (r"<[^>]+>", 0),
             "sql": (r"\b(?:union|select|from|where)\b", re.IGNORECASE),
@@ -277,14 +257,11 @@ class SemanticAnalyzer:
         probabilities = {}
 
         for attack_type, keywords in self.attack_keywords.items():
-            # Calculate base score from keyword matches
             base_score = self._calculate_base_score(token_set, keywords)
 
-            # Add structural pattern boost
             pattern_boost = self._get_structural_pattern_boost(attack_type, content)
             score = base_score + pattern_boost
 
-            # Cap at 1.0
             probabilities[attack_type] = min(score, 1.0)
 
         return probabilities
@@ -299,22 +276,18 @@ class SemanticAnalyzer:
         Returns:
             True if obfuscation is detected
         """
-        # High entropy indicates possible obfuscation
         if self.calculate_entropy(content) > 4.5:
             return True
 
-        # Multiple encoding layers
         if self.detect_encoding_layers(content) > 2:
             return True
 
-        # Excessive special characters
         special_char_ratio = len(re.findall(r"[^a-zA-Z0-9\s]", content)) / max(
             len(content), 1
         )
         if special_char_ratio > 0.4:
             return True
 
-        # Long strings without spaces
         if re.search(r"\S{100,}", content):
             return True
 
@@ -332,7 +305,6 @@ class SemanticAnalyzer:
         """
         patterns = []
 
-        # Check for each suspicious pattern
         for name, pattern in self.attack_structures.items():
             for match in re.finditer(pattern, content, re.IGNORECASE):
                 context_start = max(0, match.start() - 20)
@@ -363,19 +335,15 @@ class SemanticAnalyzer:
         """
         risk = 0.0
 
-        # Check for code-like patterns (braces)
         if re.search(r"[\{\}].*[\{\}]", content):
             risk += 0.2
 
-        # Check for function calls
         if re.search(r"\w+\s*\([^)]*\)", content):
             risk += 0.2
 
-        # Check for variable references
         if re.search(r"[$@]\w+", content):
             risk += 0.1
 
-        # Check for operators
         if re.search(r"[=+\-*/]{2,}", content):
             risk += 0.1
 
@@ -396,7 +364,6 @@ class SemanticAnalyzer:
         """
         MAX_AST_LENGTH = 1000
 
-        # Content too long for safe parsing
         if len(content) > MAX_AST_LENGTH:
             return 0.0
 
@@ -405,11 +372,8 @@ class SemanticAnalyzer:
 
             def _parse_ast() -> bool:
                 try:
-                    # Use mode='eval' to be extra safe - only allows expressions
                     tree = ast.parse(content, mode="eval")
-                    # Check for dangerous nodes
                     for node in ast.walk(tree):
-                        # Check for potentially dangerous AST nodes
                         if isinstance(
                             node,
                             ast.Import
@@ -418,27 +382,22 @@ class SemanticAnalyzer:
                             | ast.AsyncFunctionDef
                             | ast.ClassDef,
                         ):
-                            # These shouldn't appear in eval mode anyway
                             return True
                     return True
                 except SyntaxError:
-                    # Not valid Python - this is normal
                     return False
                 except Exception:
-                    # Other parsing errors
                     return False
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_parse_ast)
                 try:
-                    if future.result(timeout=0.1):  # 100ms timeout
+                    if future.result(timeout=0.1):
                         return 0.3
                 except concurrent.futures.TimeoutError:
-                    # Assume dangerous if parsing times out
                     return 0.2
 
         except Exception:  # pragma: no cover
-            # AST parsing failed - this is expected for malformed code
             pass
 
         return 0.0
@@ -483,13 +442,10 @@ class SemanticAnalyzer:
         """
         risk_score = 0.0
 
-        # Check for code-like patterns
         risk_score += self._check_code_pattern_risks(content)
 
-        # Try to parse as Python code (catches many injection attempts)
         risk_score += self._check_ast_parsing_risk(content)
 
-        # Check for common injection keywords
         risk_score += self._check_injection_keywords(content)
 
         return min(risk_score, 1.0)
@@ -526,26 +482,21 @@ class SemanticAnalyzer:
         """
         score = 0.0
 
-        # Weight attack probabilities
         attack_probs = analysis_results.get("attack_probabilities", {})
         if attack_probs:
             max_prob = max(attack_probs.values())
             score += max_prob * 0.3
 
-        # Weight obfuscation
         if analysis_results.get("is_obfuscated", False):
             score += 0.2
 
-        # Weight encoding layers
         encoding_layers = analysis_results.get("encoding_layers", 0)
         if encoding_layers > 0:
             score += min(encoding_layers * 0.1, 0.2)
 
-        # Weight code injection risk
         injection_risk = analysis_results.get("code_injection_risk", 0.0)
         score += injection_risk * 0.2
 
-        # Weight suspicious patterns
         patterns = analysis_results.get("suspicious_patterns", [])
         if patterns:
             score += min(len(patterns) * 0.05, 0.1)

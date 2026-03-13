@@ -20,7 +20,6 @@ def test_security_headers_none_config(reset_headers_manager: None) -> None:
     """Test when config.security_headers is None."""
     app = Flask(__name__)
 
-    # Create config with security_headers as None
     config = SecurityConfig(
         security_headers=None,
         enable_redis=False,
@@ -28,22 +27,18 @@ def test_security_headers_none_config(reset_headers_manager: None) -> None:
         passive_mode=True,
     )
 
-    # Add guard
     FlaskAPIGuard(app, config=config)
 
     @app.route("/test")
     def test_endpoint() -> dict[str, str]:
         return {"message": "test"}
 
-    # Make request
     with app.test_client() as client:
         response = client.get("/test")
 
-    # Check that security headers manager is disabled
     assert security_headers_manager.enabled is False
     assert response.status_code == 200
 
-    # No security headers should be present
     assert "X-Content-Type-Options" not in response.headers
     assert "X-Frame-Options" not in response.headers
     assert "X-XSS-Protection" not in response.headers

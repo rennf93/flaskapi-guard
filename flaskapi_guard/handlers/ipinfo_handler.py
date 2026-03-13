@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/ipinfo_handler.py
 import logging
 import os
 import time
@@ -38,7 +37,6 @@ class IPInfoManager:
             cls._instance.logger = logging.getLogger("flaskapi_guard.handlers.ipinfo")
 
         cls._instance.token = token
-        # Update db_path
         if db_path is not None:
             cls._instance.db_path = db_path
         return cls._instance
@@ -71,7 +69,6 @@ class IPInfoManager:
             if not self.db_path.exists() or self._is_db_outdated():
                 self._download_database()
         except Exception as e:
-            # Send agent event for database download failure
             if self.agent_handler:
                 self._send_geo_event(
                     event_type="geo_lookup_failed",
@@ -113,7 +110,6 @@ class IPInfoManager:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break geo functionality
             self.logger.error(f"Failed to send geo event to agent: {e}")
 
     def _download_database(self) -> None:
@@ -138,7 +134,7 @@ class IPInfoManager:
                             "ipinfo",
                             "database",
                             db_content,
-                            ttl=86400,  # 24 hours
+                            ttl=86400,
                         )
                     return
                 except Exception:
@@ -167,7 +163,6 @@ class IPInfoManager:
                 return str(country) if country is not None else None
             return None
         except Exception as e:
-            # Send agent event for lookup failure
             if self.agent_handler:
                 try:
                     self._send_geo_event(
@@ -177,7 +172,6 @@ class IPInfoManager:
                         reason=f"Geographic lookup failed: {str(e)}",
                     )
                 except Exception:
-                    # Ignore agent errors in lookup context
                     pass
             return None
 
@@ -207,7 +201,6 @@ class IPInfoManager:
                 return False, None  # Fail-closed: unknown country blocked by whitelist
             return True, None  # Fail-open: allow for blacklist-only configs
 
-        # Check whitelist first
         if whitelist_countries and country not in whitelist_countries:
             self._send_geo_event(
                 event_type="country_blocked",
@@ -219,7 +212,6 @@ class IPInfoManager:
             )
             return False, country
 
-        # Check blacklist
         if country in blocked_countries:
             self._send_geo_event(
                 event_type="country_blocked",

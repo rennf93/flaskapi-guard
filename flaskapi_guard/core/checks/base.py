@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/base.py
 import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any

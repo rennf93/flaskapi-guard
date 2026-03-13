@@ -149,7 +149,6 @@ def test_cloud_provider_blocking(decorator_app: Flask) -> None:
         with decorator_app.test_client() as client:
             response = client.get(
                 "/block-clouds",
-                # NOTE: AWS IP
                 headers={"X-Forwarded-For": "54.240.0.1"},
             )
             assert response.status_code == 403
@@ -170,7 +169,7 @@ def test_block_all_clouds_default(decorator_app: Flask) -> None:
         with decorator_app.test_client() as client:
             response = client.get(
                 "/block-all-clouds",
-                headers={"X-Forwarded-For": "54.240.0.1"},  # AWS IP
+                headers={"X-Forwarded-For": "54.240.0.1"},
             )
             assert response.status_code == 403
 

@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/authentication.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -56,12 +55,10 @@ class AuthenticationCheck(SecurityCheck):
 
         auth_header = request.headers.get("authorization", "")
 
-        # Validate authentication header using helper function
         is_valid, auth_reason = validate_auth_header(
             auth_header, route_config.auth_required
         )
 
-        # Handle authentication failure
         if not is_valid:
             return self._handle_auth_failure(request, auth_reason, route_config)
 

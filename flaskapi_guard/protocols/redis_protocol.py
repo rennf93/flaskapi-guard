@@ -1,4 +1,3 @@
-# flaskapi_guard/protocols/redis_protocol.py
 from collections.abc import Generator
 from typing import Any, Protocol, runtime_checkable
 

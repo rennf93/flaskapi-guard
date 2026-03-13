@@ -1,4 +1,3 @@
-# tests/test_agent/test_redis_agent_integration.py
 import logging
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -11,10 +10,7 @@ from flaskapi_guard.models import SecurityConfig
 
 
 class TestRedisManagerAgentIntegration:
-    """Test RedisManager agent integration."""
-
     def test_initialize_agent(self) -> None:
-        """Test initialize_agent method."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
@@ -24,22 +20,17 @@ class TestRedisManagerAgentIntegration:
         assert manager.agent_handler is mock_agent
 
     def test_send_redis_event_no_agent(self) -> None:
-        """Test _send_redis_event when agent_handler is None."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         manager.agent_handler = None
 
-        # Should return early without any action
         manager._send_redis_event(
             event_type="redis_connection",
             action_taken="test_action",
             reason="test reason",
         )
 
-        # Test passes if no exception is raised
-
     def test_send_redis_event_success(self) -> None:
-        """Test _send_redis_event success path."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
@@ -53,11 +44,9 @@ class TestRedisManagerAgentIntegration:
             extra_data="test",
         )
 
-        # Verify event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
-        # Verify event properties
         assert sent_event.event_type == "redis_connection"
         assert sent_event.ip_address == "system"
         assert sent_event.action_taken == "connection_established"
@@ -68,7 +57,6 @@ class TestRedisManagerAgentIntegration:
     def test_send_redis_event_exception_handling(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test _send_redis_event exception handling."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
@@ -77,36 +65,30 @@ class TestRedisManagerAgentIntegration:
 
         caplog.set_level(logging.ERROR, logger="flaskapi_guard.handlers.redis")
 
-        # Should not raise exception
         manager._send_redis_event(
             event_type="redis_error",
             action_taken="operation_failed",
             reason="Test failure",
         )
 
-        # Verify error was logged
         assert "Failed to send Redis event to agent: Network error" in caplog.text
 
     def test_close_with_agent(self) -> None:
-        """Test close sends event to agent."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Set up mock Redis connection
         mock_redis = MagicMock()
         mock_redis.close = MagicMock()
         manager._redis = mock_redis
 
         manager.close()
 
-        # Verify connection was closed
         mock_redis.close.assert_called_once()
         assert manager._redis is None
 
     def test_get_connection_closed_error_with_agent(self) -> None:
-        """Test get_connection sends error event when connection is closed."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
@@ -119,7 +101,6 @@ class TestRedisManagerAgentIntegration:
 
         assert "Redis connection closed" in str(exc_info.value.description)
 
-        # Verify error event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -129,7 +110,6 @@ class TestRedisManagerAgentIntegration:
         assert sent_event.metadata["error_type"] == "connection_closed"
 
     def test_get_connection_initialization_failure_with_agent(self) -> None:
-        """Test get_connection sends error event when initialization fails."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
@@ -142,7 +122,6 @@ class TestRedisManagerAgentIntegration:
 
         assert "Redis connection failed" in str(exc_info.value.description)
 
-        # Verify error event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -152,36 +131,30 @@ class TestRedisManagerAgentIntegration:
         assert sent_event.metadata["error_type"] == "initialization_failed"
 
     def test_safe_operation_failure_with_agent(self) -> None:
-        """Test safe_operation sends error event on failure."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Create a function that will fail
         def failing_func(conn: Any) -> None:
             raise Exception("Operation failed")  # pragma: no cover
 
-        failing_func.__name__ = "failing_func"  # Set function name for test
+        failing_func.__name__ = "failing_func"
 
-        # Mock get_connection to raise an exception
         with pytest.raises(InternalServerError) as exc_info:
             manager.safe_operation(failing_func)
 
         assert "Redis operation failed" in str(exc_info.value.description)
 
     def test_safe_operation_error_inside_context(self) -> None:
-        """Test safe_operation sends error event when operation inside context fails."""
         config = SecurityConfig(enable_redis=True, redis_url="redis://localhost")
         manager = RedisManager(config)
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock Redis connection
         mock_redis = MagicMock()
         manager._redis = mock_redis
 
-        # Create a function that will fail inside the context
         def failing_operation(conn: Any) -> None:
             raise ValueError("Operation error inside context")
 
@@ -192,11 +165,9 @@ class TestRedisManagerAgentIntegration:
 
         assert "Redis operation failed" in str(exc_info.value.description)
 
-        # Verify error event was sent with function name
         calls = mock_agent.send_event.call_args_list
         assert len(calls) > 0
 
-        # Find the safe_operation_failed event
         found = False
         for call in calls:
             event = call[0][0]
@@ -211,10 +182,8 @@ class TestRedisManagerAgentIntegration:
         assert found, "safe_operation_failed event not found"
 
 
-# Fixture to ensure SecurityEvent is available
 @pytest.fixture(autouse=True)
 def patch_security_event() -> Any:
-    """Patch SecurityEvent for all tests."""
     with patch(
         "flaskapi_guard.handlers.redis_handler.SecurityEvent", create=True
     ) as mock_event:

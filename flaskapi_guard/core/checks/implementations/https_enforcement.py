@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/https_enforcement.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -18,10 +17,8 @@ class HttpsEnforcementCheck(SecurityCheck):
         Returns:
             True if request is HTTPS or forwarded as HTTPS from trusted proxy
         """
-        # Direct HTTPS check
         is_https = request.scheme == "https"
 
-        # Check X-Forwarded-Proto from trusted proxies
         if (
             self.config.trust_x_forwarded_proto
             and self.config.trusted_proxies
@@ -39,11 +36,9 @@ class HttpsEnforcementCheck(SecurityCheck):
 
         for proxy in self.config.trusted_proxies:
             if "/" not in proxy:
-                # Single IP comparison
                 if connecting_ip == proxy:
                     return True
             else:
-                # CIDR range comparison
                 if ip_address(connecting_ip) in ip_network(proxy, strict=False):
                     return True
         return False
@@ -56,7 +51,6 @@ class HttpsEnforcementCheck(SecurityCheck):
         """
         if self.middleware.response_factory is not None:
             return self.middleware.response_factory.create_https_redirect(request)
-        # Fallback if response_factory is not initialized
         https_url = request.url.replace("http://", "https://", 1)
         return Response(
             response="",
@@ -68,18 +62,15 @@ class HttpsEnforcementCheck(SecurityCheck):
         """Check HTTPS enforcement."""
         route_config = getattr(g, "route_config", None)
 
-        # Check if HTTPS is required
         https_required = (
             route_config.require_https if route_config else self.config.enforce_https
         )
         if not https_required:
             return None
 
-        # Check if request is HTTPS
         if self._is_request_https(request):
             return None
 
-        # HTTPS required but not present - send event and redirect
         if self.middleware.event_bus is not None:
             self.middleware.event_bus.send_https_violation_event(request, route_config)
 

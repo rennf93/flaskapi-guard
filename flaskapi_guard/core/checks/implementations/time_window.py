@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/time_window.py
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -29,7 +28,6 @@ class TimeWindowCheck(SecurityCheck):
             current_time = datetime.now(tz)
             current_hour_minute = current_time.strftime("%H:%M")
 
-            # Handle overnight time windows (e.g., 22:00 to 06:00)
             if start_time > end_time:
                 return (
                     current_hour_minute >= start_time or current_hour_minute <= end_time
@@ -39,7 +37,7 @@ class TimeWindowCheck(SecurityCheck):
 
         except Exception as e:
             self.logger.error(f"Error checking time window: {str(e)}")
-            return True  # Allow access if time check fails
+            return True
 
     def check(self, request: Request) -> Response | None:
         """Check time window restrictions."""
@@ -57,7 +55,6 @@ class TimeWindowCheck(SecurityCheck):
                 level=self.config.log_suspicious_level,
                 passive_mode=self.config.passive_mode,
             )
-            # Send decorator violation event to agent
             if self.middleware.event_bus is not None:
                 self.middleware.event_bus.send_middleware_event(
                     event_type="decorator_violation",

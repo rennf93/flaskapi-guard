@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/ratelimit_handler.py
 import logging
 import time
 from collections import defaultdict, deque
@@ -37,7 +36,9 @@ class RateLimitManager:
             cls._instance.request_timestamps = defaultdict(
                 lambda: deque(maxlen=config.rate_limit * 2)
             )
-            cls._instance.logger = logging.getLogger("flaskapi_guard.handlers.ratelimit")
+            cls._instance.logger = logging.getLogger(
+                "flaskapi_guard.handlers.ratelimit"
+            )
             cls._instance.redis_handler = None
             cls._instance.agent_handler = None
             cls._instance.rate_limit_script_sha = None
@@ -49,7 +50,6 @@ class RateLimitManager:
         """Initialize Redis connection and load Lua scripts"""
         self.redis_handler = redis_handler
 
-        # Load the Lua script
         if self.redis_handler and self.config.enable_redis:
             try:
                 with self.redis_handler.get_connection() as conn:
@@ -57,7 +57,6 @@ class RateLimitManager:
                     self.logger.info("Rate limiting Lua script loaded successfully")
             except Exception as e:
                 self.logger.error(f"Failed to load rate limiting Lua script: {str(e)}")
-                # Fallback to non-Lua implementation
 
     def initialize_agent(self, agent_handler: Any) -> None:
         """Initialize agent integration."""
@@ -79,7 +78,6 @@ class RateLimitManager:
         key_name = f"{self.redis_handler.config.redis_prefix}rate_limit:{rate_key}"
 
         try:
-            # Atomic Lua Script preferred
             if self.rate_limit_script_sha:
                 with self.redis_handler.get_connection() as conn:
                     count = conn.evalsha(
@@ -92,7 +90,6 @@ class RateLimitManager:
                     )
                 return int(count)
             else:
-                # Fallback to pipeline
                 with self.redis_handler.get_connection() as conn:
                     pipeline = conn.pipeline()
                     pipeline.zadd(key_name, {str(current_time): current_time})
@@ -100,7 +97,7 @@ class RateLimitManager:
                     pipeline.zcard(key_name)
                     pipeline.expire(key_name, self.config.rate_limit_window * 2)
                     results = pipeline.execute()
-                    return int(results[2])  # ZCARD operation count
+                    return int(results[2])
 
         except RedisError as e:
             self.logger.error(f"Redis rate limiting error: {str(e)}")
@@ -129,7 +126,6 @@ class RateLimitManager:
             passive_mode=self.config.passive_mode,
         )
 
-        # Send event to agent
         if self.agent_handler:
             self._send_rate_limit_event(request, client_ip, count)
 
@@ -147,14 +143,12 @@ class RateLimitManager:
         Returns:
             Current request count (before adding current request)
         """
-        # Cleanup old requests outside the window
         while (
             self.request_timestamps[client_ip]
             and self.request_timestamps[client_ip][0] <= window_start
         ):
             self.request_timestamps[client_ip].popleft()
 
-        # Get count and add current timestamp
         request_count = len(self.request_timestamps[client_ip])
         self.request_timestamps[client_ip].append(current_time)
 
@@ -184,11 +178,9 @@ class RateLimitManager:
         current_time = time.time()
         window_start = current_time - self.config.rate_limit_window
 
-        # Try Redis first if enabled
         if self.config.enable_redis and self.redis_handler:
             count = self._get_redis_request_count(client_ip, current_time, window_start)
 
-            # If Redis succeeded, check if limit exceeded
             if count is not None:
                 if count > self.config.rate_limit:
                     return self._handle_rate_limit_exceeded(
@@ -196,12 +188,10 @@ class RateLimitManager:
                     )
                 return None
 
-        # Fall back to in-memory rate limiting
         request_count = self._get_in_memory_request_count(
             client_ip, window_start, current_time
         )
 
-        # Check if limit exceeded
         if request_count >= self.config.rate_limit:
             return self._handle_rate_limit_exceeded(
                 request, client_ip, request_count + 1, create_error_response
@@ -237,7 +227,6 @@ class RateLimitManager:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break rate limiting
             self.logger.error(f"Failed to send rate limit event to agent: {e}")
 
     def reset(self) -> None:
@@ -253,5 +242,4 @@ class RateLimitManager:
                 self.logger.error(f"Failed to reset Redis rate limits: {str(e)}")
 
 
-# Instance
 rate_limit_handler = RateLimitManager

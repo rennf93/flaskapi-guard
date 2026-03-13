@@ -1,4 +1,3 @@
-# tests/test_agent/test_ipinfo_agent_integration.py
 import logging
 from collections.abc import Generator
 from pathlib import Path
@@ -11,10 +10,7 @@ from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
 
 
 class TestIPInfoManagerAgentIntegration:
-    """Test IPInfoManager agent integration."""
-
     def test_initialize_agent(self, cleanup_ipinfo_singleton: None) -> None:
-        """Test initialize_agent method."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
 
@@ -25,11 +21,9 @@ class TestIPInfoManagerAgentIntegration:
     def test_send_geo_event_no_agent_handler(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test _send_geo_event when agent_handler is None."""
         manager = IPInfoManager(token="test-token")
         manager.agent_handler = None
 
-        # Should return early without any action
         manager._send_geo_event(
             event_type="geo_lookup_failed",
             ip_address="192.168.1.1",
@@ -37,10 +31,7 @@ class TestIPInfoManagerAgentIntegration:
             reason="test reason",
         )
 
-        # Test passes if no exception is raised
-
     def test_send_geo_event_success(self, cleanup_ipinfo_singleton: None) -> None:
-        """Test _send_geo_event success path."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
@@ -54,11 +45,9 @@ class TestIPInfoManagerAgentIntegration:
             rule_type="country_blacklist",
         )
 
-        # Verify event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
-        # Verify event properties
         assert sent_event.event_type == "country_blocked"
         assert sent_event.ip_address == "192.168.1.100"
         assert sent_event.action_taken == "request_blocked"
@@ -69,16 +58,13 @@ class TestIPInfoManagerAgentIntegration:
     def test_send_geo_event_exception_handling(
         self, cleanup_ipinfo_singleton: None, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Test _send_geo_event exception handling."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         mock_agent.send_event.side_effect = Exception("Network error")
         manager.agent_handler = mock_agent
 
-        # Enable logging
         caplog.set_level(logging.ERROR)
 
-        # Should not raise exception
         manager._send_geo_event(
             event_type="geo_lookup_failed",
             ip_address="192.168.1.101",
@@ -86,26 +72,21 @@ class TestIPInfoManagerAgentIntegration:
             reason="Test failure",
         )
 
-        # Verify error was logged
         assert "Failed to send geo event to agent: Network error" in caplog.text
 
     def test_initialize_database_download_failure_with_agent(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test database download failure with agent event."""
         manager = IPInfoManager(token="test-token", db_path=Path("test_data/test.mmdb"))
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock the download to fail
         with patch.object(manager, "_download_database") as mock_download:
             mock_download.side_effect = Exception("Download failed")
 
-            # Mock _is_db_outdated to return True to trigger download
             with patch.object(manager, "_is_db_outdated", return_value=True):
                 manager.initialize()
 
-        # Verify agent event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -117,21 +98,17 @@ class TestIPInfoManagerAgentIntegration:
     def test_get_country_exception_with_agent(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test get_country exception with agent event."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock reader to raise exception
         mock_reader = MagicMock()
         mock_reader.get.side_effect = Exception("Database corrupted")
         manager.reader = mock_reader
 
-        # Call get_country and expect None
         result = manager.get_country("192.168.1.100")
         assert result is None
 
-        # Verify agent event was sent synchronously
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -143,28 +120,23 @@ class TestIPInfoManagerAgentIntegration:
     def test_get_country_exception_no_agent(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test get_country exception without agent handler."""
         manager = IPInfoManager(token="test-token")
         manager.agent_handler = None
 
-        # Mock reader to raise exception
         mock_reader = MagicMock()
         mock_reader.get.side_effect = Exception("Database error")
         manager.reader = mock_reader
 
-        # Should return None without raising
         result = manager.get_country("192.168.1.100")
         assert result is None
 
     def test_check_country_access_no_country(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test check_country_access when country cannot be determined"""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock reader to return None (no country found)
         mock_reader = MagicMock()
         mock_reader.get.return_value = None
         manager.reader = mock_reader
@@ -177,18 +149,15 @@ class TestIPInfoManagerAgentIntegration:
 
         assert result is True
         assert country is None
-        # No event should be sent
         mock_agent.send_event.assert_not_called()
 
     def test_check_country_access_no_country_with_whitelist(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test check_country_access blocks unknown country when whitelist is set."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock reader to return None (no country found)
         mock_reader = MagicMock()
         mock_reader.get.return_value = None
         manager.reader = mock_reader
@@ -199,19 +168,16 @@ class TestIPInfoManagerAgentIntegration:
             whitelist_countries=["US", "GB"],
         )
 
-        # Fail-closed: unknown country blocked by whitelist
         assert result is False
         assert country is None
 
     def test_check_country_access_whitelist_not_in_list(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test check_country_access with whitelist - country not in list."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock get_country to return a country not in whitelist
         with patch.object(manager, "get_country", return_value="CN"):
             result, country = manager.check_country_access(
                 "192.168.1.100",
@@ -222,7 +188,6 @@ class TestIPInfoManagerAgentIntegration:
         assert result is False
         assert country == "CN"
 
-        # Verify agent event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -236,12 +201,10 @@ class TestIPInfoManagerAgentIntegration:
     def test_check_country_access_blacklist_blocked(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test check_country_access with blacklist - country is blocked."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock get_country to return a blocked country
         with patch.object(manager, "get_country", return_value="RU"):
             result, country = manager.check_country_access(
                 "192.168.1.100",
@@ -252,7 +215,6 @@ class TestIPInfoManagerAgentIntegration:
         assert result is False
         assert country == "RU"
 
-        # Verify agent event was sent
         mock_agent.send_event.assert_called_once()
         sent_event = mock_agent.send_event.call_args[0][0]
 
@@ -264,12 +226,10 @@ class TestIPInfoManagerAgentIntegration:
         assert sent_event.metadata["rule_type"] == "country_blacklist"
 
     def test_check_country_access_allowed(self, cleanup_ipinfo_singleton: None) -> None:
-        """Test check_country_access when country is allowed."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock get_country to return an allowed country
         with patch.object(manager, "get_country", return_value="US"):
             result, country = manager.check_country_access(
                 "192.168.1.100",
@@ -280,18 +240,15 @@ class TestIPInfoManagerAgentIntegration:
         assert result is True
         assert country == "US"
 
-        # No event should be sent for allowed access
         mock_agent.send_event.assert_not_called()
 
     def test_check_country_access_whitelist_in_list(
         self, cleanup_ipinfo_singleton: None
     ) -> None:
-        """Test check_country_access with whitelist - country in list."""
         manager = IPInfoManager(token="test-token")
         mock_agent = MagicMock()
         manager.agent_handler = mock_agent
 
-        # Mock get_country to return a whitelisted country
         with patch.object(manager, "get_country", return_value="US"):
             result, country = manager.check_country_access(
                 "192.168.1.100",
@@ -302,14 +259,11 @@ class TestIPInfoManagerAgentIntegration:
         assert result is True
         assert country == "US"
 
-        # No event should be sent for allowed access
         mock_agent.send_event.assert_not_called()
 
 
 @pytest.fixture
 def cleanup_ipinfo_singleton() -> Generator[Any, Any, Any]:
-    """Cleanup IPInfoManager singleton before and after test."""
-    # Reset before test
     IPInfoManager._instance = None
 
     def custom_new(
@@ -329,7 +283,6 @@ def cleanup_ipinfo_singleton() -> Generator[Any, Any, Any]:
             cls._instance.db_path = db_path
         return cls._instance
 
-    # Patch __new__ with our custom implementation and SecurityEvent
     with (
         patch.object(IPInfoManager, "__new__", custom_new),
         patch(
@@ -342,5 +295,4 @@ def cleanup_ipinfo_singleton() -> Generator[Any, Any, Any]:
         mock_event.side_effect = SecurityEvent
         yield
 
-    # Reset after test
     IPInfoManager._instance = None

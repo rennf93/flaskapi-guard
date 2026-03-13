@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/request_logging.py
 from flask import Request, Response
 
 from flaskapi_guard.core.checks.base import SecurityCheck

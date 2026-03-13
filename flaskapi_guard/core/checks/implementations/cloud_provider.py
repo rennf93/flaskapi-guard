@@ -1,4 +1,5 @@
-# flaskapi_guard/core/checks/implementations/cloud_provider.py
+from typing import Any
+
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -13,38 +14,33 @@ class CloudProviderCheck(SecurityCheck):
     def check_name(self) -> str:
         return "cloud_provider"
 
-    def check(self, request: Request) -> Response | None:
-        """Check cloud provider blocking."""
-        if getattr(g, "is_whitelisted", False):
-            return None
+    def _should_skip_check(self, route_config: Any) -> bool:
+        """Determine if cloud provider check should be skipped."""
+        if self.middleware.route_resolver is None:
+            return False
+        return self.middleware.route_resolver.should_bypass_check(
+            "clouds", route_config
+        )
 
-        client_ip = getattr(g, "client_ip", None)
-        route_config = getattr(g, "route_config", None)
-        if not client_ip:
+    def _get_cloud_providers(self, route_config: Any) -> set[str] | None:
+        """Get the set of cloud providers to check against."""
+        if self.middleware.route_resolver is None:
             return None
-
-        if (
-            self.middleware.route_resolver is not None
-            and self.middleware.route_resolver.should_bypass_check(
-                "clouds", route_config
-            )
-        ):
+        providers = self.middleware.route_resolver.get_cloud_providers_to_check(
+            route_config
+        )
+        if not providers:
             return None
+        return set(providers)
 
-        # Get cloud providers to check
-        cloud_providers_to_check = None
-        if self.middleware.route_resolver is not None:
-            cloud_providers_to_check = (
-                self.middleware.route_resolver.get_cloud_providers_to_check(route_config)
-            )
-        if not cloud_providers_to_check:
-            return None
-
-        # Check if IP is from blocked cloud provider
-        if not cloud_handler.is_cloud_ip(client_ip, set(cloud_providers_to_check)):
-            return None
-
-        # Log suspicious activity
+    def _log_and_send_events(
+        self,
+        request: Request,
+        client_ip: str,
+        cloud_providers_to_check: Any,
+        route_config: Any,
+    ) -> None:
+        """Log suspicious activity and send cloud detection events."""
         log_activity(
             request,
             self.logger,
@@ -54,7 +50,6 @@ class CloudProviderCheck(SecurityCheck):
             passive_mode=self.config.passive_mode,
         )
 
-        # Send cloud detection events
         if self.middleware.event_bus is not None:
             self.middleware.event_bus.send_cloud_detection_events(
                 request,
@@ -65,7 +60,28 @@ class CloudProviderCheck(SecurityCheck):
                 self.config.passive_mode,
             )
 
-        # Return error response if not in passive mode
+    def check(self, request: Request) -> Response | None:
+        """Check cloud provider blocking."""
+        if getattr(g, "is_whitelisted", False):
+            return None
+
+        client_ip = getattr(g, "client_ip", None)
+        route_config = getattr(g, "route_config", None)
+        if not client_ip:
+            return None
+
+        if self._should_skip_check(route_config):
+            return None
+
+        cloud_providers = self._get_cloud_providers(route_config)
+        if not cloud_providers:
+            return None
+
+        if not cloud_handler.is_cloud_ip(client_ip, cloud_providers):
+            return None
+
+        self._log_and_send_events(request, client_ip, cloud_providers, route_config)
+
         if not self.config.passive_mode:
             return self.middleware.create_error_response(
                 status_code=403,

@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/ipban_handler.py
 import logging
 import time
 from datetime import datetime, timezone
@@ -45,7 +44,6 @@ class IPBanManager:
         if self.redis_handler:
             self.redis_handler.set_key("banned_ips", ip, str(expiry), ttl=duration)
 
-        # Send event to agent
         if self.agent_handler:
             self._send_ban_event(ip, duration, reason)
 
@@ -64,7 +62,6 @@ class IPBanManager:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break the ban functionality
             logging.getLogger("flaskapi_guard.handlers.ipban").error(
                 f"Failed to send ban event to agent: {e}"
             )
@@ -73,15 +70,12 @@ class IPBanManager:
         """
         Unban an IP address (remove from ban list).
         """
-        # Remove from local cache
         if ip in self.banned_ips:
             del self.banned_ips[ip]
 
-        # Remove from Redis
         if self.redis_handler:
             self.redis_handler.delete("banned_ips", ip)
 
-        # Send event to agent
         if self.agent_handler:
             self._send_unban_event(ip)
 
@@ -100,7 +94,6 @@ class IPBanManager:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break the unban functionality
             logging.getLogger("flaskapi_guard.handlers.ipban").error(
                 f"Failed to send unban event to agent: {e}"
             )
@@ -143,7 +136,6 @@ class IPBanManager:
                     conn.delete(*keys)
 
 
-# Instance
 ip_ban_manager = IPBanManager()
 
 

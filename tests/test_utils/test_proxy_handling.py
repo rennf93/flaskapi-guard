@@ -88,7 +88,6 @@ def test_extract_client_ip_without_xforwarded() -> None:
     ):
         from flask import request
 
-        # Should fall back to client IP
         ip = extract_client_ip(request, config)
         assert ip == "127.0.0.1"
 
@@ -131,10 +130,6 @@ def test_extract_client_ip_error_handling(
             ):
                 ip = extract_client_ip(request, config)
                 assert ip == "127.0.0.1"
-                # When ip_address() raises ValueError,
-                # _is_trusted_proxy catches it and returns False
-                # This triggers the IP spoof attempt warning
-                # since forwarded_for is present
                 assert "Potential IP spoof attempt" in caplog.text
 
 

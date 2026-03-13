@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/cloud_handler.py
 import html
 import ipaddress
 import logging
@@ -267,9 +266,7 @@ class CloudManager:
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break cloud provider functionality
             self.logger.error(f"Failed to send cloud event to agent: {e}")
 
 
-# Instance
 cloud_handler = CloudManager()

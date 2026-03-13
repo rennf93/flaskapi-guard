@@ -1,4 +1,3 @@
-# flaskapi_guard/handlers/redis_handler.py
 import logging
 import threading
 from collections.abc import Iterator
@@ -51,14 +50,13 @@ class RedisManager:
             event = SecurityEvent(
                 timestamp=datetime.now(timezone.utc),
                 event_type=event_type,
-                ip_address="system",  # Redis events are system-level
+                ip_address="system",
                 action_taken=action_taken,
                 reason=reason,
                 metadata=kwargs,
             )
             self.agent_handler.send_event(event)
         except Exception as e:
-            # Don't let agent errors break Redis functionality
             self.logger.error(f"Failed to send Redis event to agent: {e}")
 
     def initialize(self) -> None:
@@ -77,7 +75,6 @@ class RedisManager:
                         self._redis.ping()
                         self.logger.info("Redis connection established")
 
-                        # Send success event to agent
                         self._send_redis_event(
                             event_type="redis_connection",
                             action_taken="connection_established",
@@ -90,7 +87,6 @@ class RedisManager:
             except Exception as e:
                 self.logger.error(f"Redis connection failed: {str(e)}")
 
-                # Send failure event to agent
                 self._send_redis_event(
                     event_type="redis_error",
                     action_taken="connection_failed",
@@ -111,7 +107,6 @@ class RedisManager:
             self._redis = None
             self.logger.info("Redis connection closed")
 
-            # Send close event to agent
             self._send_redis_event(
                 event_type="redis_connection",
                 action_taken="connection_closed",
@@ -152,7 +147,6 @@ class RedisManager:
         except (ConnectionError, AttributeError) as e:
             self.logger.error(f"Redis operation failed: {str(e)}")
 
-            # Send operation failure event to agent
             self._send_redis_event(
                 event_type="redis_error",
                 action_taken="operation_failed",
@@ -175,7 +169,6 @@ class RedisManager:
         except Exception as e:
             self.logger.error(f"Redis operation failed: {str(e)}")
 
-            # Send operation failure event to agent
             self._send_redis_event(
                 event_type="redis_error",
                 action_taken="safe_operation_failed",
@@ -188,7 +181,6 @@ class RedisManager:
                 description="Redis operation failed",
             ) from e
 
-    # Atomic operations
     def get_key(self, namespace: str, key: str) -> Any:
         """Get a value from Redis with proper namespacing"""
         if not self.config.enable_redis:

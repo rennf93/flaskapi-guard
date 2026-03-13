@@ -88,7 +88,7 @@ class TestRequestValidator:
         """Test is_request_https with X-Forwarded-Proto from trusted proxy."""
         mock_request.scheme = "http"
         mock_request.headers = {"X-Forwarded-Proto": "https"}
-        mock_request.remote_addr = "192.168.1.1"  # Trusted proxy
+        mock_request.remote_addr = "192.168.1.1"
 
         result = validator.is_request_https(mock_request)
 
@@ -100,7 +100,7 @@ class TestRequestValidator:
         """Test is_request_https with X-Forwarded-Proto from untrusted proxy."""
         mock_request.scheme = "http"
         mock_request.headers = {"X-Forwarded-Proto": "https"}
-        mock_request.remote_addr = "1.2.3.4"  # Untrusted proxy
+        mock_request.remote_addr = "1.2.3.4"
 
         result = validator.is_request_https(mock_request)
 
@@ -171,10 +171,8 @@ class TestRequestValidator:
 
     def test_check_time_window_within_range(self, validator: RequestValidator) -> None:
         """Test check_time_window when current time is within range."""
-        # Set up time window that includes current time
         current = datetime.now(timezone.utc)
 
-        # Create a window around current time
         hour = current.hour
         start_hour = (hour - 1) % 24
         end_hour = (hour + 1) % 24
@@ -186,15 +184,12 @@ class TestRequestValidator:
 
         result = validator.check_time_window(time_restrictions)
 
-        # Should be within window
         assert result is True
 
     def test_check_time_window_outside_range(self, validator: RequestValidator) -> None:
         """Test check_time_window when current time is outside range."""
-        # Set up time window that doesn't include current time
         current = datetime.now(timezone.utc)
 
-        # Create a window far from current time
         hour = current.hour
         start_hour = (hour + 6) % 24
         end_hour = (hour + 8) % 24
@@ -206,7 +201,6 @@ class TestRequestValidator:
 
         result = validator.check_time_window(time_restrictions)
 
-        # Should be outside window (unless we're unlucky with timing)
         assert result is False
 
     def test_check_time_window_overnight_within(
@@ -217,7 +211,6 @@ class TestRequestValidator:
 
         result = validator.check_time_window(time_restrictions)
 
-        # Result depends on current time - we just verify it runs
         assert isinstance(result, bool)
 
     def test_check_time_window_error_handling(
@@ -228,7 +221,6 @@ class TestRequestValidator:
 
         result = validator.check_time_window(time_restrictions)
 
-        # Should return True (allow access) on error
         assert result is True
 
     def test_is_path_excluded_matching_path(

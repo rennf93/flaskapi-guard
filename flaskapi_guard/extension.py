@@ -1,4 +1,3 @@
-# flaskapi_guard/extension.py
 import logging
 import time
 from typing import Any
@@ -71,74 +70,69 @@ class FlaskAPIGuard:
         if app is not None:
             self.init_app(app, config=config)
 
-    def init_app(self, app: Flask, config: SecurityConfig | None = None) -> None:
-        """
-        Initialize the extension with a Flask application.
-
-        Args:
-            app: The Flask application instance.
-            config: Optional SecurityConfig. If not provided, uses the one
-                    from __init__ or raises ValueError.
-        """
-        # Use provided config or get from init
+    def _resolve_config(self, config: SecurityConfig | None) -> None:
+        """Resolve and validate the security configuration."""
         if config is not None:
             self.config = config
         elif self.config is None:
             raise ValueError("SecurityConfig must be provided")
 
+    def _init_geo_ip_handler(self) -> None:
+        """Initialize the geo IP handler if country rules are configured."""
         assert self.config is not None
-
-        self.logger = setup_custom_logging(self.config.custom_log_file)
-        self.last_cloud_ip_refresh = 0
-        self.suspicious_request_counts = {}
-        self.last_cleanup = time.time()
-        self.rate_limit_handler = RateLimitManager(self.config)
-
-        self._configure_security_headers(self.config)
-
-        # Setup geo_ip_handler
         self.geo_ip_handler = None
         if self.config.whitelist_countries or self.config.blocked_countries:
             self.geo_ip_handler = self.config.geo_ip_handler
 
-        # Initialize Redis handler if enabled
+    def _init_redis_handler(self) -> None:
+        """Initialize Redis handler if enabled in config."""
+        assert self.config is not None
         self.redis_handler = None
         if self.config.enable_redis:
             from flaskapi_guard.handlers.redis_handler import RedisManager
 
             self.redis_handler = RedisManager(self.config)
 
-        # Initialize agent handler if enabled
+    def _init_agent_handler(self) -> None:
+        """Initialize agent handler if enabled in config."""
+        assert self.config is not None
+        assert self.logger is not None
         self.agent_handler = None
-        if self.config.enable_agent:
-            agent_config = self.config.to_agent_config()
-            if agent_config:
-                try:
-                    from guard_agent import guard_agent
+        if not self.config.enable_agent:
+            return
 
-                    self.agent_handler = guard_agent(agent_config)
-                    self.logger.info("Guard Agent initialized successfully")
-                except ImportError:
-                    self.logger.warning(
-                        "Agent enabled but guard_agent package not installed. "
-                        "Install with: pip install fastapi-guard-agent"
-                    )
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize Guard Agent: {e}")
-                    self.logger.warning("Continuing without agent functionality")
-            else:
-                self.logger.warning(
-                    "Agent enabled but configuration is invalid. "
-                    "Check agent_api_key and other required fields."
-                )
+        agent_config = self.config.to_agent_config()
+        if not agent_config:
+            self.logger.warning(
+                "Agent enabled but configuration is invalid. "
+                "Check agent_api_key and other required fields."
+            )
+            return
 
-        # Initialize event bus and metrics collector
+        try:
+            from guard_agent import guard_agent
+
+            self.agent_handler = guard_agent(agent_config)
+            self.logger.info("Guard Agent initialized successfully")
+        except ImportError:
+            self.logger.warning(
+                "Agent enabled but guard_agent package not installed. "
+                "Install with: pip install fastapi-guard-agent"
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Guard Agent: {e}")
+            self.logger.warning("Continuing without agent functionality")
+
+    def _init_core_components(self) -> None:
+        """Initialize event bus, metrics, handler initializer, and core components."""
+        assert self.config is not None
+        assert self.logger is not None
+
         self.event_bus = SecurityEventBus(
             self.agent_handler, self.config, self.geo_ip_handler
         )
         self.metrics_collector = MetricsCollector(self.agent_handler, self.config)
 
-        # Initialize handler initializer
         self.handler_initializer = HandlerInitializer(
             config=self.config,
             redis_handler=self.redis_handler,
@@ -148,7 +142,6 @@ class FlaskAPIGuard:
             guard_decorator=self.guard_decorator,
         )
 
-        # Initialize response factory
         response_context = ResponseContext(
             config=self.config,
             logger=self.logger,
@@ -158,7 +151,14 @@ class FlaskAPIGuard:
         )
         self.response_factory = ErrorResponseFactory(response_context)
 
-        # Initialize route config resolver
+    def _init_routing_and_validation(self) -> None:
+        """Initialize routing, validation, bypass, and behavioral."""
+        assert self.config is not None
+        assert self.logger is not None
+        assert self.event_bus is not None
+        assert self.route_resolver is None
+        assert self.response_factory is not None
+
         routing_context = RoutingContext(
             config=self.config,
             logger=self.logger,
@@ -166,7 +166,6 @@ class FlaskAPIGuard:
         )
         self.route_resolver = RouteConfigResolver(routing_context)
 
-        # Initialize request validator
         validation_context = ValidationContext(
             config=self.config,
             logger=self.logger,
@@ -174,7 +173,6 @@ class FlaskAPIGuard:
         )
         self.validator = RequestValidator(validation_context)
 
-        # Initialize bypass handler (requires validator and route_resolver)
         bypass_context = BypassContext(
             config=self.config,
             logger=self.logger,
@@ -185,7 +183,6 @@ class FlaskAPIGuard:
         )
         self.bypass_handler = BypassHandler(bypass_context)
 
-        # Initialize behavioral processor
         behavioral_context = BehavioralContext(
             config=self.config,
             logger=self.logger,
@@ -194,23 +191,43 @@ class FlaskAPIGuard:
         )
         self.behavioral_processor = BehavioralProcessor(behavioral_context)
 
-        # Store app reference for set_decorator_handler
+    def init_app(self, app: Flask, config: SecurityConfig | None = None) -> None:
+        """
+        Initialize the extension with a Flask application.
+
+        Args:
+            app: The Flask application instance.
+            config: Optional SecurityConfig. If not provided, uses the one
+                    from __init__ or raises ValueError.
+        """
+        self._resolve_config(config)
+        assert self.config is not None
+
+        self.logger = setup_custom_logging(self.config.custom_log_file)
+        self.last_cloud_ip_refresh = 0
+        self.suspicious_request_counts = {}
+        self.last_cleanup = time.time()
+        self.rate_limit_handler = RateLimitManager(self.config)
+
+        self._configure_security_headers(self.config)
+        self._init_geo_ip_handler()
+        self._init_redis_handler()
+        self._init_agent_handler()
+        self._init_core_components()
+        self._init_routing_and_validation()
+
         self._app = app
 
-        # Store on app.extensions
         app.extensions["flaskapi_guard"] = {
             "guard": self,
             "config": self.config,
             "guard_decorator": self.guard_decorator,
         }
 
-        # Build security pipeline
         self._build_security_pipeline()
 
-        # Initialize handlers synchronously
         self._initialize_handlers()
 
-        # Register hooks
         app.before_request(self._before_request)
         app.after_request(self._after_request)
 
@@ -218,13 +235,10 @@ class FlaskAPIGuard:
         """Synchronous version of SecurityMiddleware.initialize()."""
         assert self.handler_initializer is not None
 
-        # Update handler initializer with current decorator (may have changed)
         self.handler_initializer.guard_decorator = self.guard_decorator
 
-        # Initialize Redis handlers
         self.handler_initializer.initialize_redis_handlers()
 
-        # Initialize agent and its integrations
         self.handler_initializer.initialize_agent_integrations()
 
     def _build_security_pipeline(self) -> None:
@@ -251,32 +265,22 @@ class FlaskAPIGuard:
         )
 
         checks = [
-            # Always first: extract route config and client IP
             RouteConfigCheck(self),
-            # Emergency mode (highest priority after routing)
             EmergencyModeCheck(self),
-            # HTTPS enforcement (can redirect)
             HttpsEnforcementCheck(self),
-            # Request logging
             RequestLoggingCheck(self),
-            # Request validation checks
             RequestSizeContentCheck(self),
             RequiredHeadersCheck(self),
             AuthenticationCheck(self),
             ReferrerCheck(self),
             CustomValidatorsCheck(self),
             TimeWindowCheck(self),
-            # Periodic maintenance
             CloudIpRefreshCheck(self),
-            # IP-based checks
             IpSecurityCheck(self),
             CloudProviderCheck(self),
             UserAgentCheck(self),
-            # Rate limiting
             RateLimitCheck(self),
-            # Threat detection
             SuspiciousActivityCheck(self),
-            # Custom checks
             CustomRequestCheck(self),
         ]
 
@@ -326,7 +330,6 @@ class FlaskAPIGuard:
     ) -> None:
         """Set the SecurityDecorator instance for decorator support."""
         self.guard_decorator = decorator_handler
-        # Update all components that reference the decorator
         if self.route_resolver:
             self.route_resolver.context.guard_decorator = decorator_handler
         if self.behavioral_processor:
@@ -335,14 +338,29 @@ class FlaskAPIGuard:
             self.response_factory.context.guard_decorator = decorator_handler
         if self.handler_initializer:
             self.handler_initializer.guard_decorator = decorator_handler
-        # Update app.extensions if we have access to the app
         if self._app is not None:
             ext = self._app.extensions.get("flaskapi_guard")
             if isinstance(ext, dict):
                 ext["guard_decorator"] = decorator_handler
 
+    def _execute_security_pipeline(self, request: Request) -> Response | None:
+        """Execute the security check pipeline and return blocking response if any."""
+        if self.security_pipeline:
+            return self.security_pipeline.execute(request)
+        return None
+
+    def _process_behavioral_usage(
+        self, request: Request, client_ip: str, route_config: RouteConfig | None
+    ) -> None:
+        """Process behavioral usage rules if applicable."""
+        assert self.behavioral_processor is not None
+        if route_config and route_config.behavior_rules and client_ip:
+            self.behavioral_processor.process_usage_rules(
+                request, client_ip, route_config
+            )
+
     def _before_request(self) -> Response | None:
-        """Security pipeline — runs before each request."""
+        """Security pipeline -- runs before each request."""
         from flask import request
 
         assert self.config is not None
@@ -352,44 +370,33 @@ class FlaskAPIGuard:
 
         g.request_start_time = time.time()
 
-        # Handle CORS preflight
         if self.config.enable_cors and request.method == "OPTIONS":
             return self._handle_preflight(request)
 
-        # Handle passthrough (excluded paths, etc.)
         passthrough = self.bypass_handler.handle_passthrough(request)
         if passthrough is not None:
             return passthrough
 
-        # Get route config and client IP
         client_ip = extract_client_ip(request, self.config, self.agent_handler)
         route_config = self.route_resolver.get_route_config(request)
 
-        # Store for after_request
         g.client_ip = client_ip
         g.route_config = route_config
 
-        # Handle security bypass
         bypass = self.bypass_handler.handle_security_bypass(request, route_config)
         if bypass is not None:
             return bypass
 
-        # Execute security pipeline
-        if self.security_pipeline:
-            blocking = self.security_pipeline.execute(request)
-            if blocking:
-                return blocking
+        blocking = self._execute_security_pipeline(request)
+        if blocking:
+            return blocking
 
-        # Process behavioral usage rules
-        if route_config and route_config.behavior_rules and client_ip:
-            self.behavioral_processor.process_usage_rules(
-                request, client_ip, route_config
-            )
+        self._process_behavioral_usage(request, client_ip, route_config)
 
-        return None  # Proceed to route handler
+        return None
 
     def _after_request(self, response: Response) -> Response:
-        """Post-processing — runs after each request."""
+        """Post-processing -- runs after each request."""
         from flask import request
 
         assert self.response_factory is not None
@@ -399,7 +406,6 @@ class FlaskAPIGuard:
         response_time = time.time() - start_time
         route_config = getattr(g, "route_config", None)
 
-        # Process response (behavioral rules, metrics, headers, CORS)
         return self.response_factory.process_response(
             request,
             response,
@@ -461,7 +467,6 @@ class FlaskAPIGuard:
             request, client_ip, self.create_error_response
         )
 
-        # In passive mode, log but don't block
         if response and self.config.passive_mode:
             return None
 

@@ -1,4 +1,3 @@
-# flaskapi_guard/core/behavioral/processor.py
 from flask import Request, Response, current_app
 
 from flaskapi_guard.core.behavioral.context import BehavioralContext
@@ -36,7 +35,6 @@ class BehavioralProcessor:
                     message = f"Behavioral {rule.rule_type}"
                     reason = "threshold exceeded"
 
-                    # Send decorator violation event for behavioral rule violation
                     self.context.event_bus.send_middleware_event(
                         event_type="decorator_violation",
                         request=request,
@@ -78,7 +76,6 @@ class BehavioralProcessor:
                 if pattern_detected:
                     details = f"{rule.threshold} for '{rule.pattern}' in {rule.window}s"
 
-                    # Send decorator violation event for return pattern violation
                     self.context.event_bus.send_middleware_event(
                         event_type="decorator_violation",
                         request=request,
@@ -106,8 +103,5 @@ class BehavioralProcessor:
             return f"{request.method}:{request.path}"
         view_func = current_app.view_functions.get(request.endpoint)
         if view_func is not None:
-            # This is an internal identifier for tracking, not returned to users.
-            # Values come from Python introspection (module,
-            # qualname), not from user input.
             return f"{view_func.__module__}.{view_func.__qualname__}"
         return f"{request.method}:{request.path}"

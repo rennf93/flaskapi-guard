@@ -11,13 +11,11 @@ def test_component_initialization(
     """Test that all components are properly initialized."""
     manager = sus_patterns_manager_with_detection
 
-    # Check all components are initialized
     assert manager._compiler is not None
     assert manager._preprocessor is not None
     assert manager._semantic_analyzer is not None
     assert manager._performance_monitor is not None
 
-    # Check component status
     status = manager.get_component_status()
     assert status["compiler"] is True
     assert status["preprocessor"] is True
@@ -31,14 +29,12 @@ def test_extended_detection(
     """Test detection with extended components."""
     manager = sus_patterns_manager_with_detection
 
-    # Test XSS detection
     xss_content = "<script>alert('xss')</script>"
     is_threat, pattern = manager.detect_pattern_match(xss_content, "127.0.0.1", "test")
     assert is_threat is True
     assert pattern is not None
 
-    # Test SQL injection with preprocessing
-    sql_content = "SELECT%20*%20FROM%20users"  # URL encoded
+    sql_content = "SELECT%20*%20FROM%20users"
     is_threat, pattern = manager.detect_pattern_match(sql_content, "127.0.0.1", "test")
     assert is_threat is True
 
@@ -49,7 +45,6 @@ def test_performance_monitoring(
     """Test that performance monitoring is working."""
     manager = sus_patterns_manager_with_detection
 
-    # Run some detections
     test_contents = [
         "normal content",
         "<script>alert(1)</script>",
@@ -59,13 +54,11 @@ def test_performance_monitoring(
     for content in test_contents:
         manager.detect_pattern_match(content, "127.0.0.1", "test")
 
-    # Get performance stats
     stats = manager.get_performance_stats()
     assert stats is not None
     assert "summary" in stats
     assert stats["summary"]["total_executions"] >= 3
 
-    # Check for overall_detection pattern
     assert stats["summary"]["total_patterns"] >= 1
 
 
@@ -75,15 +68,13 @@ def test_semantic_threshold_configuration(
     """Test semantic threshold configuration."""
     manager = sus_patterns_manager_with_detection
 
-    # Configure threshold
     manager.configure_semantic_threshold(0.5)
     assert manager._semantic_threshold == 0.5
 
-    # Test edge cases
-    manager.configure_semantic_threshold(2.0)  # Above max
+    manager.configure_semantic_threshold(2.0)
     assert manager._semantic_threshold == 1.0
 
-    manager.configure_semantic_threshold(-1.0)  # Below min
+    manager.configure_semantic_threshold(-1.0)
     assert manager._semantic_threshold == 0.0
 
 
@@ -93,15 +84,11 @@ def test_compiler_timeout_protection(
     """Test that compiler provides timeout protection."""
     manager = sus_patterns_manager_with_detection
 
-    # Test with a potentially slow pattern
-    # The compiler should protect against ReDoS
     slow_pattern_content = "a" * 1000 + "b"
 
-    # This should complete without hanging
     is_threat, pattern = manager.detect_pattern_match(
         slow_pattern_content, "127.0.0.1", "test"
     )
-    # Result doesn't matter, just that it completes
 
 
 def test_preprocessor_normalization(
@@ -110,14 +97,12 @@ def test_preprocessor_normalization(
     """Test content preprocessing normalization."""
     manager = sus_patterns_manager_with_detection
 
-    # Test various encoding bypasses with complete script tags
     encoded_attacks = [
-        "%3Cscript%3Ealert(1)%3C/script%3E",  # URL encoded
-        "&#60;script&#62;alert(1)&#60;/script&#62;",  # HTML entities
-        "<script>alert(1)</script>",  # Direct for comparison
+        "%3Cscript%3Ealert(1)%3C/script%3E",
+        "&#60;script&#62;alert(1)&#60;/script&#62;",
+        "<script>alert(1)</script>",
     ]
 
     for encoded in encoded_attacks:
         is_threat, pattern = manager.detect_pattern_match(encoded, "127.0.0.1", "test")
-        # Preprocessor should normalize these to detect the attack
         assert is_threat is True

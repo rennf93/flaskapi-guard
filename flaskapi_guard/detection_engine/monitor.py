@@ -1,4 +1,3 @@
-# flaskapi_guard/detection_engine/monitor.py
 import threading
 from collections import deque
 from dataclasses import dataclass, field
@@ -54,7 +53,6 @@ class PerformanceMonitor:
             history_size: Number of recent metrics to keep in history
             max_tracked_patterns: Maximum number of patterns to track
         """
-        # Validate and bound parameters
         self.anomaly_threshold = max(1.0, min(10.0, float(anomaly_threshold)))
         self.slow_pattern_threshold = max(
             0.01, min(10.0, float(slow_pattern_threshold))
@@ -62,16 +60,12 @@ class PerformanceMonitor:
         self.history_size = max(100, min(10000, int(history_size)))
         self.max_tracked_patterns = max(100, min(5000, int(max_tracked_patterns)))
 
-        # Pattern statistics
         self.pattern_stats: dict[str, PatternStats] = {}
 
-        # Recent metrics for anomaly detection
         self.recent_metrics: deque[PerformanceMetric] = deque(maxlen=history_size)
 
-        # Anomaly callbacks
         self.anomaly_callbacks: list[Any] = []
 
-        # Thread safety
         self._lock = threading.Lock()
 
     def record_metric(
@@ -96,17 +90,13 @@ class PerformanceMonitor:
             agent_handler: Optional agent handler for event logging
             correlation_id: Optional correlation ID for request tracking
         """
-        # Sanitize pattern to prevent sensitive data leakage
-        # Only store first 100 chars of pattern to avoid storing sensitive regex
         MAX_PATTERN_LENGTH = 100
         if len(pattern) > MAX_PATTERN_LENGTH:
             pattern = pattern[:MAX_PATTERN_LENGTH] + "...[truncated]"
 
-        # Validate inputs to prevent data corruption
         execution_time = max(0.0, float(execution_time))
         content_length = max(0, int(content_length))
 
-        # Create metric
         metric = PerformanceMetric(
             pattern=pattern,
             execution_time=execution_time,
@@ -117,14 +107,10 @@ class PerformanceMonitor:
         )
 
         with self._lock:
-            # Add to recent metrics
             self.recent_metrics.append(metric)
 
-            # Update pattern statistics
             if pattern not in self.pattern_stats:
-                # Enforce pattern limit
                 if len(self.pattern_stats) >= self.max_tracked_patterns:
-                    # Remove oldest pattern (FIFO)
                     oldest_pattern = next(iter(self.pattern_stats))
                     del self.pattern_stats[oldest_pattern]
                 self.pattern_stats[pattern] = PatternStats(pattern=pattern)
@@ -143,7 +129,6 @@ class PerformanceMonitor:
                 if stats.recent_times:
                     stats.avg_execution_time = mean(stats.recent_times)
 
-        # Check for anomalies (outside lock to avoid blocking)
         self._check_anomalies(metric, agent_handler, correlation_id)
 
     def _detect_timeout_anomaly(
@@ -205,7 +190,7 @@ class PerformanceMonitor:
 
         recent_times = list(stats.recent_times)
         if len(recent_times) <= 1:
-            return None  # pragma: no cover
+            return None
 
         avg_time = mean(recent_times)
         std_time = stdev(recent_times)
@@ -252,11 +237,9 @@ class PerformanceMonitor:
                     **anomaly,
                 },
             }
-            # Use duck typing to avoid import
             event = type("SecurityEvent", (), event_data)()
             agent_handler.send_event(event)
         except Exception:
-            # Don't let agent errors affect monitoring
             pass
 
     def _sanitize_anomaly_data(self, anomaly: dict[str, Any]) -> dict[str, Any]:
@@ -271,7 +254,6 @@ class PerformanceMonitor:
         """
         safe_anomaly = anomaly.copy()
         if "pattern" in safe_anomaly:
-            # Only expose truncated pattern
             pattern = str(safe_anomaly["pattern"])
             safe_anomaly["pattern"] = (
                 pattern[:50] + "..." if len(pattern) > 50 else pattern
@@ -312,7 +294,6 @@ class PerformanceMonitor:
             event = type("SecurityEvent", (), event_data)()
             agent_handler.send_event(event)
         except Exception:
-            # Double failure - silently continue
             pass
 
     def _notify_callbacks(
@@ -333,10 +314,8 @@ class PerformanceMonitor:
 
         for callback in self.anomaly_callbacks:
             try:
-                # Pass sanitized data to callback
                 callback(safe_anomaly)
             except Exception as e:
-                # Log callback error but continue monitoring
                 if agent_handler:
                     self._send_callback_error_event(
                         e, safe_anomaly, agent_handler, correlation_id
@@ -358,27 +337,22 @@ class PerformanceMonitor:
         """
         anomalies: list[dict[str, Any]] = []
 
-        # Detect different types of anomalies
         timeout_anomaly = self._detect_timeout_anomaly(metric)
         if timeout_anomaly:
             anomalies.append(timeout_anomaly)
         else:
-            # Only check slow execution if no timeout
             slow_anomaly = self._detect_slow_execution_anomaly(metric)
             if slow_anomaly:
                 anomalies.append(slow_anomaly)
 
-        # Check for statistical anomaly
         statistical_anomaly = self._detect_statistical_anomaly(metric)
         if statistical_anomaly:
             anomalies.append(statistical_anomaly)
 
-        # Send anomaly events to agent if available
         if agent_handler:
             for anomaly in anomalies:
                 self._send_anomaly_event(anomaly, agent_handler, correlation_id)
 
-        # Notify callbacks
         for anomaly in anomalies:
             self._notify_callbacks(anomaly, agent_handler, correlation_id)
 
@@ -392,7 +366,6 @@ class PerformanceMonitor:
         Returns:
             Performance report dictionary or None if pattern not found
         """
-        # Truncate pattern lookup to match storage
         MAX_PATTERN_LENGTH = 100
         if len(pattern) > MAX_PATTERN_LENGTH:
             pattern = pattern[:MAX_PATTERN_LENGTH] + "...[truncated]"
@@ -401,18 +374,17 @@ class PerformanceMonitor:
         if not stats:
             return None
 
-        # Don't expose full pattern in reports
         safe_pattern = pattern[:50] + "..." if len(pattern) > 50 else pattern
 
         return {
-            "pattern": safe_pattern,  # Truncated for security
-            "pattern_hash": str(hash(pattern))[:8],  # Short hash for identification
+            "pattern": safe_pattern,
+            "pattern_hash": str(hash(pattern))[:8],
             "total_executions": stats.total_executions,
             "total_matches": stats.total_matches,
             "total_timeouts": stats.total_timeouts,
             "match_rate": stats.total_matches / max(stats.total_executions, 1),
             "timeout_rate": stats.total_timeouts / max(stats.total_executions, 1),
-            "avg_execution_time": round(stats.avg_execution_time, 4),  # Limit precision
+            "avg_execution_time": round(stats.avg_execution_time, 4),
             "max_execution_time": round(stats.max_execution_time, 4),
             "min_execution_time": round(
                 stats.min_execution_time
@@ -462,14 +434,12 @@ class PerformanceMonitor:
 
             timeout_rate = stats.total_timeouts / stats.total_executions
 
-            # High timeout rate
-            if timeout_rate > 0.1:  # More than 10% timeouts
+            if timeout_rate > 0.1:
                 report = self.get_pattern_report(pattern)
                 if report:
                     report["issue"] = "high_timeout_rate"
                     problematic.append(report)
 
-            # Consistently slow
             elif stats.avg_execution_time > self.slow_pattern_threshold:
                 report = self.get_pattern_report(pattern)
                 if report:

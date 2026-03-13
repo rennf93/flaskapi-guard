@@ -125,7 +125,6 @@ def test_rate_limiting_decorators_unit(security_config: SecurityConfig) -> None:
     mock_func.__name__ = mock_func.__qualname__ = "test_func"
     mock_func.__module__ = "test_module"
 
-    # Test rate_limit decorator
     rate_limit_decorator = decorator.rate_limit(requests=5, window=120)
     decorated_func = rate_limit_decorator(mock_func)
 
@@ -135,7 +134,6 @@ def test_rate_limiting_decorators_unit(security_config: SecurityConfig) -> None:
     assert route_config.rate_limit == 5
     assert route_config.rate_limit_window == 120
 
-    # Test geo_rate_limit decorator
     mock_func2 = Mock()
     mock_func2.__name__ = mock_func2.__qualname__ = "test_func2"
     mock_func2.__module__ = "test_module"

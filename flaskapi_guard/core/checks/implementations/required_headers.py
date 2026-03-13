@@ -1,4 +1,3 @@
-# flaskapi_guard/core/checks/implementations/required_headers.py
 from flask import Request, Response, g
 
 from flaskapi_guard.core.checks.base import SecurityCheck
@@ -35,7 +34,6 @@ class RequiredHeadersCheck(SecurityCheck):
         """Handle a missing required header with logging and event reporting."""
         reason = f"Missing required header: {header}"
 
-        # Log suspicious activity
         log_activity(
             request,
             self.logger,
@@ -45,10 +43,8 @@ class RequiredHeadersCheck(SecurityCheck):
             passive_mode=self.config.passive_mode,
         )
 
-        # Classify violation
         decorator_type, violation_type = _classify_header_violation(header)
 
-        # Send decorator violation event
         if self.middleware.event_bus is not None:
             self.middleware.event_bus.send_middleware_event(
                 event_type="decorator_violation",
@@ -62,7 +58,6 @@ class RequiredHeadersCheck(SecurityCheck):
                 missing_header=header,
             )
 
-        # Return error response if not in passive mode
         if not self.config.passive_mode:
             return self.middleware.create_error_response(
                 status_code=400,
@@ -77,7 +72,6 @@ class RequiredHeadersCheck(SecurityCheck):
         if not route_config or not route_config.required_headers:
             return None
 
-        # Check each required header
         for header, expected in route_config.required_headers.items():
             if expected == "required" and not request.headers.get(header):
                 return self._handle_missing_header(request, header)

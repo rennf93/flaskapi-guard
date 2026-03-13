@@ -15,17 +15,12 @@ import pytest
 from flaskapi_guard.handlers.dynamic_rule_handler import DynamicRuleManager
 from flaskapi_guard.models import DynamicRules, SecurityConfig
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
 
 @pytest.fixture(autouse=True)
 def cleanup_singleton() -> Generator[None, None, None]:
     """Reset singleton before and after each test."""
     DynamicRuleManager._instance = None
     yield
-    # Stop any running thread, then reset
     if DynamicRuleManager._instance is not None:
         try:
             DynamicRuleManager._instance.stop()
@@ -126,17 +121,10 @@ def mock_guard_agent() -> Generator[Any, None, None]:
             sys.modules.pop("guard_agent", None)
 
 
-# ---------------------------------------------------------------------------
-# 1. Singleton pattern and initialization
-# ---------------------------------------------------------------------------
-
-
 class TestSingletonPattern:
     """Test DynamicRuleManager singleton behaviour."""
 
-    def test_singleton_returns_same_instance(
-        self, config: SecurityConfig
-    ) -> None:
+    def test_singleton_returns_same_instance(self, config: SecurityConfig) -> None:
         instance_a = DynamicRuleManager(config)
         instance_b = DynamicRuleManager(config)
         assert instance_a is instance_b
@@ -161,11 +149,6 @@ class TestSingletonPattern:
         assert manager._stop_event is None
         assert manager.agent_handler is None
         assert manager.redis_handler is None
-
-
-# ---------------------------------------------------------------------------
-# 2. initialize_agent
-# ---------------------------------------------------------------------------
 
 
 class TestInitializeAgent:
@@ -206,11 +189,6 @@ class TestInitializeAgent:
         manager.stop()
 
 
-# ---------------------------------------------------------------------------
-# 3. initialize_redis
-# ---------------------------------------------------------------------------
-
-
 class TestInitializeRedis:
     def test_sets_redis_handler(
         self,
@@ -219,11 +197,6 @@ class TestInitializeRedis:
     ) -> None:
         manager.initialize_redis(mock_redis_handler)
         assert manager.redis_handler is mock_redis_handler
-
-
-# ---------------------------------------------------------------------------
-# 4. _rule_update_loop
-# ---------------------------------------------------------------------------
 
 
 class TestRuleUpdateLoop:
@@ -256,9 +229,7 @@ class TestRuleUpdateLoop:
         config.dynamic_rule_interval = 1
         mgr = DynamicRuleManager(config)
 
-        with patch.object(
-            mgr, "update_rules", side_effect=RuntimeError("boom")
-        ):
+        with patch.object(mgr, "update_rules", side_effect=RuntimeError("boom")):
             mgr._stop_event = threading.Event()
             with caplog.at_level(
                 logging.ERROR, logger="flaskapi_guard.handlers.dynamic_rule"
@@ -277,13 +248,7 @@ class TestRuleUpdateLoop:
     ) -> None:
         """Loop should exit immediately if _stop_event is None."""
         manager._stop_event = None
-        # Should return immediately without hanging
         manager._rule_update_loop()
-
-
-# ---------------------------------------------------------------------------
-# 5. _should_update_rules
-# ---------------------------------------------------------------------------
 
 
 class TestShouldUpdateRules:
@@ -333,13 +298,8 @@ class TestShouldUpdateRules:
         manager.current_rules = sample_rules.model_copy()
         different = sample_rules.model_copy()
         different.rule_id = "completely-different-id"
-        different.version = 0  # even lower version
+        different.version = 0
         assert manager._should_update_rules(different) is True
-
-
-# ---------------------------------------------------------------------------
-# 6. update_rules – full flow
-# ---------------------------------------------------------------------------
 
 
 class TestUpdateRules:
@@ -383,7 +343,6 @@ class TestUpdateRules:
         manager: DynamicRuleManager,
     ) -> None:
         manager.agent_handler = None
-        # Should not raise
         manager.update_rules()
 
     def test_returns_early_when_agent_returns_none(
@@ -420,15 +379,13 @@ class TestUpdateRules:
         mock_agent_handler.get_dynamic_rules.side_effect = RuntimeError("net error")
         manager.agent_handler = mock_agent_handler
 
-        with caplog.at_level(logging.ERROR, logger="flaskapi_guard.handlers.dynamic_rule"):
+        with caplog.at_level(
+            logging.ERROR,
+            logger="flaskapi_guard.handlers.dynamic_rule",
+        ):
             manager.update_rules()
 
         assert "Failed to update dynamic rules" in caplog.text
-
-
-# ---------------------------------------------------------------------------
-# 7. _apply_rules (orchestrator)
-# ---------------------------------------------------------------------------
 
 
 class TestApplyRules:
@@ -449,7 +406,7 @@ class TestApplyRules:
             m_block.assert_called_once_with(sample_rules)
             m_rate.assert_called_once_with(sample_rules)
             m_feat.assert_called_once_with(sample_rules)
-            m_emrg.assert_not_called()  # emergency_mode=False
+            m_emrg.assert_not_called()
 
     def test_activates_emergency_mode(
         self,
@@ -491,16 +448,9 @@ class TestApplyRules:
         manager: DynamicRuleManager,
         sample_rules: DynamicRules,
     ) -> None:
-        with patch.object(
-            manager, "_apply_ip_rules", side_effect=RuntimeError("fail")
-        ):
+        with patch.object(manager, "_apply_ip_rules", side_effect=RuntimeError("fail")):
             with pytest.raises(RuntimeError, match="fail"):
                 manager._apply_rules(sample_rules)
-
-
-# ---------------------------------------------------------------------------
-# 8. _apply_ip_rules
-# ---------------------------------------------------------------------------
 
 
 class TestApplyIpRules:
@@ -535,11 +485,6 @@ class TestApplyIpRules:
             m_wl.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# 9. _apply_ip_bans
-# ---------------------------------------------------------------------------
-
-
 class TestApplyIpBans:
     def test_bans_each_ip(self, manager: DynamicRuleManager) -> None:
         mock_ban_mgr = MagicMock()
@@ -572,11 +517,6 @@ class TestApplyIpBans:
             assert "Failed to ban IP 1.2.3.4" in caplog.text
 
 
-# ---------------------------------------------------------------------------
-# 10. _apply_ip_whitelist
-# ---------------------------------------------------------------------------
-
-
 class TestApplyIpWhitelist:
     def test_unbans_each_ip(self, manager: DynamicRuleManager) -> None:
         mock_ban_mgr = MagicMock()
@@ -605,11 +545,6 @@ class TestApplyIpWhitelist:
             ):
                 manager._apply_ip_whitelist(["10.0.0.1"])
             assert "Failed to whitelist IP 10.0.0.1" in caplog.text
-
-
-# ---------------------------------------------------------------------------
-# 11. _apply_blocking_rules
-# ---------------------------------------------------------------------------
 
 
 class TestApplyBlockingRules:
@@ -656,11 +591,6 @@ class TestApplyBlockingRules:
             m_pat.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# 12. _apply_country_rules
-# ---------------------------------------------------------------------------
-
-
 class TestApplyCountryRules:
     def test_sets_blocked_and_whitelisted(
         self,
@@ -681,11 +611,6 @@ class TestApplyCountryRules:
         manager._apply_country_rules([], ["US"])
         assert manager.config.blocked_countries == original_blocked
         assert manager.config.whitelist_countries == ["US"]
-
-
-# ---------------------------------------------------------------------------
-# 13. _apply_rate_limit_rules
-# ---------------------------------------------------------------------------
 
 
 class TestApplyRateLimitRules:
@@ -730,31 +655,16 @@ class TestApplyRateLimitRules:
         assert manager.config.rate_limit == original_rate
 
 
-# ---------------------------------------------------------------------------
-# 14. _apply_cloud_provider_rules
-# ---------------------------------------------------------------------------
-
-
 class TestApplyCloudProviderRules:
     def test_sets_providers(self, manager: DynamicRuleManager) -> None:
         manager._apply_cloud_provider_rules({"aws", "gcp"})
         assert manager.config.block_cloud_providers == {"aws", "gcp"}
 
 
-# ---------------------------------------------------------------------------
-# 15. _apply_user_agent_rules
-# ---------------------------------------------------------------------------
-
-
 class TestApplyUserAgentRules:
     def test_sets_user_agents(self, manager: DynamicRuleManager) -> None:
         manager._apply_user_agent_rules(["badbot", "crawler"])
         assert manager.config.blocked_user_agents == ["badbot", "crawler"]
-
-
-# ---------------------------------------------------------------------------
-# 16. _apply_pattern_rules
-# ---------------------------------------------------------------------------
 
 
 class TestApplyPatternRules:
@@ -769,11 +679,6 @@ class TestApplyPatternRules:
             assert mock_sus.add_pattern.call_count == 2
             mock_sus.add_pattern.assert_any_call("../")
             mock_sus.add_pattern.assert_any_call("DROP TABLE")
-
-
-# ---------------------------------------------------------------------------
-# 17. _apply_feature_toggles
-# ---------------------------------------------------------------------------
 
 
 class TestApplyFeatureToggles:
@@ -846,11 +751,6 @@ class TestApplyFeatureToggles:
         assert manager.config.enable_rate_limiting == original_rl
 
 
-# ---------------------------------------------------------------------------
-# 18. _activate_emergency_mode
-# ---------------------------------------------------------------------------
-
-
 class TestActivateEmergencyMode:
     def test_sets_emergency_mode(self, manager: DynamicRuleManager) -> None:
         manager._activate_emergency_mode(["10.0.0.1"])
@@ -893,11 +793,6 @@ class TestActivateEmergencyMode:
             m_event.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# 19. _send_rule_received_event
-# ---------------------------------------------------------------------------
-
-
 class TestSendRuleReceivedEvent:
     def test_no_agent_returns_early(
         self,
@@ -905,7 +800,6 @@ class TestSendRuleReceivedEvent:
         sample_rules: DynamicRules,
     ) -> None:
         manager.agent_handler = None
-        # Should not raise
         manager._send_rule_received_event(sample_rules)
 
     def test_sends_event(
@@ -926,7 +820,6 @@ class TestSendRuleReceivedEvent:
         sample_rules: DynamicRules,
         mock_guard_agent: Any,
     ) -> None:
-        # Set existing rules so previous_version is populated
         existing = sample_rules.model_copy()
         existing.version = 3
         manager.current_rules = existing
@@ -945,7 +838,6 @@ class TestSendRuleReceivedEvent:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         manager.agent_handler = mock_agent_handler
-        # Remove guard_agent from sys.modules to trigger ImportError
         original = sys.modules.pop("guard_agent", None)
         try:
             with caplog.at_level(
@@ -956,11 +848,6 @@ class TestSendRuleReceivedEvent:
         finally:
             if original is not None:
                 sys.modules["guard_agent"] = original
-
-
-# ---------------------------------------------------------------------------
-# 20. _send_rule_applied_event
-# ---------------------------------------------------------------------------
 
 
 class TestSendRuleAppliedEvent:
@@ -1003,11 +890,6 @@ class TestSendRuleAppliedEvent:
                 sys.modules["guard_agent"] = original
 
 
-# ---------------------------------------------------------------------------
-# 21. _send_emergency_event
-# ---------------------------------------------------------------------------
-
-
 class TestSendEmergencyEvent:
     def test_no_agent_returns_early(
         self,
@@ -1045,11 +927,6 @@ class TestSendEmergencyEvent:
                 sys.modules["guard_agent"] = original
 
 
-# ---------------------------------------------------------------------------
-# 22. get_current_rules
-# ---------------------------------------------------------------------------
-
-
 class TestGetCurrentRules:
     def test_returns_none_initially(
         self,
@@ -1066,11 +943,6 @@ class TestGetCurrentRules:
         assert manager.get_current_rules() is sample_rules
 
 
-# ---------------------------------------------------------------------------
-# 23. force_update
-# ---------------------------------------------------------------------------
-
-
 class TestForceUpdate:
     def test_calls_update_rules(
         self,
@@ -1079,11 +951,6 @@ class TestForceUpdate:
         with patch.object(manager, "update_rules") as m_update:
             manager.force_update()
             m_update.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# 24. stop
-# ---------------------------------------------------------------------------
 
 
 class TestStop:
@@ -1106,7 +973,6 @@ class TestStop:
     ) -> None:
         manager._update_thread = None
         manager._stop_event = None
-        # Should not raise
         manager.stop()
 
     def test_stop_sets_event(
