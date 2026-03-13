@@ -3,10 +3,10 @@ Release Notes
 
 ___
 
-v0.1.0 (2026-03-13)
+v1.0.0 (2026-03-13)
 -------------------
 
-Initial Release (v0.1.0)
+Initial Release (v1.0.0)
 ------------
 
 - Initial release of Flask API Guard
