@@ -4,7 +4,7 @@ Production-ready deployment demonstrating flaskapi-guard with nginx reverse prox
 
 ## Architecture
 
-```
+```text
 Client -> nginx (port 80) -> gunicorn (port 8000) -> Flask + guard extension
                                                                 |
                                                            Redis (cache)
