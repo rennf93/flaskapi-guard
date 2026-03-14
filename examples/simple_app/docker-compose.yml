@@ -8,8 +8,8 @@ services:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379
-      - REDIS_PREFIX=${REDIS_PREFIX:-"flaskapi_guard:"}
-      - IPINFO_TOKEN=${IPINFO_TOKEN:-"test_token"}
+      - REDIS_PREFIX=${REDIS_PREFIX:-flaskapi_guard:}
+      - IPINFO_TOKEN=${IPINFO_TOKEN:-test_token}
     volumes:
       - ./:/app:z
     depends_on:

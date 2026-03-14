@@ -166,7 +166,9 @@ class TestHandlerInitializer:
             initializer.initialize_redis_handlers()
 
             mock_cloud.initialize_redis.assert_called_once_with(
-                mock_redis_handler, security_config.block_cloud_providers
+                mock_redis_handler,
+                security_config.block_cloud_providers,
+                ttl=security_config.cloud_ip_refresh_interval,
             )
 
     def test_initialize_redis_handlers_no_optional_handlers(

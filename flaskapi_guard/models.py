@@ -205,6 +205,11 @@ class SecurityConfig(BaseModel):
         The logging level to use. If None, logging is disabled. Defaults to None.
     """
 
+    log_format: Literal["text", "json"] = Field(
+        default="text",
+        description="Log output format: 'text' or 'json' for structured JSON",
+    )
+
     custom_error_responses: dict[int, str] = Field(
         default_factory=dict, description="Custom error for specific HTTP status codes"
     )
@@ -383,6 +388,13 @@ class SecurityConfig(BaseModel):
         A set of cloud provider names to block.
         Supported values: 'AWS', 'GCP', 'Azure'
     """
+
+    cloud_ip_refresh_interval: int = Field(
+        default=3600,
+        description="Interval in seconds between cloud IP range refreshes",
+        ge=60,
+        le=86400,
+    )
 
     exclude_paths: list[str] = Field(
         default_factory=lambda: [
