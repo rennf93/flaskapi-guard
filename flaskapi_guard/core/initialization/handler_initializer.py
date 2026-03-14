@@ -47,7 +47,9 @@ class HandlerInitializer:
 
         if self.config.block_cloud_providers:
             cloud_handler.initialize_redis(
-                self.redis_handler, self.config.block_cloud_providers
+                self.redis_handler,
+                self.config.block_cloud_providers,
+                ttl=self.config.cloud_ip_refresh_interval,
             )
 
         ip_ban_manager.initialize_redis(self.redis_handler)

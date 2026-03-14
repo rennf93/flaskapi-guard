@@ -1,0 +1,15 @@
+[project]
+name = "flaskapi-guard-advanced-example"
+version = "1.0.0"
+description = "Production-ready FlaskAPI Guard example with nginx, gunicorn, and modular layout"
+requires-python = ">=3.10"
+dependencies = [
+    "flask",
+    "flaskapi-guard",
+    "gunicorn",
+    "redis",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

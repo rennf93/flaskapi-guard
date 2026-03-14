@@ -95,21 +95,35 @@ def send_agent_event(
         logging.getLogger(__name__).error(f"Failed to send agent event: {e}")
 
 
-def setup_custom_logging(log_file: str | None = None) -> logging.Logger:
-    """
-    Setup custom logging for Flask API Guard.
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        import json
 
-    Configures a hierarchical logger that outputs to both console and file.
-    Console output is ALWAYS enabled for visibility.
-    File output is optional for persistence.
-    """
+        log_entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        return json.dumps(log_entry, default=str)
+
+
+def _create_formatter(log_format: str) -> logging.Formatter:
+    if log_format == "json":
+        return JsonFormatter()
+    return logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s - %(message)s")
+
+
+def setup_custom_logging(
+    log_file: str | None = None, log_format: str = "text"
+) -> logging.Logger:
     logger = logging.getLogger("flaskapi_guard")
     logger.handlers.clear()
 
+    formatter = _create_formatter(log_format)
+
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(
-        logging.Formatter("[%(name)s] %(asctime)s - %(levelname)s - %(message)s")
-    )
+    console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
     if log_file:
@@ -121,11 +135,7 @@ def setup_custom_logging(log_file: str | None = None) -> logging.Logger:
                 os.makedirs(log_dir, exist_ok=True)
 
             file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(
-                logging.Formatter(
-                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-                )
-            )
+            file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         except Exception as e:
             logger.warning(f"Failed to create log file {log_file}: {e}")
@@ -654,7 +664,7 @@ def _build_threat_message(threat: dict[str, Any]) -> str:
 
 def _fallback_pattern_check(value: str) -> tuple[bool, str]:
     """Fallback to basic pattern matching if enhanced detection fails."""
-    for pattern in sus_patterns_handler.get_all_compiled_patterns():
+    for pattern, _ctx in sus_patterns_handler.get_all_compiled_patterns():
         try:
             if pattern.search(value):
                 return True, "Value matched pattern (fallback)"

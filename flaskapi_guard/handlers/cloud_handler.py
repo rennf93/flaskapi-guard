@@ -95,6 +95,7 @@ class CloudManager:
     ip_ranges: dict[str, set[ipaddress.IPv4Network | ipaddress.IPv6Network]]
     redis_handler: Any = None
     agent_handler: Any = None
+    last_updated: dict[str, datetime | None]
     logger: logging.Logger
 
     def __new__(cls: type["CloudManager"]) -> "CloudManager":
@@ -107,11 +108,27 @@ class CloudManager:
             }
             cls._instance.redis_handler = None
             cls._instance.agent_handler = None
+            cls._instance.last_updated = {provider: None for provider in _ALL_PROVIDERS}
             cls._instance.logger = logging.getLogger("flaskapi_guard.handlers.cloud")
         return cls._instance
 
+    def _log_range_changes(
+        self,
+        provider: str,
+        old_ranges: set[ipaddress.IPv4Network | ipaddress.IPv6Network],
+        new_ranges: set[ipaddress.IPv4Network | ipaddress.IPv6Network],
+    ) -> None:
+        if old_ranges == new_ranges:
+            return
+        added = new_ranges - old_ranges
+        removed = old_ranges - new_ranges
+        if added or removed:
+            self.logger.info(
+                f"Cloud IP range update for {provider}: "
+                f"+{len(added)} added, -{len(removed)} removed"
+            )
+
     def _refresh_sync(self, providers: set[str] = _ALL_PROVIDERS) -> None:
-        """Synchronous refresh of cloud IP ranges."""
         for provider in providers:
             try:
                 ranges = {
@@ -120,24 +137,30 @@ class CloudManager:
                     "Azure": fetch_azure_ip_ranges,
                 }[provider]()
                 if ranges:
+                    old_ranges = self.ip_ranges.get(provider, set())
+                    self._log_range_changes(provider, old_ranges, ranges)
                     self.ip_ranges[provider] = ranges
+                    self.last_updated[provider] = datetime.now(timezone.utc)
             except Exception as e:
                 self.logger.error(f"Failed to fetch {provider} IP ranges: {str(e)}")
                 self.ip_ranges[provider] = set()
 
     def initialize_redis(
-        self, redis_handler: Any, providers: set[str] = _ALL_PROVIDERS
+        self,
+        redis_handler: Any,
+        providers: set[str] = _ALL_PROVIDERS,
+        ttl: int = 3600,
     ) -> None:
-        """Initialize Redis connection and load cached ranges."""
         self.redis_handler = redis_handler
-        self.refresh(providers)
+        self.refresh(providers, ttl=ttl)
 
     def initialize_agent(self, agent_handler: Any) -> None:
         """Initialize agent integration."""
         self.agent_handler = agent_handler
 
-    def refresh(self, providers: set[str] = _ALL_PROVIDERS) -> None:
-        """Refresh cloud IP ranges, using Redis cache when available."""
+    def refresh(
+        self, providers: set[str] = _ALL_PROVIDERS, ttl: int = 3600
+    ) -> None:
         if self.redis_handler is None:
             self._refresh_sync(providers)
             return
@@ -159,13 +182,16 @@ class CloudManager:
 
                 ranges = fetch_func()
                 if ranges:
+                    old_ranges = self.ip_ranges.get(provider, set())
+                    self._log_range_changes(provider, old_ranges, ranges)
                     self.ip_ranges[provider] = ranges
+                    self.last_updated[provider] = datetime.now(timezone.utc)
 
                     self.redis_handler.set_key(
                         "cloud_ranges",
                         provider,
                         ",".join(str(ip) for ip in ranges),
-                        ttl=3600,
+                        ttl=ttl,
                     )
 
             except Exception as e:

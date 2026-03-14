@@ -203,7 +203,9 @@ class FlaskAPIGuard:
         self._resolve_config(config)
         assert self.config is not None
 
-        self.logger = setup_custom_logging(self.config.custom_log_file)
+        self.logger = setup_custom_logging(
+            self.config.custom_log_file, log_format=self.config.log_format
+        )
         self.last_cloud_ip_refresh = 0
         self.suspicious_request_counts = {}
         self.last_cleanup = time.time()
@@ -529,7 +531,10 @@ class FlaskAPIGuard:
         if not self.config.block_cloud_providers:
             return
 
-        cloud_handler.refresh(self.config.block_cloud_providers)
+        cloud_handler.refresh(
+            self.config.block_cloud_providers,
+            ttl=self.config.cloud_ip_refresh_interval,
+        )
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(self, status_code: int, default_message: str) -> Response:

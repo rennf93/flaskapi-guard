@@ -717,13 +717,17 @@ def test_detect_penetration_fallback_pattern_match() -> None:
 
         mock_pattern = MagicMock()
         mock_pattern.search.return_value = MagicMock()
+        mock_ctx = frozenset({
+            "query_param", "header", "url_path",
+            "request_body", "unknown",
+        })
 
         with (
             patch.object(sus_patterns_handler, "detect", side_effect=mock_detect_error),
             patch.object(
                 sus_patterns_handler,
                 "get_all_compiled_patterns",
-                return_value=[mock_pattern],
+                return_value=[(mock_pattern, mock_ctx)],
             ),
             patch("logging.error") as mock_error,
         ):
@@ -751,13 +755,17 @@ def test_detect_penetration_fallback_pattern_exception() -> None:
 
         mock_pattern = MagicMock()
         mock_pattern.search.side_effect = Exception("Pattern error")
+        mock_ctx = frozenset({
+            "query_param", "header", "url_path",
+            "request_body", "unknown",
+        })
 
         with (
             patch.object(sus_patterns_handler, "detect", side_effect=mock_detect_error),
             patch.object(
                 sus_patterns_handler,
                 "get_all_compiled_patterns",
-                return_value=[mock_pattern],
+                return_value=[(mock_pattern, mock_ctx)],
             ),
             patch("logging.error") as mock_log_error,
         ):
