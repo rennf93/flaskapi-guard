@@ -688,17 +688,12 @@ class TestExtensionAgentIntegration:
         mock_redis_handler = MagicMock()
         guard.redis_handler = mock_redis_handler
 
-        mock_rate_handler = MagicMock()
-        mock_rate_handler.check_rate_limit = MagicMock(
+        guard.rate_limit_handler = MagicMock()
+        guard.rate_limit_handler.check_rate_limit = MagicMock(
             return_value=Response("Rate limit exceeded", status=429)
         )
-        mock_rate_handler.initialize_redis = MagicMock()
 
         with (
-            patch(
-                "flaskapi_guard.core.checks.implementations.rate_limit.RateLimitManager",
-                return_value=mock_rate_handler,
-            ),
             patch(
                 "flaskapi_guard.utils.extract_client_ip",
                 MagicMock(return_value="127.0.0.1"),
@@ -747,19 +742,14 @@ class TestExtensionAgentIntegration:
         mock_redis_handler = MagicMock()
         guard.redis_handler = mock_redis_handler
 
-        mock_rate_handler = MagicMock()
-        mock_rate_handler.check_rate_limit = MagicMock(
+        guard.rate_limit_handler = MagicMock()
+        guard.rate_limit_handler.check_rate_limit = MagicMock(
             return_value=Response("Rate limit exceeded", status=429)
         )
-        mock_rate_handler.initialize_redis = MagicMock()
 
         with (
             patch.object(
                 guard.route_resolver, "get_route_config", return_value=route_config
-            ),
-            patch(
-                "flaskapi_guard.core.checks.implementations.rate_limit.RateLimitManager",
-                return_value=mock_rate_handler,
             ),
             patch(
                 "flaskapi_guard.utils.extract_client_ip",
@@ -844,7 +834,9 @@ class TestExtensionAgentIntegration:
         )
 
     def test_initialize_with_agent_handler(self) -> None:
-        mock_geo_ip_handler = MagicMock()
+        from flaskapi_guard.protocols.geo_ip_protocol import GeoIPHandler
+
+        mock_geo_ip_handler = MagicMock(spec=GeoIPHandler)
         mock_geo_ip_handler.initialize_agent = MagicMock()
         mock_geo_ip_handler.initialize_redis = MagicMock()
 
@@ -884,7 +876,7 @@ class TestExtensionAgentIntegration:
                 mock_agent_init,
             ),
         ):
-            guard.initialize()
+            guard._initialize_handlers()
 
         assert guard.security_pipeline is not None
 

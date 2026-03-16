@@ -158,9 +158,7 @@ class CloudManager:
         """Initialize agent integration."""
         self.agent_handler = agent_handler
 
-    def refresh(
-        self, providers: set[str] = _ALL_PROVIDERS, ttl: int = 3600
-    ) -> None:
+    def refresh(self, providers: set[str] = _ALL_PROVIDERS, ttl: int = 3600) -> None:
         if self.redis_handler is None:
             self._refresh_sync(providers)
             return

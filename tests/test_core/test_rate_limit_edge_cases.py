@@ -9,7 +9,6 @@ from flaskapi_guard.models import SecurityConfig
 
 @pytest.fixture
 def security_config() -> SecurityConfig:
-    """Create security config."""
     config = SecurityConfig()
     config.passive_mode = False
     config.endpoint_rate_limits = {"/api/test": (5, 60)}
@@ -18,7 +17,6 @@ def security_config() -> SecurityConfig:
 
 @pytest.fixture
 def mock_guard(security_config: SecurityConfig) -> Mock:
-    """Create mock guard."""
     guard = Mock()
     guard.config = security_config
     guard.logger = Mock()
@@ -37,47 +35,37 @@ def mock_guard(security_config: SecurityConfig) -> Mock:
 
 @pytest.fixture
 def rate_limit_check(mock_guard: Mock) -> RateLimitCheck:
-    """Create RateLimitCheck instance."""
     return RateLimitCheck(mock_guard)
 
 
 class TestRateLimitEdgeCases:
-    """Test RateLimitCheck edge cases."""
-
     def test_apply_rate_limit_check_passive_mode(
         self,
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _apply_rate_limit_check returns None in passive mode."""
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
-        with patch.object(
-            rate_limit_check, "_create_rate_handler"
-        ) as mock_create_handler:
-            mock_handler = Mock()
-            mock_handler.check_rate_limit = MagicMock(
-                return_value=Response("Too Many Requests", status=429)
-            )
-            mock_create_handler.return_value = mock_handler
+        rate_limit_check.middleware.rate_limit_handler.check_rate_limit = MagicMock(
+            return_value=Response("Too Many Requests", status=429)
+        )
 
-            result = rate_limit_check._apply_rate_limit_check(
-                mock_request,
-                "1.2.3.4",
-                5,
-                60,
-                "test_event",
-                {"reason": "test"},
-            )
-            assert result is None
+        result = rate_limit_check._apply_rate_limit_check(
+            mock_request,
+            "1.2.3.4",
+            5,
+            60,
+            "test_event",
+            {"reason": "test"},
+        )
+        assert result is None
 
     def test_check_global_rate_limit_passive_mode(
         self,
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_global_rate_limit returns None in passive mode."""
         security_config.passive_mode = True
         mock_request = Mock(spec=Request)
 
@@ -91,7 +79,6 @@ class TestRateLimitEdgeCases:
         assert result is None
 
     def test_check_no_client_ip(self, rate_limit_check: RateLimitCheck) -> None:
-        """Test check returns None when client_ip is None."""
         mock_request = Mock(spec=Request)
 
         app = Flask(__name__)
@@ -105,7 +92,6 @@ class TestRateLimitEdgeCases:
     def test_check_global_rate_limit_not_exceeded(
         self, rate_limit_check: RateLimitCheck
     ) -> None:
-        """Test _check_global_rate_limit when rate limit not exceeded."""
         mock_request = Mock(spec=Request)
 
         mock_handler = Mock()
@@ -120,7 +106,6 @@ class TestRateLimitEdgeCases:
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_global_rate_limit returns response in active mode."""
         security_config.passive_mode = False
         mock_request = Mock(spec=Request)
 
@@ -137,57 +122,48 @@ class TestRateLimitEdgeCases:
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _apply_rate_limit_check returns response in active mode."""
         security_config.passive_mode = False
         mock_request = Mock(spec=Request)
 
-        with patch.object(
-            rate_limit_check, "_create_rate_handler"
-        ) as mock_create_handler:
-            mock_handler = Mock()
-            response = Response("Too Many Requests", status=429)
-            mock_handler.check_rate_limit = MagicMock(return_value=response)
-            mock_create_handler.return_value = mock_handler
+        response = Response("Too Many Requests", status=429)
+        rate_limit_check.middleware.rate_limit_handler.check_rate_limit = MagicMock(
+            return_value=response
+        )
 
-            result = rate_limit_check._apply_rate_limit_check(
-                mock_request,
-                "1.2.3.4",
-                5,
-                60,
-                "test_event",
-                {"reason": "test"},
-            )
-            assert result == response
+        result = rate_limit_check._apply_rate_limit_check(
+            mock_request,
+            "1.2.3.4",
+            5,
+            60,
+            "test_event",
+            {"reason": "test"},
+        )
+        assert result == response
 
     def test_apply_rate_limit_check_not_exceeded(
         self, rate_limit_check: RateLimitCheck
     ) -> None:
-        """Test _apply_rate_limit_check when rate limit not exceeded."""
         mock_request = Mock(spec=Request)
 
-        with patch.object(
-            rate_limit_check, "_create_rate_handler"
-        ) as mock_create_handler:
-            mock_handler = Mock()
-            mock_handler.check_rate_limit = MagicMock(return_value=None)
-            mock_create_handler.return_value = mock_handler
+        rate_limit_check.middleware.rate_limit_handler.check_rate_limit = MagicMock(
+            return_value=None
+        )
 
-            result = rate_limit_check._apply_rate_limit_check(
-                mock_request,
-                "1.2.3.4",
-                5,
-                60,
-                "test_event",
-                {"reason": "test"},
-            )
-            assert result is None
+        result = rate_limit_check._apply_rate_limit_check(
+            mock_request,
+            "1.2.3.4",
+            5,
+            60,
+            "test_event",
+            {"reason": "test"},
+        )
+        assert result is None
 
     def test_check_geo_rate_limit_no_geo_handler(
         self,
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_geo_rate_limit returns None when geo_handler is None."""
         security_config.geo_ip_handler = None
         mock_request = Mock(spec=Request)
         route_config = Mock()
@@ -203,12 +179,12 @@ class TestRateLimitEdgeCases:
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_geo_rate_limit when country matches geo limits."""
         geo_handler = Mock()
         geo_handler.get_country.return_value = "US"
         security_config.geo_ip_handler = geo_handler
 
         mock_request = Mock(spec=Request)
+        mock_request.path = "/api/test"
         route_config = Mock()
         route_config.geo_rate_limits = {"US": (10, 60)}
 
@@ -222,20 +198,20 @@ class TestRateLimitEdgeCases:
             )
             assert result == response
             mock_apply.assert_called_once()
+            call_kwargs = mock_apply.call_args[1]
+            assert call_kwargs["endpoint_path"] == "/api/test"
 
     def test_check_geo_rate_limit_wildcard_match(
         self,
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """
-        Test _check_geo_rate_limit falls back to wildcard when country not in limits.
-        """
         geo_handler = Mock()
         geo_handler.get_country.return_value = "FR"
         security_config.geo_ip_handler = geo_handler
 
         mock_request = Mock(spec=Request)
+        mock_request.path = "/api/test"
         route_config = Mock()
         route_config.geo_rate_limits = {"US": (10, 60), "*": (5, 30)}
 
@@ -251,13 +227,13 @@ class TestRateLimitEdgeCases:
             call_args = mock_apply.call_args
             assert call_args[0][2] == 5
             assert call_args[0][3] == 30
+            assert call_args[1]["endpoint_path"] == "/api/test"
 
     def test_check_geo_rate_limit_no_match(
         self,
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_geo_rate_limit returns None when no country or wildcard match."""
         geo_handler = Mock()
         geo_handler.get_country.return_value = "FR"
         security_config.geo_ip_handler = geo_handler
@@ -276,12 +252,12 @@ class TestRateLimitEdgeCases:
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test _check_geo_rate_limit with wildcard when country is None."""
         geo_handler = Mock()
         geo_handler.get_country.return_value = None
         security_config.geo_ip_handler = geo_handler
 
         mock_request = Mock(spec=Request)
+        mock_request.path = "/api/test"
         route_config = Mock()
         route_config.geo_rate_limits = {"*": (5, 30)}
 
@@ -300,7 +276,6 @@ class TestRateLimitEdgeCases:
         rate_limit_check: RateLimitCheck,
         security_config: SecurityConfig,
     ) -> None:
-        """Test check() returns geo rate limit response at priority 3."""
         mock_request = Mock(spec=Request)
         mock_request.path = "/api/test"
 
@@ -322,3 +297,86 @@ class TestRateLimitEdgeCases:
                 mock_geo.return_value = geo_response
                 result = rate_limit_check.check(mock_request)
                 assert result == geo_response
+
+    def test_apply_rate_limit_passes_endpoint_path(
+        self,
+        rate_limit_check: RateLimitCheck,
+    ) -> None:
+        mock_request = Mock(spec=Request)
+
+        rate_limit_check.middleware.rate_limit_handler.check_rate_limit = MagicMock(
+            return_value=None
+        )
+
+        rate_limit_check._apply_rate_limit_check(
+            mock_request,
+            "1.2.3.4",
+            5,
+            60,
+            "test_event",
+            {"reason": "test"},
+            endpoint_path="/api/test",
+        )
+
+        call_kwargs = (
+            rate_limit_check.middleware.rate_limit_handler.check_rate_limit.call_args[1]
+        )
+        assert call_kwargs["endpoint_path"] == "/api/test"
+        assert call_kwargs["rate_limit"] == 5
+        assert call_kwargs["rate_limit_window"] == 60
+
+    def test_endpoint_rate_limit_passes_path(
+        self,
+        rate_limit_check: RateLimitCheck,
+        security_config: SecurityConfig,
+    ) -> None:
+        security_config.endpoint_rate_limits = {"/api/test": (5, 60)}
+        mock_request = Mock(spec=Request)
+
+        with patch.object(
+            rate_limit_check, "_apply_rate_limit_check", new_callable=MagicMock
+        ) as mock_apply:
+            mock_apply.return_value = None
+            rate_limit_check._check_endpoint_rate_limit(
+                mock_request, "1.2.3.4", "/api/test"
+            )
+            call_kwargs = mock_apply.call_args[1]
+            assert call_kwargs["endpoint_path"] == "/api/test"
+
+    def test_route_rate_limit_passes_path(
+        self,
+        rate_limit_check: RateLimitCheck,
+    ) -> None:
+        mock_request = Mock(spec=Request)
+        mock_request.path = "/test"
+        route_config = Mock()
+        route_config.rate_limit = 10
+        route_config.rate_limit_window = 30
+
+        with patch.object(
+            rate_limit_check, "_apply_rate_limit_check", new_callable=MagicMock
+        ) as mock_apply:
+            mock_apply.return_value = None
+            rate_limit_check._check_route_rate_limit(
+                mock_request, "1.2.3.4", route_config
+            )
+            call_kwargs = mock_apply.call_args[1]
+            assert call_kwargs["endpoint_path"] == "/test"
+
+    def test_global_rate_limit_has_no_endpoint_path(
+        self,
+        rate_limit_check: RateLimitCheck,
+    ) -> None:
+        mock_request = Mock(spec=Request)
+
+        mock_handler = Mock()
+        mock_handler.check_rate_limit = MagicMock(return_value=None)
+        rate_limit_check.middleware.rate_limit_handler = mock_handler
+
+        rate_limit_check._check_global_rate_limit(mock_request, "1.2.3.4")
+
+        mock_handler.check_rate_limit.assert_called_once_with(
+            mock_request,
+            "1.2.3.4",
+            rate_limit_check.middleware.create_error_response,
+        )

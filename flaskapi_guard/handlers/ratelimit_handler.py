@@ -14,11 +14,6 @@ from flaskapi_guard.utils import log_activity
 
 
 class RateLimitManager:
-    """
-    Handles rate limiting functionality with in-memory and Redis storage options.
-    Implements a true sliding window algorithm with distributed environment support.
-    """
-
     _instance: Optional["RateLimitManager"] = None
     config: SecurityConfig
     request_timestamps: defaultdict[str, deque[float]]
@@ -33,9 +28,7 @@ class RateLimitManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.config = config
-            cls._instance.request_timestamps = defaultdict(
-                lambda: deque(maxlen=config.rate_limit * 2)
-            )
+            cls._instance.request_timestamps = defaultdict(deque)
             cls._instance.logger = logging.getLogger(
                 "flaskapi_guard.handlers.ratelimit"
             )
@@ -47,7 +40,6 @@ class RateLimitManager:
         return cls._instance
 
     def initialize_redis(self, redis_handler: Any) -> None:
-        """Initialize Redis connection and load Lua scripts"""
         self.redis_handler = redis_handler
 
         if self.redis_handler and self.config.enable_redis:
@@ -59,34 +51,39 @@ class RateLimitManager:
                 self.logger.error(f"Failed to load rate limiting Lua script: {str(e)}")
 
     def initialize_agent(self, agent_handler: Any) -> None:
-        """Initialize agent integration."""
         self.agent_handler = agent_handler
 
     def _get_redis_request_count(
-        self, client_ip: str, current_time: float, window_start: float
+        self,
+        client_ip: str,
+        current_time: float,
+        window_start: float,
+        endpoint_path: str = "",
+        rate_limit_window: int | None = None,
+        rate_limit: int | None = None,
     ) -> int | None:
-        """
-        Get request count from Redis using atomic operations.
-
-        Returns:
-            Request count or None if Redis fails
-        """
         if not self.redis_handler:
             return None
 
-        rate_key = f"rate:{client_ip}"
+        rate_key = (
+            f"rate:{client_ip}:{endpoint_path}"
+            if endpoint_path
+            else f"rate:{client_ip}"
+        )
         key_name = f"{self.redis_handler.config.redis_prefix}rate_limit:{rate_key}"
+        window = rate_limit_window or self.config.rate_limit_window
+        limit = rate_limit if rate_limit is not None else self.config.rate_limit
 
         try:
             if self.rate_limit_script_sha:
                 with self.redis_handler.get_connection() as conn:
                     count = conn.evalsha(
                         self.rate_limit_script_sha,
-                        1,  # Number of keys
-                        key_name,  # The key
-                        current_time,  # Current timestamp
-                        self.config.rate_limit_window,  # Window size
-                        self.config.rate_limit,  # Rate limit
+                        1,
+                        key_name,
+                        current_time,
+                        window,
+                        limit,
                     )
                 return int(count)
             else:
@@ -95,7 +92,7 @@ class RateLimitManager:
                     pipeline.zadd(key_name, {str(current_time): current_time})
                     pipeline.zremrangebyscore(key_name, 0, window_start)
                     pipeline.zcard(key_name)
-                    pipeline.expire(key_name, self.config.rate_limit_window * 2)
+                    pipeline.expire(key_name, window * 2)
                     results = pipeline.execute()
                     return int(results[2])
 
@@ -113,10 +110,11 @@ class RateLimitManager:
         client_ip: str,
         count: int,
         create_error_response: Callable[[int, str], Response],
+        rate_limit_window: int | None = None,
     ) -> Response:
-        """Handle rate limit exceeded scenario."""
         message = "Rate limit exceeded for IP:"
-        detail = f"requests in {self.config.rate_limit_window}s window)"
+        window = rate_limit_window or self.config.rate_limit_window
+        detail = f"requests in {window}s window)"
         log_activity(
             request,
             self.logger,
@@ -135,22 +133,22 @@ class RateLimitManager:
         )
 
     def _get_in_memory_request_count(
-        self, client_ip: str, window_start: float, current_time: float
+        self,
+        client_ip: str,
+        window_start: float,
+        current_time: float,
+        endpoint_path: str = "",
     ) -> int:
-        """
-        Get request count from in-memory store with sliding window cleanup.
+        key = f"{client_ip}:{endpoint_path}" if endpoint_path else client_ip
 
-        Returns:
-            Current request count (before adding current request)
-        """
         while (
-            self.request_timestamps[client_ip]
-            and self.request_timestamps[client_ip][0] <= window_start
+            self.request_timestamps[key]
+            and self.request_timestamps[key][0] <= window_start
         ):
-            self.request_timestamps[client_ip].popleft()
+            self.request_timestamps[key].popleft()
 
-        request_count = len(self.request_timestamps[client_ip])
-        self.request_timestamps[client_ip].append(current_time)
+        request_count = len(self.request_timestamps[key])
+        self.request_timestamps[key].append(current_time)
 
         return request_count
 
@@ -159,42 +157,57 @@ class RateLimitManager:
         request: Request,
         client_ip: str,
         create_error_response: Callable[[int, str], Response],
+        endpoint_path: str = "",
+        rate_limit: int | None = None,
+        rate_limit_window: int | None = None,
     ) -> Response | None:
-        """
-        Check if the client IP has exceeded rate limits using a sliding window.
-        Optimized for distributed environments with atomic operations.
-
-        Args:
-            request: The incoming request
-            client_ip: The client's IP address
-            create_error_response: Function to create error responses
-
-        Returns:
-            Response if rate limit is exceeded, otherwise None
-        """
         if not self.config.enable_rate_limiting:
             return None
 
+        effective_limit = (
+            rate_limit if rate_limit is not None else self.config.rate_limit
+        )
+        effective_window = (
+            rate_limit_window
+            if rate_limit_window is not None
+            else self.config.rate_limit_window
+        )
+
         current_time = time.time()
-        window_start = current_time - self.config.rate_limit_window
+        window_start = current_time - effective_window
 
         if self.config.enable_redis and self.redis_handler:
-            count = self._get_redis_request_count(client_ip, current_time, window_start)
+            count = self._get_redis_request_count(
+                client_ip,
+                current_time,
+                window_start,
+                endpoint_path=endpoint_path,
+                rate_limit_window=effective_window,
+                rate_limit=effective_limit,
+            )
 
             if count is not None:
-                if count > self.config.rate_limit:
+                if count > effective_limit:
                     return self._handle_rate_limit_exceeded(
-                        request, client_ip, count, create_error_response
+                        request,
+                        client_ip,
+                        count,
+                        create_error_response,
+                        rate_limit_window=effective_window,
                     )
                 return None
 
         request_count = self._get_in_memory_request_count(
-            client_ip, window_start, current_time
+            client_ip, window_start, current_time, endpoint_path=endpoint_path
         )
 
-        if request_count >= self.config.rate_limit:
+        if request_count >= effective_limit:
             return self._handle_rate_limit_exceeded(
-                request, client_ip, request_count + 1, create_error_response
+                request,
+                client_ip,
+                request_count + 1,
+                create_error_response,
+                rate_limit_window=effective_window,
             )
 
         return None
@@ -202,7 +215,6 @@ class RateLimitManager:
     def _send_rate_limit_event(
         self, request: Request, client_ip: str, request_count: int
     ) -> None:
-        """Send rate limit event to agent."""
         try:
             message = "Rate limit exceeded"
             details = (
@@ -230,7 +242,6 @@ class RateLimitManager:
             self.logger.error(f"Failed to send rate limit event to agent: {e}")
 
     def reset(self) -> None:
-        """Reset all rate limit data"""
         self.request_timestamps.clear()
 
         if self.config.enable_redis and self.redis_handler:

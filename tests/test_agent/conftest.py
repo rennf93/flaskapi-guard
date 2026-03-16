@@ -9,9 +9,40 @@ import pytest
 try:
     from guard_agent.models import AgentConfig, SecurityEvent, SecurityMetric
 except ModuleNotFoundError:
-    AgentConfig = type("AgentConfig", (), {})
-    SecurityEvent = type("SecurityEvent", (), {})
-    SecurityMetric = type("SecurityMetric", (), {})
+
+    class AgentConfig:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+    class SecurityEvent:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            for attr in (
+                "timestamp",
+                "event_type",
+                "ip_address",
+                "country",
+                "user_agent",
+                "action_taken",
+                "reason",
+                "endpoint",
+                "method",
+                "metadata",
+                "decorator_type",
+            ):
+                if not hasattr(self, attr):
+                    setattr(self, attr, None)
+
+    class SecurityMetric:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            for attr in ("timestamp", "metric_type", "value", "tags"):
+                if not hasattr(self, attr):
+                    setattr(self, attr, None)
+
 
 from flaskapi_guard.models import SecurityConfig
 
@@ -134,10 +165,18 @@ def mock_guard_agent() -> Generator[Any, Any, Any]:
 
 @pytest.fixture(autouse=True)
 def mock_dependencies(mock_guard_agent: MagicMock) -> Generator[Any, Any, Any]:
-    """Mock external dependencies to prevent connection attempts."""
     with (
         patch(
             "flaskapi_guard.handlers.redis_handler.RedisManager.initialize",
+        ),
+        patch(
+            "flaskapi_guard.handlers.ratelimit_handler.RateLimitManager.initialize_redis",
+        ),
+        patch(
+            "flaskapi_guard.core.initialization.handler_initializer.HandlerInitializer.initialize_redis_handlers",
+        ),
+        patch(
+            "flaskapi_guard.core.initialization.handler_initializer.HandlerInitializer.initialize_dynamic_rule_manager",
         ),
         patch(
             "flaskapi_guard.handlers.ipinfo_handler.IPInfoManager.__new__"
@@ -152,6 +191,49 @@ def mock_dependencies(mock_guard_agent: MagicMock) -> Generator[Any, Any, Any]:
         mock_cloud_instance = MagicMock()
         mock_cloud.return_value = mock_cloud_instance
         yield
+
+
+@pytest.fixture(autouse=True)
+def cleanup_singletons() -> Generator[Any, Any, Any]:
+    from flaskapi_guard.handlers.ipban_handler import ip_ban_manager
+    from flaskapi_guard.handlers.ratelimit_handler import RateLimitManager
+    from flaskapi_guard.handlers.security_headers_handler import (
+        security_headers_manager,
+    )
+    from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+
+    original_patterns_len = len(sus_patterns_handler.patterns)
+    original_compiled_len = len(sus_patterns_handler.compiled_patterns)
+
+    yield
+
+    RateLimitManager._instance = None
+
+    ip_ban_manager.banned_ips.clear()
+    ip_ban_manager.redis_handler = None
+    ip_ban_manager.agent_handler = None
+
+    sus_patterns_handler.redis_handler = None
+    sus_patterns_handler.agent_handler = None
+    sus_patterns_handler.custom_patterns.clear()
+    sus_patterns_handler.compiled_custom_patterns.clear()
+    while len(sus_patterns_handler.patterns) > original_patterns_len:
+        sus_patterns_handler.patterns.pop()
+    while len(sus_patterns_handler.compiled_patterns) > original_compiled_len:
+        sus_patterns_handler.compiled_patterns.pop()
+
+    security_headers_manager.enabled = False
+    security_headers_manager.headers_cache.clear()
+
+    from flaskapi_guard.handlers.dynamic_rule_handler import DynamicRuleManager
+
+    drm_instance = DynamicRuleManager._instance
+    if drm_instance is not None:
+        if drm_instance._stop_event:
+            drm_instance._stop_event.set()
+        if drm_instance._update_thread:
+            drm_instance._update_thread.join(timeout=1)
+        DynamicRuleManager._instance = None
 
 
 @pytest.fixture

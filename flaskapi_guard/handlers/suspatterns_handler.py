@@ -394,9 +394,15 @@ class SusPatternsManager:
                 )
                 return None, False
 
-    _KNOWN_CONTEXTS = frozenset({
-        "query_param", "url_path", "header", "request_body", "unknown",
-    })
+    _KNOWN_CONTEXTS = frozenset(
+        {
+            "query_param",
+            "url_path",
+            "header",
+            "request_body",
+            "unknown",
+        }
+    )
 
     @staticmethod
     def _normalize_context(context: str) -> str:

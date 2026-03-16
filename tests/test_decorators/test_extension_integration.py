@@ -8,7 +8,6 @@ from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.decorators.base import RouteConfig
 from flaskapi_guard.extension import FlaskAPIGuard
 from flaskapi_guard.handlers.behavior_handler import BehaviorRule
-from flaskapi_guard.handlers.ratelimit_handler import RateLimitManager
 
 
 def test_set_decorator_handler() -> None:
@@ -551,7 +550,6 @@ def test_route_specific_extension_validations(
 
 
 def test_route_specific_rate_limit_with_redis() -> None:
-    """Test route-specific rate limiting with Redis initialization."""
     app = Flask(__name__)
     config = SecurityConfig(enable_redis=True, redis_url="redis://localhost:6379")
     config.enable_penetration_detection = False
@@ -578,14 +576,19 @@ def test_route_specific_rate_limit_with_redis() -> None:
     guard.redis_handler = mock_redis_handler
 
     with app.test_client() as client:
-        with patch.object(RateLimitManager, "initialize_redis") as mock_init_redis:
-            with patch.object(RateLimitManager, "check_rate_limit", return_value=None):
-                with patch(
-                    "flaskapi_guard.core.checks.helpers.detect_penetration_attempt",
-                    return_value=(False, ""),
-                ):
-                    client.get(
-                        "/test",
-                        headers={"X-Forwarded-For": "127.0.0.1"},
-                    )
-                    mock_init_redis.assert_called_once_with(mock_redis_handler)
+        with patch.object(
+            guard.rate_limit_handler, "check_rate_limit", return_value=None
+        ) as mock_check:
+            with patch(
+                "flaskapi_guard.core.checks.helpers.detect_penetration_attempt",
+                return_value=(False, ""),
+            ):
+                client.get(
+                    "/test",
+                    headers={"X-Forwarded-For": "127.0.0.1"},
+                )
+                assert mock_check.call_count >= 2
+                route_call = mock_check.call_args_list[0]
+                assert route_call[1]["endpoint_path"] == "/test"
+                assert route_call[1]["rate_limit"] == 5
+                assert route_call[1]["rate_limit_window"] == 60

@@ -1,17 +1,20 @@
-"""Tests covering remaining uncovered lines across the flaskapi_guard package."""
-
 import ipaddress
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from flask import Flask, Response, g
 
 from flaskapi_guard.core.checks.helpers import (
     validate_auth_header,
 )
+from flaskapi_guard.core.checks.implementations.cloud_provider import CloudProviderCheck
 from flaskapi_guard.core.checks.implementations.custom_request import CustomRequestCheck
+from flaskapi_guard.core.checks.implementations.custom_validators import (
+    CustomValidatorsCheck,
+)
 from flaskapi_guard.core.checks.implementations.https_enforcement import (
     HttpsEnforcementCheck,
 )
@@ -19,12 +22,18 @@ from flaskapi_guard.core.checks.implementations.rate_limit import RateLimitCheck
 from flaskapi_guard.core.checks.implementations.suspicious_activity import (
     SuspiciousActivityCheck,
 )
+from flaskapi_guard.core.checks.implementations.user_agent import UserAgentCheck
 from flaskapi_guard.core.events.extension_events import SecurityEventBus
 from flaskapi_guard.core.routing.resolver import RouteConfigResolver
 from flaskapi_guard.decorators.base import (
     BaseSecurityDecorator,
     RouteConfig,
     get_route_decorator_config,
+)
+from flaskapi_guard.detection_engine.monitor import (
+    PatternStats,
+    PerformanceMetric,
+    PerformanceMonitor,
 )
 from flaskapi_guard.extension import FlaskAPIGuard
 from flaskapi_guard.handlers.behavior_handler import BehaviorRule, BehaviorTracker
@@ -778,5 +787,228 @@ class TestRateLimitCheckFlowReturns:
                 result = check.check(flask_request)
                 assert result is mock_response
                 assert result.status_code == 429
+
+        guard.reset()
+
+
+class TestCloudProviderCheckNoRouteResolver:
+    def test_should_skip_check_returns_false_when_no_resolver(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+        guard.route_resolver = None
+
+        check = CloudProviderCheck(guard)
+        result = check._should_skip_check(None)
+        assert result is False
+
+    def test_get_cloud_providers_returns_none_when_no_resolver(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+        guard.route_resolver = None
+
+        check = CloudProviderCheck(guard)
+        result = check._get_cloud_providers(None)
+        assert result is None
+
+
+class TestCustomRequestCheckUncoveredLines:
+    def test_get_response_status_returns_unknown_when_no_status_code(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = CustomRequestCheck(guard)
+        obj = object()
+        result = check._get_response_status(obj)
+        assert result == "unknown"
+
+    def test_get_check_function_name_returns_anonymous(self) -> None:
+        guard = Mock()
+        config = SecurityConfig(enable_redis=False)
+        check_fn = Mock(spec=[])
+        config.custom_request_check = check_fn
+        guard.config = config
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = CustomRequestCheck(guard)
+        result = check._get_check_function_name()
+        assert result == "anonymous"
+
+    def test_send_custom_check_event_returns_when_no_event_bus(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = CustomRequestCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            check._send_custom_check_event(flask_request, Response("x", status=403))
+
+    def test_check_returns_none_in_passive_mode(self) -> None:
+        config = SecurityConfig(enable_redis=False, passive_mode=True)
+        config.custom_request_check = lambda r: Response("blocked", status=403)
+        guard = Mock()
+        guard.config = config
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = CustomRequestCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            result = check.check(flask_request)
+            assert result is None
+
+
+class TestCustomValidatorsCheckNoEventBus:
+    def test_send_violation_event_returns_when_no_event_bus(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = CustomValidatorsCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            check._send_violation_event(flask_request, lambda r: None)
+
+
+class TestRateLimitCheckApplyNoHandler:
+    def test_apply_rate_limit_returns_none_when_no_handler(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+        guard.rate_limit_handler = None
+
+        check = RateLimitCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            result = check._apply_rate_limit_check(
+                flask_request, "1.2.3.4", 5, 60, "test", {"reason": "test"}
+            )
+            assert result is None
+
+
+class TestUserAgentCheckUncoveredLines:
+    def test_get_action_taken_passive_mode(self) -> None:
+        guard = Mock()
+        config = SecurityConfig(enable_redis=False, passive_mode=True)
+        guard.config = config
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = UserAgentCheck(guard)
+        result = check._get_action_taken()
+        assert result == "logged_only"
+
+    def test_send_route_violation_event_returns_when_no_event_bus(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = UserAgentCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            check._send_route_violation_event(flask_request, "badbot")
+
+    def test_send_global_block_event_returns_when_no_event_bus(self) -> None:
+        guard = Mock()
+        guard.config = SecurityConfig(enable_redis=False)
+        guard.logger = Mock()
+        guard.event_bus = None
+
+        check = UserAgentCheck(guard)
+        app = Flask(__name__)
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            check._send_global_block_event(flask_request, "badbot")
+
+    def test_check_returns_none_in_passive_mode(self) -> None:
+        config = SecurityConfig(
+            enable_redis=False,
+            passive_mode=True,
+            blocked_user_agents=["badbot"],
+        )
+        app = Flask(__name__)
+        app.config["TESTING"] = True
+        guard = FlaskAPIGuard(app, config=config)
+
+        check = UserAgentCheck(guard)
+
+        with app.test_request_context("/test", headers={"User-Agent": "badbot"}):
+            from flask import request as flask_request
+
+            g.is_whitelisted = False
+            g.route_config = None
+
+            result = check.check(flask_request)
+            assert result is None
+
+        guard.reset()
+
+
+class TestMonitorStatisticalAnomalyRecentTimesLenOne:
+    def test_returns_none_when_recent_times_list_has_one_item(self) -> None:
+        monitor = PerformanceMonitor(anomaly_threshold=2.0)
+
+        pattern = "tricky_pattern"
+        stats = PatternStats(pattern=pattern)
+
+        class FakeDeque:
+            def __len__(self) -> int:
+                return 10
+
+            def __iter__(self):
+                yield 0.01
+
+        stats.recent_times = FakeDeque()
+        monitor.pattern_stats[pattern] = stats
+
+        metric = PerformanceMetric(
+            pattern=pattern,
+            execution_time=0.5,
+            content_length=100,
+            timestamp=datetime.now(timezone.utc),
+            matched=False,
+            timeout=False,
+        )
+
+        result = monitor._detect_statistical_anomaly(metric)
+        assert result is None
+
+
+class TestExtensionExecutePipelineNone:
+    def test_returns_none_when_pipeline_is_none(self) -> None:
+        config = SecurityConfig(enable_redis=False)
+        app = Flask(__name__)
+        app.config["TESTING"] = True
+        guard = FlaskAPIGuard(app, config=config)
+
+        guard.security_pipeline = None
+
+        with app.test_request_context("/test"):
+            from flask import request as flask_request
+
+            result = guard._execute_security_pipeline(flask_request)
+            assert result is None
 
         guard.reset()

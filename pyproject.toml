@@ -1,6 +1,6 @@
 [project]
 name = "flaskapi_guard"
-version = "1.1.0"
+version = "1.1.1"
 description = "A security library for Flask to control IPs, log requests, and detect penetration attempts."
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
