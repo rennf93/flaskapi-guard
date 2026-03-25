@@ -27,7 +27,7 @@ SecurityHeadersManager
 ----------------------
 
 ```python
-from flaskapi_guard.handlers.security_headers_handler import SecurityHeadersManager
+from flaskapi_guard import SecurityHeadersManager
 
 security_headers_manager = SecurityHeadersManager()
 ```
@@ -325,7 +325,7 @@ Basic Configuration
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 

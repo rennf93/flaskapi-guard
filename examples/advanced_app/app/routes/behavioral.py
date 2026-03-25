@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify
 
 from app.models import message_response
 from app.security import guard
-from flaskapi_guard.handlers.behavior_handler import BehaviorRule
+from flaskapi_guard import BehaviorRule
 
 bp = Blueprint("behavior", __name__, url_prefix="/behavior")
 

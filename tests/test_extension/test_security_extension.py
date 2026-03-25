@@ -6,15 +6,16 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask, Response
+from guard_core.decorators.base import BaseSecurityDecorator
+from guard_core.models import SecurityConfig
+from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
+from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
+from guard_core.sync.handlers.redis_handler import redis_handler
 from redis.exceptions import RedisError
 
-from flaskapi_guard.decorators.base import BaseSecurityDecorator
+from flaskapi_guard.adapters import FlaskGuardRequest, FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
-from flaskapi_guard.handlers.ratelimit_handler import rate_limit_handler
-from flaskapi_guard.handlers.redis_handler import redis_handler
-from flaskapi_guard.models import SecurityConfig
 
 IPINFO_TOKEN = str(os.getenv("IPINFO_TOKEN"))
 
@@ -27,6 +28,7 @@ def test_rate_limiting() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         rate_limit=2,
         rate_limit_window=1,
         enable_rate_limiting=True,
@@ -93,6 +95,7 @@ def test_user_agent_filtering() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         blocked_user_agents=[r"badbot"],
     )
 
@@ -156,13 +159,14 @@ def test_custom_request_check() -> None:
     """
     app = Flask(__name__)
 
-    def custom_check(request: Any) -> Response | None:
+    def custom_check(request: Any) -> FlaskGuardResponse | None:
         if request.headers.get("X-Custom-Header") == "block":
-            return Response("Custom block", status=403)
+            return FlaskGuardResponse(Response("Custom block", status=403))
         return None
 
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         custom_request_check=custom_check,
     )
 
@@ -289,16 +293,16 @@ def test_custom_response_modifier_parameterized(
     """
     app = Flask(__name__)
 
-    def custom_modifier(response: Response) -> Response:
+    def custom_modifier(response: FlaskGuardResponse) -> FlaskGuardResponse:
         response.headers["X-Modified"] = "True"
 
         if response.status_code >= 400:
             import json
 
             try:
-                content = response.data.decode()
+                content = response.body.decode()
             except Exception:
-                content = str(response.data)
+                content = str(response.body)
 
             new_response = Response(
                 json.dumps({"detail": content}),
@@ -306,17 +310,18 @@ def test_custom_response_modifier_parameterized(
                 content_type="application/json",
             )
             new_response.headers["X-Modified"] = "True"
-            return new_response
+            return FlaskGuardResponse(new_response)
 
         return response
 
-    def custom_check(request: Any) -> Response | None:
+    def custom_check(request: Any) -> FlaskGuardResponse | None:
         if "X-Custom-Check" in request.headers:
-            return Response("I'm a teapot", status=418)
+            return FlaskGuardResponse(Response("I'm a teapot", status=418))
         return None
 
     config_args: dict[str, Any] = {
         "geo_ip_handler": IPInfoManager(IPINFO_TOKEN),
+        "enable_penetration_detection": False,
         "blacklist": ["192.168.1.5"],
         "custom_response_modifier": custom_modifier,
         "trusted_proxies": ["127.0.0.1"],
@@ -354,6 +359,7 @@ def test_cloud_ip_blocking() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         block_cloud_providers={"AWS", "GCP", "Azure"},
     )
 
@@ -378,6 +384,7 @@ def test_excluded_paths() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         exclude_paths=["/health"],
     )
 
@@ -397,6 +404,7 @@ def test_cleanup_expired_request_times() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         rate_limit=2,
         rate_limit_window=1,
     )
@@ -455,20 +463,20 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
 
     with (
         patch(
-            "flaskapi_guard.handlers.redis_handler.RedisManager.initialize"
+            "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
         ) as redis_init,
         patch(
-            "flaskapi_guard.handlers.cloud_handler.cloud_handler.initialize_redis"
+            "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
         ) as cloud_init,
         patch(
-            "flaskapi_guard.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+            "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
         ) as ipban_init,
         patch.object(IPInfoManager, "initialize_redis") as ipinfo_init,
         patch(
-            "flaskapi_guard.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+            "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
         ) as sus_init,
         patch(
-            "flaskapi_guard.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
+            "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
         ) as rate_init,
     ):
         FlaskAPIGuard(app, config=security_config_redis)
@@ -492,20 +500,20 @@ def test_redis_initialization_without_ipinfo_and_cloud(
 
     with (
         patch(
-            "flaskapi_guard.handlers.redis_handler.RedisManager.initialize"
+            "guard_core.sync.handlers.redis_handler.RedisManager.initialize"
         ) as redis_init,
         patch(
-            "flaskapi_guard.handlers.cloud_handler.cloud_handler.initialize_redis"
+            "guard_core.sync.handlers.cloud_handler.cloud_handler.initialize_redis"
         ) as cloud_init,
         patch(
-            "flaskapi_guard.handlers.ipban_handler.ip_ban_manager.initialize_redis"
+            "guard_core.sync.handlers.ipban_handler.ip_ban_manager.initialize_redis"
         ) as ipban_init,
         patch.object(IPInfoManager, "initialize_redis") as ipinfo_init,
         patch(
-            "flaskapi_guard.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
+            "guard_core.sync.handlers.suspatterns_handler.sus_patterns_handler.initialize_redis"
         ) as sus_init,
         patch(
-            "flaskapi_guard.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
+            "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
         ) as rate_init,
     ):
         FlaskAPIGuard(app, config=security_config_redis)
@@ -536,6 +544,7 @@ def test_rate_limiting_disabled() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         enable_rate_limiting=False,
     )
 
@@ -627,14 +636,14 @@ def test_passive_mode_penetration_detection() -> None:
 
     with (
         patch(
-            "flaskapi_guard.core.checks.implementations.suspicious_activity.detect_penetration_patterns",
+            "guard_core.sync.core.checks.implementations.suspicious_activity.detect_penetration_patterns",
             return_value=(True, "SQL injection attempt"),
         ),
         patch(
-            "flaskapi_guard.core.checks.implementations.suspicious_activity.log_activity"
+            "guard_core.sync.core.checks.implementations.suspicious_activity.log_activity"
         ),
         patch(
-            "flaskapi_guard.utils.detect_penetration_attempt",
+            "guard_core.sync.utils.detect_penetration_attempt",
             return_value=(True, "SQL injection attempt"),
         ),
     ):
@@ -648,6 +657,7 @@ def test_sliding_window_rate_limiting() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         rate_limit=3,
         rate_limit_window=1,
         enable_rate_limiting=True,
@@ -697,30 +707,34 @@ def test_rate_limiter_deque_cleanup(security_config: SecurityConfig) -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    def create_error_response(status_code: int, message: str) -> Response:
-        return Response(message, status=status_code)
+    def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
+        return FlaskGuardResponse(Response(message, status=status_code))
 
     response = create_error_response(429, "Test message")
     assert response.status_code == 429
-    assert response.data == b"Test message"
+    assert response.body == b"Test message"
 
     with app.test_request_context("/"):
         from flask import request
 
-        result = handler.check_rate_limit(request, client_ip, create_error_response)
+        result = handler.check_rate_limit(
+            FlaskGuardRequest(request), client_ip, create_error_response
+        )
 
     assert result is None
 
     assert len(handler.request_timestamps[client_ip]) == 1
 
     handler.request_timestamps[client_ip].clear()
-    handler.request_timestamps[client_ip].append(window_start - 10)  # Way before window
-    handler.request_timestamps[client_ip].append(window_start + 0.5)  # Within window
+    handler.request_timestamps[client_ip].append(window_start - 10)
+    handler.request_timestamps[client_ip].append(window_start + 0.5)
 
     with app.test_request_context("/"):
         from flask import request
 
-        result = handler.check_rate_limit(request, client_ip, create_error_response)
+        result = handler.check_rate_limit(
+            FlaskGuardRequest(request), client_ip, create_error_response
+        )
 
     assert result is None
 
@@ -751,24 +765,25 @@ def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
 
         handler.rate_limit_script_sha = "test_script_sha"
 
-        def create_error_response(status_code: int, message: str) -> Response:
-            return Response(message, status=status_code)
+        def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
+            return FlaskGuardResponse(Response(message, status=status_code))
 
         with app.test_request_context("/"):
             from flask import request
 
+            guard_request = FlaskGuardRequest(request)
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                guard_request, "192.168.1.1", create_error_response
             )
-            assert result is None  # Should not be rate limited
+            assert result is None
 
             mock_conn.evalsha.assert_called_once()
 
             mock_conn.evalsha.reset_mock()
-            mock_conn.evalsha.return_value = 3  # Over the limit
+            mock_conn.evalsha.return_value = 3
 
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                guard_request, "192.168.1.1", create_error_response
             )
             assert result is not None
             assert result.status_code == 429
@@ -811,16 +826,17 @@ def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
 
         handler.rate_limit_script_sha = None
 
-        def create_error_response(status_code: int, message: str) -> Response:
-            return Response(message, status=status_code)
+        def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
+            return FlaskGuardResponse(Response(message, status=status_code))
 
         with app.test_request_context("/"):
             from flask import request
 
+            guard_request = FlaskGuardRequest(request)
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                guard_request, "192.168.1.1", create_error_response
             )
-            assert result is None  # Should not be rate limited
+            assert result is None
 
             mock_conn.pipeline.assert_called_once()
             mock_pipeline.zadd.assert_called_once()
@@ -837,11 +853,11 @@ def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
             mock_pipeline.execute.reset_mock()
 
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                guard_request, "192.168.1.1", create_error_response
             )
             assert result is not None
             assert result.status_code == 429
-            assert result.data == b"Too many requests"
+            assert result.body == b"Too many requests"
 
             mock_conn.pipeline.assert_called_once()
             mock_pipeline.zadd.assert_called_once()
@@ -863,12 +879,12 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
     handler = guard.rate_limit_handler
     assert handler is not None
 
-    def create_error_response(status_code: int, message: str) -> Response:
-        return Response(message, status=status_code)
+    def create_error_response(status_code: int, message: str) -> FlaskGuardResponse:
+        return FlaskGuardResponse(Response(message, status=status_code))
 
     error_response = create_error_response(429, "Rate limited")
     assert error_response.status_code == 429
-    assert error_response.data == b"Rate limited"
+    assert error_response.body == b"Rate limited"
 
     with (
         patch.object(handler.redis_handler, "get_connection") as mock_get_connection,
@@ -887,7 +903,7 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
             from flask import request
 
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                FlaskGuardRequest(request), "192.168.1.1", create_error_response
             )
 
             assert result is None
@@ -908,7 +924,7 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
             from flask import request
 
             result = handler.check_rate_limit(
-                request, "192.168.1.1", create_error_response
+                FlaskGuardRequest(request), "192.168.1.1", create_error_response
             )
 
             assert result is None
@@ -1108,6 +1124,7 @@ def test_cors_preflight() -> None:
     """Test that OPTIONS request returns 204 with CORS headers when enable_cors=True."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         enable_cors=True,
         cors_allow_origins=["https://example.com"],
         cors_allow_methods=["GET", "POST"],
@@ -1124,8 +1141,14 @@ def test_cors_preflight() -> None:
 
 def test_cors_disabled() -> None:
     """Test that no CORS headers are added when enable_cors=False."""
+    from guard_core.sync.handlers.security_headers_handler import (
+        security_headers_manager,
+    )
+
+    security_headers_manager.reset()
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         enable_cors=False,
     )
     app = Flask(__name__)
@@ -1146,6 +1169,7 @@ def test_cloud_ip_refresh_no_providers() -> None:
     """Test that refresh_cloud_ip_ranges returns early when no providers configured."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         block_cloud_providers=None,
     )
     app = Flask(__name__)
@@ -1225,9 +1249,7 @@ def test_agent_initialization_invalid_config() -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    with patch(
-        "flaskapi_guard.models.SecurityConfig.to_agent_config", return_value=None
-    ):
+    with patch("guard_core.models.SecurityConfig.to_agent_config", return_value=None):
         guard = FlaskAPIGuard(app, config=config)
         assert guard.agent_handler is None
 
@@ -1237,6 +1259,7 @@ def test_passive_mode_rate_limiting() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         passive_mode=True,
         rate_limit=1,
         rate_limit_window=60,
@@ -1264,6 +1287,7 @@ def test_reset_method() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         rate_limit=2,
         rate_limit_window=60,
         enable_rate_limiting=True,
@@ -1290,6 +1314,7 @@ def test_request_without_client() -> None:
     """Test handling of request when extract_client_ip returns 'unknown'."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
     )
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -1311,6 +1336,7 @@ def test_set_decorator_handler() -> None:
     """Test that setting decorator handler updates all components."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
     )
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -1333,6 +1359,7 @@ def test_init_app_factory_pattern() -> None:
     """Test FlaskAPIGuard() then guard.init_app(app, config=config) pattern."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
     )
     app = Flask(__name__)
     app.config["TESTING"] = True
@@ -1360,6 +1387,7 @@ def test_security_headers_disabled() -> None:
     """Test when security_headers has enabled=False."""
     config = SecurityConfig(
         enable_redis=False,
+        enable_penetration_detection=False,
         security_headers={"enabled": False},
     )
     app = Flask(__name__)
@@ -1374,3 +1402,274 @@ def test_security_headers_disabled() -> None:
         response = client.get("/")
         assert response.status_code == 200
         assert "X-Content-Type-Options" not in response.headers
+
+
+def test_guard_response_factory_property() -> None:
+    from flaskapi_guard.adapters import FlaskResponseFactory
+
+    app = Flask(__name__)
+    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    guard = FlaskAPIGuard(app, config=config)
+    assert isinstance(guard.guard_response_factory, FlaskResponseFactory)
+
+
+def test_security_headers_not_configured() -> None:
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        security_headers=None,
+    )
+    FlaskAPIGuard(app, config=config)
+
+
+def test_security_headers_explicitly_disabled() -> None:
+    from guard_core.sync.handlers.security_headers_handler import (
+        security_headers_manager,
+    )
+
+    security_headers_manager.reset()
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        security_headers={"enabled": False},
+    )
+    FlaskAPIGuard(app, config=config)
+
+
+def test_agent_init_with_mock_module() -> None:
+    import sys
+
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_agent=True,
+        agent_api_key="test-key-long-enough-for-validation",
+        agent_model="claude-sonnet-4-20250514",
+    )
+    mock_agent = MagicMock()
+    mock_module = MagicMock()
+    mock_module.guard_agent = MagicMock(return_value=mock_agent)
+    mock_config = MagicMock()
+
+    with (
+        patch.object(SecurityConfig, "to_agent_config", return_value=mock_config),
+        patch.dict(sys.modules, {"guard_agent": mock_module}),
+    ):
+        guard = FlaskAPIGuard(app, config=config)
+        assert guard.agent_handler is mock_agent
+
+
+def test_agent_init_import_blocked() -> None:
+    import builtins
+    import sys
+
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_agent=True,
+        agent_api_key="test-key-long-enough-for-validation",
+        agent_model="claude-sonnet-4-20250514",
+    )
+    fake_agent_config = config.to_agent_config()
+    original_import = builtins.__import__
+    saved_modules = {
+        k: sys.modules.pop(k) for k in list(sys.modules) if k.startswith("guard_agent")
+    }
+
+    def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "guard_agent":
+            raise ImportError("No module named 'guard_agent'")
+        return original_import(name, *args, **kwargs)
+
+    try:
+        with (
+            patch.object(
+                SecurityConfig,
+                "to_agent_config",
+                return_value=fake_agent_config,
+            ),
+            patch("builtins.__import__", side_effect=mock_import),
+        ):
+            guard = FlaskAPIGuard(app, config=config)
+            assert guard.agent_handler is None
+    finally:
+        sys.modules.update(saved_modules)
+
+
+def test_agent_init_runtime_error() -> None:
+    import sys
+
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_agent=True,
+        agent_api_key="test-key-long-enough-for-validation",
+        agent_model="claude-sonnet-4-20250514",
+    )
+    mock_module = MagicMock()
+    mock_module.guard_agent = MagicMock(side_effect=RuntimeError("init failed"))
+    mock_config = MagicMock()
+
+    with (
+        patch.object(SecurityConfig, "to_agent_config", return_value=mock_config),
+        patch.dict(sys.modules, {"guard_agent": mock_module}),
+    ):
+        guard = FlaskAPIGuard(app, config=config)
+        assert guard.agent_handler is None
+
+
+def test_agent_init_config_returns_none() -> None:
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_agent=True,
+        agent_api_key="test-key-long-enough-for-validation",
+        agent_model="claude-sonnet-4-20250514",
+    )
+    with patch.object(SecurityConfig, "to_agent_config", return_value=None):
+        guard = FlaskAPIGuard(app, config=config)
+        assert guard.agent_handler is None
+
+
+def test_adapter_scope_property() -> None:
+    from flaskapi_guard.adapters import FlaskGuardRequest
+
+    app = Flask(__name__)
+    with app.test_request_context("/test"):
+        from flask import request
+
+        guard_request = FlaskGuardRequest(request)
+        assert "environ" in guard_request.scope
+
+
+def test_adapter_url_replace_scheme_https() -> None:
+    from flaskapi_guard.adapters import FlaskGuardRequest
+
+    app = Flask(__name__)
+    with app.test_request_context("https://example.com/test"):
+        from flask import request
+
+        guard_request = FlaskGuardRequest(request)
+        result = guard_request.url_replace_scheme("wss")
+        assert result.startswith("wss://")
+
+
+def test_refresh_cloud_ip_ranges_updates_timestamp() -> None:
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        block_cloud_providers={"AWS"},
+    )
+    guard = FlaskAPIGuard(app, config=config)
+    guard.last_cloud_ip_refresh = 0
+    with patch.object(cloud_handler, "refresh"):
+        guard.refresh_cloud_ip_ranges()
+    assert guard.last_cloud_ip_refresh > 0
+
+
+def test_adapter_url_replace_scheme_no_protocol() -> None:
+    from flaskapi_guard.adapters import FlaskGuardRequest
+
+    mock_request = MagicMock()
+    mock_request.url = "ftp://example.com/test"
+    guard_request = FlaskGuardRequest(mock_request)
+    result = guard_request.url_replace_scheme("wss")
+    assert result == "ftp://example.com/test"
+
+
+def test_before_request_passthrough_response() -> None:
+    from flaskapi_guard.adapters import FlaskGuardResponse
+
+    app = Flask(__name__)
+    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    guard = FlaskAPIGuard(app, config=config)
+
+    @app.route("/")
+    def root() -> dict[str, str]:
+        return {"msg": "ok"}
+
+    mock_resp = FlaskGuardResponse(Response("passthrough", status=200))
+    with patch.object(
+        guard.bypass_handler, "handle_passthrough", return_value=mock_resp
+    ):
+        with app.test_client() as client:
+            response = client.get("/")
+            assert response.data == b"passthrough"
+
+
+def test_before_request_bypass_response() -> None:
+    from flaskapi_guard.adapters import FlaskGuardResponse
+
+    app = Flask(__name__)
+    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    guard = FlaskAPIGuard(app, config=config)
+
+    @app.route("/")
+    def root() -> dict[str, str]:
+        return {"msg": "ok"}
+
+    mock_resp = FlaskGuardResponse(Response("bypassed", status=403))
+    with (
+        patch.object(guard.bypass_handler, "handle_passthrough", return_value=None),
+        patch.object(
+            guard.bypass_handler,
+            "handle_security_bypass",
+            return_value=mock_resp,
+        ),
+    ):
+        with app.test_client() as client:
+            response = client.get("/")
+            assert response.status_code == 403
+
+
+def test_check_rate_limit_returns_response() -> None:
+    from flaskapi_guard.adapters import FlaskGuardResponse
+
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_rate_limiting=True,
+    )
+    guard = FlaskAPIGuard(app, config=config)
+
+    mock_resp = FlaskGuardResponse(Response("Rate limited", status=429))
+    with app.test_request_context("/"):
+        from flask import request
+
+        with patch.object(
+            guard.rate_limit_handler,
+            "check_rate_limit",
+            return_value=mock_resp,
+        ):
+            result = guard._check_rate_limit(request, "127.0.0.1")
+            assert result is not None
+            assert result.status_code == 429
+
+
+def test_check_rate_limit_allows_request() -> None:
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        enable_rate_limiting=True,
+    )
+    guard = FlaskAPIGuard(app, config=config)
+
+    with app.test_request_context("/"):
+        from flask import request
+
+        with patch.object(
+            guard.rate_limit_handler,
+            "check_rate_limit",
+            return_value=None,
+        ):
+            result = guard._check_rate_limit(request, "127.0.0.1")
+            assert result is None

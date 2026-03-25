@@ -147,7 +147,7 @@ Implementation Details
 Each check is self-contained and follows this pattern:
 
 ```python
-from flaskapi_guard.core.checks.base import SecurityCheck
+from guard_core.sync.core.checks.base import SecurityCheck
 
 class ExampleCheck(SecurityCheck):
     check_name = "example_check"
@@ -567,7 +567,7 @@ To add a custom security check:
 
 ```python
 from flask import Request, Response, g
-from flaskapi_guard.core.checks.base import SecurityCheck
+from guard_core.sync.core.checks.base import SecurityCheck
 
 class MyCustomCheck(SecurityCheck):
     """Description of what this check does."""
@@ -599,7 +599,7 @@ class MyCustomCheck(SecurityCheck):
 **File**: `flaskapi_guard/extension.py` in `_build_security_pipeline()` method
 
 ```python
-from flaskapi_guard.core.checks.implementations.my_custom_check import MyCustomCheck
+from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
 
 def _build_security_pipeline(self) -> None:
     checks = [
@@ -614,7 +614,7 @@ def _build_security_pipeline(self) -> None:
 **File**: `flaskapi_guard/core/checks/__init__.py`
 
 ```python
-from flaskapi_guard.core.checks.implementations.my_custom_check import MyCustomCheck
+from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
 
 __all__ = [
     # ... existing exports
@@ -626,7 +626,7 @@ __all__ = [
 
 ```python
 import pytest
-from flaskapi_guard.core.checks.implementations.my_custom_check import MyCustomCheck
+from guard_core.sync.core.checks.implementations.my_custom_check import MyCustomCheck
 
 def test_my_custom_check(test_extension, test_request):
     check = MyCustomCheck(test_extension)
@@ -643,7 +643,7 @@ Each module is independently testable:
 
 ```python
 # Test a specific check
-from flaskapi_guard.core.checks.implementations import IpSecurityCheck
+from guard_core.sync.core.checks.implementations import IpSecurityCheck
 
 def test_ip_security():
     extension = create_test_extension()
@@ -657,7 +657,7 @@ def test_ip_security():
 
 ```python
 # Test the pipeline
-from flaskapi_guard.core.checks import SecurityCheckPipeline
+from guard_core.sync.core.checks import SecurityCheckPipeline
 
 def test_pipeline():
     checks = [Check1(extension), Check2(extension)]

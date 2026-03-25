@@ -108,7 +108,7 @@ Custom Logger
 The `setup_custom_logging` function is automatically called by the extension during initialization:
 
 ```python
-from flaskapi_guard.utils import setup_custom_logging
+from guard_core.sync.utils import setup_custom_logging
 
 # Manual setup (if needed outside of extension)
 # Console only (no file)
@@ -134,7 +134,7 @@ Logging
 FlaskAPI Guard uses a unified logging approach with the `log_activity` function that handles different types of log events:
 
 ```python
-from flaskapi_guard.utils import log_activity
+from guard_core.sync.utils import log_activity
 
 # Log a regular request
 log_activity(request, logger)

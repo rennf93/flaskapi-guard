@@ -21,7 +21,7 @@ Monitor how frequently individual IPs access specific endpoints:
 ----------------------
 
 ```python
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 guard_deco = SecurityDecorator(config)
 
@@ -181,7 +181,7 @@ Combine multiple behavioral rules for comprehensive protection:
 -------------------
 
 ```python
-from flaskapi_guard.handlers.behavior_handler import BehaviorRule
+from flaskapi_guard import BehaviorRule
 
 # Define multiple rules
 rules = [

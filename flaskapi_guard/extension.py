@@ -2,50 +2,37 @@ import logging
 import time
 from typing import Any
 
-from flask import Flask, Request, Response, g
+from flask import Flask, Response, g
+from guard_core.decorators.base import BaseSecurityDecorator, RouteConfig
+from guard_core.models import SecurityConfig
+from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
+from guard_core.sync.core.bypass import BypassContext, BypassHandler
+from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
+from guard_core.sync.core.events import MetricsCollector, SecurityEventBus
+from guard_core.sync.core.initialization import HandlerInitializer
+from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
+from guard_core.sync.core.routing import RouteConfigResolver, RoutingContext
+from guard_core.sync.core.validation import RequestValidator, ValidationContext
+from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
+from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
-from flaskapi_guard.core.behavioral import BehavioralContext, BehavioralProcessor
-from flaskapi_guard.core.bypass import BypassContext, BypassHandler
-from flaskapi_guard.core.checks.pipeline import SecurityCheckPipeline
-from flaskapi_guard.core.events import MetricsCollector, SecurityEventBus
-from flaskapi_guard.core.initialization import HandlerInitializer
-from flaskapi_guard.core.responses import ErrorResponseFactory, ResponseContext
-from flaskapi_guard.core.routing import RouteConfigResolver, RoutingContext
-from flaskapi_guard.core.validation import RequestValidator, ValidationContext
-from flaskapi_guard.decorators.base import BaseSecurityDecorator, RouteConfig
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
-from flaskapi_guard.handlers.ratelimit_handler import RateLimitManager
-from flaskapi_guard.handlers.security_headers_handler import security_headers_manager
-from flaskapi_guard.models import SecurityConfig
-from flaskapi_guard.utils import extract_client_ip, setup_custom_logging
+from flaskapi_guard.adapters import (
+    FlaskGuardRequest,
+    FlaskGuardResponse,
+    FlaskResponseFactory,
+    unwrap_response,
+)
 
 
 class FlaskAPIGuard:
-    """
-    Flask extension for implementing various
-    security measures in a Flask application.
-
-    This extension handles rate limiting,
-    IP filtering, user agent filtering,
-    and detection of potential
-    penetration attempts.
-    """
-
     def __init__(
         self,
         app: Flask | None = None,
         *,
         config: SecurityConfig | None = None,
     ) -> None:
-        """
-        Initialize the FlaskAPIGuard extension.
-
-        Args:
-            app (Flask | None):
-                The Flask application. If provided, init_app is called immediately.
-            config (SecurityConfig | None):
-                Configuration object for security settings.
-        """
         self.config: SecurityConfig | None = config
         self.logger: logging.Logger | None = None
         self.last_cloud_ip_refresh: int = 0
@@ -66,35 +53,32 @@ class FlaskAPIGuard:
         self.bypass_handler: BypassHandler | None = None
         self.behavioral_processor: BehavioralProcessor | None = None
         self._app: Flask | None = None
+        self._guard_response_factory = FlaskResponseFactory()
 
         if app is not None:
             self.init_app(app, config=config)
 
     def _resolve_config(self, config: SecurityConfig | None) -> None:
-        """Resolve and validate the security configuration."""
         if config is not None:
             self.config = config
         elif self.config is None:
             raise ValueError("SecurityConfig must be provided")
 
     def _init_geo_ip_handler(self) -> None:
-        """Initialize the geo IP handler if country rules are configured."""
         assert self.config is not None
         self.geo_ip_handler = None
         if self.config.whitelist_countries or self.config.blocked_countries:
             self.geo_ip_handler = self.config.geo_ip_handler
 
     def _init_redis_handler(self) -> None:
-        """Initialize Redis handler if enabled in config."""
         assert self.config is not None
         self.redis_handler = None
         if self.config.enable_redis:
-            from flaskapi_guard.handlers.redis_handler import RedisManager
+            from guard_core.sync.handlers.redis_handler import RedisManager
 
             self.redis_handler = RedisManager(self.config)
 
     def _init_agent_handler(self) -> None:
-        """Initialize agent handler if enabled in config."""
         assert self.config is not None
         assert self.logger is not None
         self.agent_handler = None
@@ -124,7 +108,6 @@ class FlaskAPIGuard:
             self.logger.warning("Continuing without agent functionality")
 
     def _init_core_components(self) -> None:
-        """Initialize event bus, metrics, handler initializer, and core components."""
         assert self.config is not None
         assert self.logger is not None
 
@@ -148,11 +131,11 @@ class FlaskAPIGuard:
             metrics_collector=self.metrics_collector,
             agent_handler=self.agent_handler,
             guard_decorator=self.guard_decorator,
+            response_factory=self._guard_response_factory,
         )
         self.response_factory = ErrorResponseFactory(response_context)
 
     def _init_routing_and_validation(self) -> None:
-        """Initialize routing, validation, bypass, and behavioral."""
         assert self.config is not None
         assert self.logger is not None
         assert self.event_bus is not None
@@ -192,14 +175,6 @@ class FlaskAPIGuard:
         self.behavioral_processor = BehavioralProcessor(behavioral_context)
 
     def init_app(self, app: Flask, config: SecurityConfig | None = None) -> None:
-        """
-        Initialize the extension with a Flask application.
-
-        Args:
-            app: The Flask application instance.
-            config: Optional SecurityConfig. If not provided, uses the one
-                    from __init__ or raises ValueError.
-        """
         self._resolve_config(config)
         assert self.config is not None
 
@@ -227,25 +202,19 @@ class FlaskAPIGuard:
         }
 
         self._build_security_pipeline()
-
         self._initialize_handlers()
 
         app.before_request(self._before_request)
         app.after_request(self._after_request)
 
     def _initialize_handlers(self) -> None:
-        """Synchronous version of SecurityMiddleware.initialize()."""
         assert self.handler_initializer is not None
-
         self.handler_initializer.guard_decorator = self.guard_decorator
-
         self.handler_initializer.initialize_redis_handlers()
-
         self.handler_initializer.initialize_agent_integrations()
 
     def _build_security_pipeline(self) -> None:
-        """Build the security check pipeline with configured checks."""
-        from flaskapi_guard.core.checks import (
+        from guard_core.sync.core.checks import (
             AuthenticationCheck,
             CloudIpRefreshCheck,
             CloudProviderCheck,
@@ -294,7 +263,6 @@ class FlaskAPIGuard:
         )
 
     def _configure_security_headers(self, config: SecurityConfig) -> None:
-        """Configure security headers manager if enabled."""
         if not config.security_headers:
             security_headers_manager.enabled = False
             return
@@ -330,7 +298,6 @@ class FlaskAPIGuard:
     def set_decorator_handler(
         self, decorator_handler: BaseSecurityDecorator | None
     ) -> None:
-        """Set the SecurityDecorator instance for decorator support."""
         self.guard_decorator = decorator_handler
         if self.route_resolver:
             self.route_resolver.context.guard_decorator = decorator_handler
@@ -345,24 +312,45 @@ class FlaskAPIGuard:
             if isinstance(ext, dict):
                 ext["guard_decorator"] = decorator_handler
 
-    def _execute_security_pipeline(self, request: Request) -> Response | None:
-        """Execute the security check pipeline and return blocking response if any."""
+    @property
+    def guard_response_factory(self) -> FlaskResponseFactory:
+        return self._guard_response_factory
+
+    def _execute_security_pipeline(
+        self, guard_request: FlaskGuardRequest
+    ) -> Response | None:
         if self.security_pipeline:
-            return self.security_pipeline.execute(request)
+            result = self.security_pipeline.execute(guard_request)
+            if result is not None:
+                return unwrap_response(result)
         return None
 
     def _process_behavioral_usage(
-        self, request: Request, client_ip: str, route_config: RouteConfig | None
+        self,
+        guard_request: FlaskGuardRequest,
+        client_ip: str,
+        route_config: RouteConfig | None,
     ) -> None:
-        """Process behavioral usage rules if applicable."""
         assert self.behavioral_processor is not None
         if route_config and route_config.behavior_rules and client_ip:
             self.behavioral_processor.process_usage_rules(
-                request, client_ip, route_config
+                guard_request, client_ip, route_config
             )
 
+    def _populate_guard_state(self, guard_request: FlaskGuardRequest) -> None:
+        from flask import current_app, request
+
+        if not request.endpoint:
+            return
+        view_func = current_app.view_functions.get(request.endpoint)
+        if not view_func or not hasattr(view_func, "_guard_route_id"):
+            return
+        guard_request.state.guard_route_id = view_func._guard_route_id
+        guard_request.state.guard_endpoint_id = (
+            f"{view_func.__module__}.{view_func.__qualname__}"
+        )
+
     def _before_request(self) -> Response | None:
-        """Security pipeline -- runs before each request."""
         from flask import request
 
         assert self.config is not None
@@ -371,34 +359,37 @@ class FlaskAPIGuard:
         assert self.behavioral_processor is not None
 
         g.request_start_time = time.time()
+        guard_request = FlaskGuardRequest(request)
+        self._populate_guard_state(guard_request)
 
         if self.config.enable_cors and request.method == "OPTIONS":
             return self._handle_preflight(request)
 
-        passthrough = self.bypass_handler.handle_passthrough(request)
+        passthrough = self.bypass_handler.handle_passthrough(guard_request)
         if passthrough is not None:
-            return passthrough
+            return unwrap_response(passthrough)
 
-        client_ip = extract_client_ip(request, self.config, self.agent_handler)
-        route_config = self.route_resolver.get_route_config(request)
+        client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
+        route_config = self.route_resolver.get_route_config(guard_request)
 
         g.client_ip = client_ip
         g.route_config = route_config
 
-        bypass = self.bypass_handler.handle_security_bypass(request, route_config)
+        bypass = self.bypass_handler.handle_security_bypass(
+            guard_request, route_config=route_config
+        )
         if bypass is not None:
-            return bypass
+            return unwrap_response(bypass)
 
-        blocking = self._execute_security_pipeline(request)
+        blocking = self._execute_security_pipeline(guard_request)
         if blocking:
             return blocking
 
-        self._process_behavioral_usage(request, client_ip, route_config)
+        self._process_behavioral_usage(guard_request, client_ip, route_config)
 
         return None
 
     def _after_request(self, response: Response) -> Response:
-        """Post-processing -- runs after each request."""
         from flask import request
 
         assert self.response_factory is not None
@@ -408,124 +399,96 @@ class FlaskAPIGuard:
         response_time = time.time() - start_time
         route_config = getattr(g, "route_config", None)
 
-        return self.response_factory.process_response(
-            request,
-            response,
+        guard_request = FlaskGuardRequest(request)
+        guard_response = FlaskGuardResponse(response)
+        result = self.response_factory.process_response(
+            guard_request,
+            guard_response,
             response_time,
             route_config,
             process_behavioral_rules=self.behavioral_processor.process_return_rules,
         )
+        return unwrap_response(result)
 
-    def _handle_preflight(self, request: Request) -> Response:
-        """Handle CORS OPTIONS preflight request."""
+    def _handle_preflight(self, request: Any) -> Response:
         assert self.response_factory is not None
-
-        response = Response("", status=204)
+        guard_response = self._guard_response_factory.create_response("", 204)
         origin = request.headers.get("origin", "")
-        self.response_factory.apply_cors_headers(response, origin)
-        return response
-
-    def _create_https_redirect(self, request: Request) -> Response:
-        """
-        Create HTTPS redirect response with custom modifier if configured.
-
-        Delegates to ErrorResponseFactory for redirect creation.
-        """
-        assert self.response_factory is not None
-        return self.response_factory.create_https_redirect(request)
+        self.response_factory.apply_cors_headers(guard_response, origin)
+        return unwrap_response(guard_response)
 
     def _check_time_window(self, time_restrictions: dict[str, str]) -> bool:
-        """Check if current time is within allowed time window (for tests)."""
         assert self.validator is not None
-        return self.validator.check_time_window(time_restrictions)
+        result: bool = self.validator.check_time_window(time_restrictions)
+        return result
 
     def _check_route_ip_access(
         self, client_ip: str, route_config: RouteConfig
     ) -> bool | None:
-        """Check route-specific IP restrictions (for tests)."""
-        from flaskapi_guard.core.checks.helpers import check_route_ip_access
+        from guard_core.sync.core.checks.helpers import check_route_ip_access
 
-        return check_route_ip_access(client_ip, route_config, self)
+        result: bool | None = check_route_ip_access(client_ip, route_config, self)
+        return result
 
     def _check_user_agent_allowed(
         self, user_agent: str, route_config: RouteConfig | None
     ) -> bool:
-        """Check if user agent is allowed (for tests)."""
-        from flaskapi_guard.core.checks.helpers import check_user_agent_allowed
+        from guard_core.sync.core.checks.helpers import check_user_agent_allowed
 
-        return check_user_agent_allowed(user_agent, route_config, self.config)
+        result: bool = check_user_agent_allowed(user_agent, route_config, self.config)
+        return result
 
     def _check_rate_limit(
         self,
-        request: Request,
+        request: Any,
         client_ip: str,
         route_config: RouteConfig | None = None,
     ) -> Response | None:
-        """Check rate limiting (for tests)."""
         assert self.rate_limit_handler is not None
         assert self.config is not None
 
-        response = self.rate_limit_handler.check_rate_limit(
-            request, client_ip, self.create_error_response
+        guard_request = FlaskGuardRequest(request)
+        result = self.rate_limit_handler.check_rate_limit(
+            guard_request, client_ip, self.create_error_response
         )
 
-        if response and self.config.passive_mode:
+        if result and self.config.passive_mode:
             return None
 
-        return response
-
-    def _process_response(
-        self,
-        request: Request,
-        response: Response,
-        response_time: float,
-        route_config: RouteConfig | None,
-    ) -> Response:
-        """
-        Process the response with behavioral rules, metrics, and headers.
-
-        Delegates to ErrorResponseFactory and BehavioralProcessor.
-        """
-        assert self.response_factory is not None
-        assert self.behavioral_processor is not None
-
-        return self.response_factory.process_response(
-            request,
-            response,
-            response_time,
-            route_config,
-            process_behavioral_rules=self.behavioral_processor.process_return_rules,
-        )
+        if result:
+            return unwrap_response(result)
+        return None
 
     def _process_decorator_usage_rules(
-        self, request: Request, client_ip: str, route_config: RouteConfig
+        self, request: Any, client_ip: str, route_config: RouteConfig
     ) -> None:
-        """Process behavioral usage rules (wrapper for tests)."""
         assert self.behavioral_processor is not None
-        return self.behavioral_processor.process_usage_rules(
-            request, client_ip, route_config
+        guard_request = FlaskGuardRequest(request)
+        self.behavioral_processor.process_usage_rules(
+            guard_request, client_ip, route_config
         )
 
     def _process_decorator_return_rules(
         self,
-        request: Request,
+        request: Any,
         response: Response,
         client_ip: str,
         route_config: RouteConfig,
     ) -> None:
-        """Process behavioral return rules (wrapper for tests)."""
         assert self.behavioral_processor is not None
-        return self.behavioral_processor.process_return_rules(
-            request, response, client_ip, route_config
+        guard_request = FlaskGuardRequest(request)
+        guard_response = FlaskGuardResponse(response)
+        self.behavioral_processor.process_return_rules(
+            guard_request, guard_response, client_ip, route_config
         )
 
-    def _get_endpoint_id(self, request: Request) -> str:
-        """Generate unique endpoint identifier (wrapper for tests)."""
+    def _get_endpoint_id(self, request: Any) -> str:
         assert self.behavioral_processor is not None
-        return self.behavioral_processor.get_endpoint_id(request)
+        guard_request = FlaskGuardRequest(request)
+        result: str = self.behavioral_processor.get_endpoint_id(guard_request)
+        return result
 
     def refresh_cloud_ip_ranges(self) -> None:
-        """Refresh cloud IP ranges."""
         assert self.config is not None
 
         if not self.config.block_cloud_providers:
@@ -537,16 +500,15 @@ class FlaskAPIGuard:
         )
         self.last_cloud_ip_refresh = int(time.time())
 
-    def create_error_response(self, status_code: int, default_message: str) -> Response:
-        """
-        Create an error response with a custom message.
-
-        Delegates to ErrorResponseFactory for response creation.
-        """
+    def create_error_response(
+        self, status_code: int, default_message: str
+    ) -> FlaskGuardResponse:
         assert self.response_factory is not None
-        return self.response_factory.create_error_response(status_code, default_message)
+        result: FlaskGuardResponse = self.response_factory.create_error_response(
+            status_code, default_message
+        )
+        return result
 
     def reset(self) -> None:
-        """Reset rate limiting state."""
         assert self.rate_limit_handler is not None
         self.rate_limit_handler.reset()

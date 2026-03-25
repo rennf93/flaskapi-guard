@@ -18,8 +18,8 @@ First, create a new Flask application:
 ```python
 from flask import Flask
 from flaskapi_guard import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
+from flaskapi_guard import SecurityConfig
+from flaskapi_guard import IPInfoManager
 
 app = Flask(__name__)
 ```
@@ -66,8 +66,8 @@ Here's a complete example showing basic usage:
 ```python
 from flask import Flask, jsonify
 from flaskapi_guard import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
+from flaskapi_guard import SecurityConfig
+from flaskapi_guard import IPInfoManager
 
 app = Flask(__name__)
 

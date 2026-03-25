@@ -14,6 +14,9 @@ def auth_decorator_app(security_config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
 
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
     security_config.trust_x_forwarded_proto = True
     security_config.enforce_https = False
     security_config.enable_penetration_detection = False
@@ -55,8 +58,8 @@ def auth_decorator_app(security_config: SecurityConfig) -> Flask:
     def headers_multiple_endpoint() -> dict[str, str]:
         return {"message": "Multiple headers required"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 
@@ -398,6 +401,9 @@ def test_auth_passive_mode(security_config: SecurityConfig) -> None:
     app.config["TESTING"] = True
     security_config.passive_mode = True
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
 
     decorator = SecurityDecorator(security_config)
 

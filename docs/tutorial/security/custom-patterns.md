@@ -18,7 +18,7 @@ Adding Custom Patterns
 Add your own patterns to the detection system:
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import SusPatternsManager
+from flaskapi_guard import SusPatternsManager
 
 def setup_patterns():
     # Add custom pattern
@@ -100,7 +100,7 @@ Pattern Testing
 Test your patterns against requests:
 
 ```python
-from flaskapi_guard.utils import detect_penetration_attempt
+from guard_core.sync.utils import detect_penetration_attempt
 from flask import request, jsonify
 
 @app.route("/test/patterns", methods=["POST"])

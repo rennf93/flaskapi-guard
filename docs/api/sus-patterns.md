@@ -305,7 +305,7 @@ Basic Pattern Management
 ------------------------
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
 
 # Add custom pattern
 sus_patterns_handler.add_pattern(

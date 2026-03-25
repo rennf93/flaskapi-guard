@@ -16,7 +16,7 @@ Overview
 --------
 
 ```python
-from flaskapi_guard.handlers.ipban_handler import IPBanManager
+from flaskapi_guard import IPBanManager
 
 ip_ban_manager = IPBanManager()
 ```
@@ -112,7 +112,7 @@ The `IPBanManager` is automatically integrated when you use the `FlaskAPIGuard` 
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 

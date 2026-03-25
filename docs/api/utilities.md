@@ -158,7 +158,7 @@ Example usage:
 
 ```python
 from flask import request
-from flaskapi_guard.utils import detect_penetration_attempt
+from guard_core.sync.utils import detect_penetration_attempt
 
 @app.route("/api/submit", methods=["POST"])
 def submit_data():
@@ -204,7 +204,7 @@ Usage Examples
 --------------
 
 ```python
-from flaskapi_guard.utils import (
+from guard_core.sync.utils import (
     setup_custom_logging,
     log_activity,
     detect_penetration_attempt

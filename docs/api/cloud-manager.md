@@ -131,7 +131,7 @@ Usage Example
 -------------
 
 ```python
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
+from flaskapi_guard import cloud_handler
 
 # The singleton instance is already created
 

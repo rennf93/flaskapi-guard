@@ -37,7 +37,7 @@ The example app is built using Flask and shows how to integrate FlaskAPI Guard a
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 # Initialize Flask app
 app = Flask(__name__)

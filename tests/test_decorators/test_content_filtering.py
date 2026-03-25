@@ -1,9 +1,11 @@
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from flask import Flask, Request, Response
+from flask import Flask, Response
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
+from flaskapi_guard.adapters import FlaskGuardResponse
 from flaskapi_guard.extension import FlaskAPIGuard
 
 
@@ -14,6 +16,9 @@ def content_decorator_app(security_config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
 
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
     security_config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(security_config)
@@ -38,9 +43,11 @@ def content_decorator_app(security_config: SecurityConfig) -> Flask:
     def referrer_check_endpoint() -> dict[str, str]:
         return {"message": "Referrer validated"}
 
-    def custom_validator_func(request: Request) -> Response | None:
-        if "forbidden" in request.path:
-            return Response("Custom validation failed", status=400)  # pragma: no cover
+    def custom_validator_func(request: Any) -> FlaskGuardResponse | None:
+        if "forbidden" in request.url_path:
+            return FlaskGuardResponse(
+                Response("Custom validation failed", status=400)
+            )  # pragma: no cover
         return None
 
     @app.route("/custom-validation")
@@ -48,8 +55,8 @@ def content_decorator_app(security_config: SecurityConfig) -> Flask:
     def custom_validation_endpoint() -> dict[str, str]:
         return {"message": "Custom validation passed"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 
@@ -234,7 +241,7 @@ def test_content_filtering_decorators_unit(
     mock_func5.__name__ = mock_func5.__qualname__ = "test_func5"
     mock_func5.__module__ = "test_module"
 
-    def test_validator(request: Request) -> Response | None:
+    def test_validator(request: Any) -> FlaskGuardResponse | None:
         return None
 
     custom_decorator = decorator.custom_validation(test_validator)
@@ -256,6 +263,9 @@ def test_referrer_passive_mode(security_config: SecurityConfig) -> None:
     app.config["TESTING"] = True
     security_config.passive_mode = True
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
 
     decorator = SecurityDecorator(security_config)
 

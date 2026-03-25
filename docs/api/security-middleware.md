@@ -330,7 +330,7 @@ Basic Setup
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 
@@ -349,8 +349,8 @@ With Decorators
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityConfig
+from flaskapi_guard import SecurityDecorator
 
 app = Flask(__name__)
 
@@ -374,7 +374,7 @@ With App Factory Pattern
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 guard = FlaskAPIGuard()
 

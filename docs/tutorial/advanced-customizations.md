@@ -113,8 +113,8 @@ Example: Custom Geo IP Service
 Here's a complete example of a custom GeoIPHandler implementation that uses a different service:
 
 ```python
-from flaskapi_guard.protocols.geo_ip_protocol import GeoIPHandler
-from flaskapi_guard.protocols.redis_protocol import RedisHandlerProtocol
+from flaskapi_guard import GeoIPHandler
+from flaskapi_guard import RedisHandlerProtocol
 
 class CustomGeoIPHandler:
     """Custom handler using Custom GeoIP database"""
@@ -181,7 +181,7 @@ Usage in Application
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 from your_custom_module import CustomGeoIPHandler
 
 app = Flask(__name__)

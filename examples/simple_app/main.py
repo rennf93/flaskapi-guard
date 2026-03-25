@@ -18,8 +18,7 @@ from flaskapi_guard import (
     SecurityDecorator,
     ip_ban_manager,
 )
-from flaskapi_guard.handlers.behavior_handler import BehaviorRule
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
+from flaskapi_guard import BehaviorRule, cloud_handler
 
 logging.basicConfig(
     level=logging.INFO,
