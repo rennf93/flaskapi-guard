@@ -18,6 +18,10 @@ from guard_core.sync.protocols.geo_ip_protocol import SyncGeoIPHandler as GeoIPH
 from guard_core.sync.protocols.redis_protocol import (
     SyncRedisHandlerProtocol as RedisHandlerProtocol,
 )
+from guard_core.sync.protocols.request_protocol import (
+    SyncGuardRequest as GuardRequest,
+)
+from guard_core.sync.protocols.response_protocol import GuardResponse
 
 from flaskapi_guard.extension import FlaskAPIGuard
 
@@ -42,4 +46,6 @@ __all__ = [
     "sus_patterns_handler",
     "GeoIPHandler",
     "RedisHandlerProtocol",
+    "GuardRequest",
+    "GuardResponse",
 ]

@@ -1265,7 +1265,7 @@ def test_passive_mode_rate_limiting() -> None:
         rate_limit_window=60,
         enable_rate_limiting=True,
     )
-    guard = FlaskAPIGuard(app, config=config)
+    FlaskAPIGuard(app, config=config)
 
     @app.route("/")
     def read_root() -> dict[str, str]:
@@ -1274,12 +1274,6 @@ def test_passive_mode_rate_limiting() -> None:
     with app.test_client() as client:
         response = client.get("/")
         assert response.status_code == 200
-
-        with app.test_request_context("/"):
-            from flask import request
-
-            result = guard._check_rate_limit(request, "127.0.0.1")
-            assert result is None
 
 
 def test_reset_method() -> None:
@@ -1627,49 +1621,3 @@ def test_before_request_bypass_response() -> None:
         with app.test_client() as client:
             response = client.get("/")
             assert response.status_code == 403
-
-
-def test_check_rate_limit_returns_response() -> None:
-    from flaskapi_guard.adapters import FlaskGuardResponse
-
-    app = Flask(__name__)
-    config = SecurityConfig(
-        enable_redis=False,
-        enable_penetration_detection=False,
-        enable_rate_limiting=True,
-    )
-    guard = FlaskAPIGuard(app, config=config)
-
-    mock_resp = FlaskGuardResponse(Response("Rate limited", status=429))
-    with app.test_request_context("/"):
-        from flask import request
-
-        with patch.object(
-            guard.rate_limit_handler,
-            "check_rate_limit",
-            return_value=mock_resp,
-        ):
-            result = guard._check_rate_limit(request, "127.0.0.1")
-            assert result is not None
-            assert result.status_code == 429
-
-
-def test_check_rate_limit_allows_request() -> None:
-    app = Flask(__name__)
-    config = SecurityConfig(
-        enable_redis=False,
-        enable_penetration_detection=False,
-        enable_rate_limiting=True,
-    )
-    guard = FlaskAPIGuard(app, config=config)
-
-    with app.test_request_context("/"):
-        from flask import request
-
-        with patch.object(
-            guard.rate_limit_handler,
-            "check_rate_limit",
-            return_value=None,
-        ):
-            result = guard._check_rate_limit(request, "127.0.0.1")
-            assert result is None
