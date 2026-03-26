@@ -14,6 +14,9 @@ def advanced_decorator_app(security_config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
 
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
     security_config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(security_config)
@@ -48,8 +51,8 @@ def advanced_decorator_app(security_config: SecurityConfig) -> Flask:
     def json_honeypot_endpoint() -> dict[str, str]:
         return {"message": "JSON submitted successfully"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 
@@ -78,7 +81,7 @@ def test_time_window_restrictions(
     mock_datetime = datetime(2024, 1, 1, mock_hour, 0, 0, tzinfo=timezone.utc)
 
     with patch(
-        "flaskapi_guard.core.checks.implementations.time_window.datetime"
+        "guard_core.sync.core.checks.implementations.time_window.datetime"
     ) as mock_dt:
         mock_dt.now.return_value = mock_datetime
         mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -223,7 +226,7 @@ def test_honeypot_form_detection(security_config: SecurityConfig) -> None:
     mock_request.headers.get = lambda key, default="": (
         "application/x-www-form-urlencoded" if key == "content-type" else default
     )
-    mock_request.form = {"bot_trap": "filled"}
+    mock_request.body.return_value = b"bot_trap=filled"
 
     result = validator(mock_request)
     assert result.status_code == 403
@@ -248,7 +251,7 @@ def test_honeypot_json_exception(security_config: SecurityConfig) -> None:
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )
-    mock_request.get_json.side_effect = Exception("JSON error")
+    mock_request.body.side_effect = Exception("JSON error")
 
     result = validator(mock_request)
     assert result is None
@@ -273,7 +276,7 @@ def test_honeypot_json_detection(security_config: SecurityConfig) -> None:
     mock_request.headers.get = lambda key, default="": (
         "application/json" if key == "content-type" else default
     )
-    mock_request.get_json.return_value = {"spam_check": "filled"}
+    mock_request.body.return_value = b'{"spam_check": "filled"}'
 
     result = validator(mock_request)
     assert result.status_code == 403

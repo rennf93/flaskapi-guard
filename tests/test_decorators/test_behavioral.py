@@ -2,10 +2,10 @@ from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.sync.handlers.behavior_handler import BehaviorRule
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.handlers.behavior_handler import BehaviorRule
 
 
 @pytest.fixture
@@ -15,6 +15,9 @@ def behavioral_decorator_app(security_config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
 
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
     security_config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(security_config)
@@ -66,8 +69,8 @@ def behavioral_decorator_app(security_config: SecurityConfig) -> Flask:
     def frequency_alert_endpoint() -> dict[str, str]:
         return {"result": "high frequency allowed"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 

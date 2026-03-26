@@ -76,7 +76,7 @@ Comprehensive Results
 The detection engine returns detailed information about threats:
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
 
 # Direct detection with rich results
 result = sus_patterns_handler.detect(
@@ -113,7 +113,7 @@ Custom Detection Logic
 You can use the penetration detection directly in your routes:
 
 ```python
-from flaskapi_guard.utils import detect_penetration_attempt
+from guard_core.sync.utils import detect_penetration_attempt
 from flask import jsonify
 
 @app.route("/api/data", methods=["POST"])
@@ -131,7 +131,7 @@ def submit_data():
 For more control, use the enhanced detection API:
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
 from flask import request, jsonify
 import json
 
@@ -235,7 +235,7 @@ Pattern Management
 Add or remove custom patterns:
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
 
 # Add custom pattern
 sus_patterns_handler.add_pattern(

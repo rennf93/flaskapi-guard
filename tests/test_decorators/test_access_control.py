@@ -2,10 +2,10 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
+from guard_core.sync.handlers.cloud_handler import cloud_handler
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
 
 
 @pytest.fixture
@@ -16,6 +16,8 @@ def decorator_app(security_config: SecurityConfig) -> Flask:
 
     security_config.trusted_proxies = ["127.0.0.1"]
     security_config.enable_penetration_detection = False
+    security_config.whitelist = []
+    security_config.blacklist = []
 
     decorator = SecurityDecorator(security_config)
 
@@ -60,8 +62,8 @@ def decorator_app(security_config: SecurityConfig) -> Flask:
     def multiple_decorators_endpoint() -> dict[str, str]:
         return {"message": "Multiple security rules"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 
@@ -122,7 +124,7 @@ def test_country_access_control(
     }
 
     with patch(
-        "flaskapi_guard.handlers.ipinfo_handler.IPInfoManager.get_country"
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager.get_country"
     ) as mock_geo:
         mock_geo.return_value = country
 
@@ -187,7 +189,7 @@ def test_security_bypass(decorator_app: Flask) -> None:
 def test_multiple_decorators(decorator_app: Flask) -> None:
     """Test multiple decorators on single endpoint."""
     with patch(
-        "flaskapi_guard.handlers.ipinfo_handler.IPInfoManager.get_country"
+        "guard_core.sync.handlers.ipinfo_handler.IPInfoManager.get_country"
     ) as mock_geo:
         mock_geo.return_value = "US"
         with decorator_app.test_client() as client:

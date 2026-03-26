@@ -21,7 +21,7 @@ Control which content types are accepted by specific endpoints:
 ------------------------------
 
 ```python
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 guard_deco = SecurityDecorator(config)
 

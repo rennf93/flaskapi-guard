@@ -21,7 +21,7 @@ Force secure connections for specific routes:
 -----------------------
 
 ```python
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 guard_deco = SecurityDecorator(config)
 

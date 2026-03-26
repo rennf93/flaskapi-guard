@@ -39,7 +39,7 @@ The main decorator class that combines all security capabilities. This is the pr
 ```python
 from flask import Flask
 from flaskapi_guard import SecurityConfig
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 app = Flask(__name__)
 config = SecurityConfig()
@@ -190,7 +190,7 @@ The decorators work in conjunction with the FlaskAPIGuard extension to provide c
 ```python
 from flask import Flask
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 app = Flask(__name__)
 config = SecurityConfig(

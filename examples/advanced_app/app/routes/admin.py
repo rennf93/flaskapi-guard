@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 
 from app.models import message_response, stats_response
 from app.security import guard
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
+from flaskapi_guard import cloud_handler
 
 logger = logging.getLogger(__name__)
 

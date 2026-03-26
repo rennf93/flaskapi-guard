@@ -1,6 +1,6 @@
 [project]
 name = "flaskapi_guard"
-version = "1.1.1"
+version = "2.0.0"
 description = "A security library for Flask to control IPs, log requests, and detect penetration attempts."
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
@@ -9,7 +9,7 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10,<3.15"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: Flask",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -19,16 +19,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "cachetools",
     "flask",
-    "httpx",
-    "maxminddb",
-    "pydantic",
-    "redis",
-
-    "typing-extensions",
+    "guard-core",
     "gunicorn",
     "werkzeug",
 ]
@@ -117,6 +112,11 @@ follow_imports = "skip"
 [[tool.mypy.overrides]]
 module = "guard_agent.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["guard_core", "guard_core.*", "guard_core.sync.*", "guard_core.sync.handlers.*", "guard_core.sync.protocols.*", "guard_core.sync.core.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pymarkdown.plugins.md007]
 # MD007 - Unordered list indentation (set to 2 spaces)
@@ -209,11 +209,12 @@ exclude = ["tests/*", ".venv/*", "vulture_whitelist.py"]
 ignore = []
 
 [tool.deptry]
-exclude = ["tests", ".venv", "vulture_whitelist.py", "examples", "docs"]
+exclude = ["tests", ".venv", "vulture_whitelist.py", "examples", "docs", "build"]
 extend_exclude = ["conftest.py", "setup.py"]
-known_first_party = ["flaskapi_guard"]
+known_first_party = ["flaskapi_guard", "guard_core"]
 per_rule_ignores = { "DEP001" = ["guard_agent"], "DEP002" = [
     "bandit",
+    "guard-core",
     "deptry",
     "mkdocs",
     "mkdocstrings",
@@ -232,6 +233,8 @@ per_rule_ignores = { "DEP001" = ["guard_agent"], "DEP002" = [
     "types-cachetools",
     "types-requests",
     "gunicorn",
+    "httpx",
     "vulture",
+    "werkzeug",
     "xenon",
 ] }

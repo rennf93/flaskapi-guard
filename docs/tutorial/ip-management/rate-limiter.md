@@ -20,7 +20,7 @@ To enable rate limiting, configure the following parameters in your `SecurityCon
 ```python
 from flask import Flask
 from flaskapi_guard import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 
@@ -140,7 +140,7 @@ Accessing the Rate Limiter Directly
 For advanced use cases, you can access the rate limiter directly:
 
 ```python
-from flaskapi_guard.handlers.ratelimit_handler import rate_limit_handler
+from flaskapi_guard import rate_limit_handler
 
 def some_route():
     # Get a reference to the handler
@@ -156,7 +156,7 @@ Resetting Rate Limits
 You might want to reset rate limits in certain scenarios:
 
 ```python
-from flaskapi_guard.handlers.ratelimit_handler import rate_limit_handler
+from flaskapi_guard import rate_limit_handler
 
 def reset_rate_limits_for_user(user_id: str):
     handler = rate_limit_handler(config)

@@ -13,13 +13,13 @@ from flask import (
 )
 
 from flaskapi_guard import (
+    BehaviorRule,
     FlaskAPIGuard,
     SecurityConfig,
     SecurityDecorator,
+    cloud_handler,
     ip_ban_manager,
 )
-from flaskapi_guard.handlers.behavior_handler import BehaviorRule
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
 
 logging.basicConfig(
     level=logging.INFO,

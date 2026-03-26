@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 from flask import Flask
+from guard_core.models import SecurityConfig
+from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.ipban_handler import reset_global_state
+from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
+from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
+from guard_core.sync.handlers.suspatterns_handler import sus_patterns_handler
 
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.handlers.cloud_handler import cloud_handler
-from flaskapi_guard.handlers.ipban_handler import reset_global_state
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
-from flaskapi_guard.handlers.ratelimit_handler import rate_limit_handler
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
-from flaskapi_guard.models import SecurityConfig
 
 IPINFO_TOKEN = str(os.getenv("IPINFO_TOKEN"))
 REDIS_URL = str(os.getenv("REDIS_URL"))
@@ -43,6 +43,7 @@ def security_config() -> SecurityConfig:
     return SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN, None),
         enable_redis=False,
+        enable_penetration_detection=False,
         whitelist=["127.0.0.1"],
         blacklist=["192.168.1.1"],
         blocked_countries=["CN"],
@@ -68,6 +69,7 @@ def security_config() -> SecurityConfig:
 def flaskapi_guard_app() -> Generator[tuple[Flask, FlaskAPIGuard], None, None]:
     config = SecurityConfig(
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN),
+        enable_penetration_detection=False,
         whitelist=[],
         blacklist=[],
         auto_ban_threshold=10,
@@ -91,6 +93,7 @@ def security_config_redis(ipinfo_db_path: Path) -> SecurityConfig:
         geo_ip_handler=IPInfoManager(IPINFO_TOKEN, ipinfo_db_path),
         redis_url=REDIS_URL,
         redis_prefix=REDIS_PREFIX,
+        enable_penetration_detection=False,
         whitelist=["127.0.0.1"],
         blacklist=["192.168.1.1"],
         blocked_countries=["CN"],
@@ -150,6 +153,6 @@ def reset_rate_limiter() -> None:
 
 @pytest.fixture
 def clean_rate_limiter() -> None:
-    from flaskapi_guard.handlers.ratelimit_handler import RateLimitManager
+    from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 
     RateLimitManager._instance = None

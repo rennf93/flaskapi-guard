@@ -21,7 +21,7 @@ Apply custom rate limits to specific routes:
 ----------------------------
 
 ```python
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 guard_deco = SecurityDecorator(config)
 

@@ -1,14 +1,13 @@
-"""Tests for BaseSecurityDecorator event methods."""
-
 import sys
 import types
 from unittest.mock import Mock
 
 import pytest
 from flask import Flask
+from guard_core.models import SecurityConfig
+from guard_core.sync.decorators.base import BaseSecurityDecorator
 
-from flaskapi_guard.decorators.base import BaseSecurityDecorator
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard.adapters import FlaskGuardRequest
 
 
 def _install_mock_guard_agent() -> types.ModuleType:
@@ -65,7 +64,7 @@ class TestDecoratorEvents:
 
             decorator.send_decorator_event(
                 event_type="test_event",
-                request=request,
+                request=FlaskGuardRequest(request),
                 action_taken="blocked",
                 reason="test reason",
                 decorator_type="test_decorator",
@@ -94,7 +93,7 @@ class TestDecoratorEvents:
 
             decorator.send_decorator_event(
                 event_type="test",
-                request=request,
+                request=FlaskGuardRequest(request),
                 action_taken="blocked",
                 reason="test",
                 decorator_type="test",
@@ -113,7 +112,7 @@ class TestDecoratorEvents:
 
             decorator.send_decorator_event(
                 event_type="test",
-                request=request,
+                request=FlaskGuardRequest(request),
                 action_taken="blocked",
                 reason="test",
                 decorator_type="test",
@@ -130,7 +129,7 @@ class TestDecoratorEvents:
             from flask import request
 
             decorator.send_access_denied_event(
-                request=request,
+                request=FlaskGuardRequest(request),
                 reason="IP blocked",
                 decorator_type="access_control",
                 source_ip="1.2.3.4",
@@ -154,7 +153,7 @@ class TestDecoratorEvents:
             from flask import request
 
             decorator.send_authentication_failed_event(
-                request=request,
+                request=FlaskGuardRequest(request),
                 reason="Invalid API key",
                 auth_type="api_key",
             )
@@ -177,7 +176,7 @@ class TestDecoratorEvents:
             from flask import request
 
             decorator.send_rate_limit_event(
-                request=request,
+                request=FlaskGuardRequest(request),
                 limit=100,
                 window=60,
             )
@@ -202,7 +201,7 @@ class TestDecoratorEvents:
             from flask import request
 
             decorator.send_decorator_violation_event(
-                request=request,
+                request=FlaskGuardRequest(request),
                 violation_type="content_filter",
                 reason="Invalid content type",
             )

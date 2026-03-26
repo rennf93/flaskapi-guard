@@ -31,7 +31,7 @@ Enable security headers with default OWASP-recommended settings:
 ```python
 from flask import Flask
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 app = Flask(__name__)
 
@@ -182,7 +182,7 @@ from flask import request, jsonify
 
 @app.route("/api/csp-report", methods=["POST"])
 def csp_report():
-    from flaskapi_guard.handlers.security_headers_handler import security_headers_manager
+    from flaskapi_guard import security_headers_manager
 
     report = request.get_json()
     is_valid = security_headers_manager.validate_csp_report(report)

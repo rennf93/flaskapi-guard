@@ -38,8 +38,8 @@ Note: The IPInfo token is only required when using the country filtering feature
 ```python
 from flask import Flask
 from flaskapi_guard import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
+from flaskapi_guard import SecurityConfig
+from flaskapi_guard import IPInfoManager
 
 app = Flask(__name__)
 config = SecurityConfig(

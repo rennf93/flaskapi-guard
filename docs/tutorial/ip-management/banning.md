@@ -32,7 +32,7 @@ Manual IP Banning
 You can also manually ban IPs using the `IPBanManager`:
 
 ```python
-from flaskapi_guard.handlers.ipban_handler import ip_ban_manager
+from flaskapi_guard import ip_ban_manager
 
 @app.route("/admin/ban/<ip>", methods=["POST"])
 def ban_ip(ip: str, duration: int = 3600):

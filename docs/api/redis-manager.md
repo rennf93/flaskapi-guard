@@ -87,8 +87,8 @@ Usage Example
 -------------
 
 ```python
-from flaskapi_guard.handlers.redis_handler import RedisManager
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import RedisManager
+from flaskapi_guard import SecurityConfig
 
 config = SecurityConfig(redis_url="redis://localhost:6379")
 redis = RedisManager(config)

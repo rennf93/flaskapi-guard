@@ -14,6 +14,9 @@ def rate_limiting_decorator_app(security_config: SecurityConfig) -> Flask:
     app.config["TESTING"] = True
 
     security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.whitelist = []
+    security_config.blacklist = []
+    security_config.blocked_countries = []
     security_config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(security_config)
@@ -28,8 +31,8 @@ def rate_limiting_decorator_app(security_config: SecurityConfig) -> Flask:
     def geo_rate_limited_endpoint() -> dict[str, str]:
         return {"message": "Geo rate limited endpoint"}
 
-    FlaskAPIGuard(app, config=security_config)
-    app.extensions["flaskapi_guard"]["guard_decorator"] = decorator
+    guard = FlaskAPIGuard(app, config=security_config)
+    guard.set_decorator_handler(decorator)
 
     return app
 

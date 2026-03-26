@@ -236,7 +236,7 @@ dev_config = SecurityConfig(
 You can adjust certain settings at runtime:
 
 ```python
-from flaskapi_guard.handlers.suspatterns_handler import sus_patterns_handler
+from flaskapi_guard import sus_patterns_handler
 
 # Adjust semantic threshold dynamically
 sus_patterns_handler.configure_semantic_threshold(0.8)

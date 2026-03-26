@@ -7,7 +7,7 @@
 ---
 
 <p align="center">
-    <strong>flaskapi-guard is a security library for Flask that provides an extension to control IPs, log requests, detect penetration attempts and more. It integrates seamlessly with Flask to offer robust protection against various security threats.</strong>
+    <strong>flaskapi-guard is a security library for Flask that provides an extension to control IPs, log requests, detect penetration attempts and more. It integrates seamlessly with Flask to offer robust protection against various security threats. Powered by <a href="https://github.com/rennf93/guard-core">guard-core</a>.</strong>
 </p>
 
 <p align="center">

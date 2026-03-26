@@ -67,22 +67,22 @@ Key Classes and Instances
 ```python
 # Core extension and configuration
 from flaskapi_guard.extension import FlaskAPIGuard
-from flaskapi_guard.models import SecurityConfig
+from flaskapi_guard import SecurityConfig
 
 # Security decorators
-from flaskapi_guard.decorators import SecurityDecorator, RouteConfig
-from flaskapi_guard.decorators.base import get_route_decorator_config
+from flaskapi_guard import SecurityDecorator, RouteConfig
+from flaskapi_guard import get_route_decorator_config
 
 # Handler classes and their pre-initialized instances
-from flaskapi_guard.handlers.cloud_handler import CloudManager, cloud_handler
-from flaskapi_guard.handlers.ipban_handler import IPBanManager, ip_ban_manager
-from flaskapi_guard.handlers.ratelimit_handler import RateLimitManager, rate_limit_handler
-from flaskapi_guard.handlers.redis_handler import RedisManager, redis_handler
-from flaskapi_guard.handlers.suspatterns_handler import SusPatternsManager, sus_patterns_handler
-from flaskapi_guard.handlers.behavior_handler import BehaviorTracker, BehaviorRule
+from flaskapi_guard import CloudManager, cloud_handler
+from flaskapi_guard import IPBanManager, ip_ban_manager
+from flaskapi_guard import RateLimitManager, rate_limit_handler
+from flaskapi_guard import RedisManager, redis_handler
+from flaskapi_guard import SusPatternsManager, sus_patterns_handler
+from flaskapi_guard import BehaviorTracker, BehaviorRule
 
 # Special case - requires parameters
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
+from flaskapi_guard import IPInfoManager
 ```
 
 ___
@@ -172,7 +172,7 @@ SecurityDecorator Class
 The main decorator class combines all security capabilities:
 
 ```python
-from flaskapi_guard.decorators import SecurityDecorator
+from flaskapi_guard import SecurityDecorator
 
 config = SecurityConfig()
 guard_deco = SecurityDecorator(config)
