@@ -95,14 +95,12 @@ To use `flaskapi-guard`, you need to configure the extension in your Flask appli
 ```python
 from flask import Flask
 from flaskapi_guard import FlaskAPIGuard, SecurityConfig
-from flaskapi_guard.handlers.ipinfo_handler import IPInfoManager
+from flaskapi_guard import IPInfoManager
 
 app = Flask(__name__)
 
-# Define your security configuration
 config = SecurityConfig(
-    ipinfo_token="your_ipinfo_token_here",  # Optional: IPInfo token required for IP geolocation
-    ipinfo_db_path="custom/ipinfo.db",  # Optional custom database path
+    geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
     whitelist=["192.168.1.1", "2001:db8::1"],
     blacklist=["10.0.0.1", "2001:db8::2"],
     blocked_countries=["AR", "IT"],
@@ -469,12 +467,12 @@ The library implements a handler that uses IPInfo's [IP to Country database](htt
 To use the geolocation feature with this handler:
 
 ```python
-from flaskapi_guard.protocols.geo_ip_protocol import GeoIPHandler
+from flaskapi_guard import IPInfoManager
 
 config = SecurityConfig(
-    geo_ip_handler=GeoIPHandler,
-    blocked_countries=["AR", "IT"],   # Block specific countries using ISO 3166-1 alpha-2 codes
-    whitelist_countries=["US", "CA"]  # Optional: Only allow specific countries
+    geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
+    blocked_countries=["AR", "IT"],
+    whitelist_countries=["US", "CA"],
 )
 ```
 
@@ -483,35 +481,25 @@ The database is automatically downloaded and cached locally when the extension s
 You can also use a service other than IPInfo, as long as you implement the same protocol:
 
 ```python
-# Implement the required methods of flaskapi_guard.protocols.geo_ip_protocol.GeoIPHandler protocol
-
-class GeoIPHandler:
-    """
-    Your custom class.
-    """
-
+class CustomGeoIPHandler:
     @property
     def is_initialized(self) -> bool:
-        # your implementation
         ...
 
     def initialize(self) -> None:
-        # your implementation
         ...
 
     def initialize_redis(self, redis_handler: "RedisManager") -> None:
-        # your implementation
         ...
 
     def get_country(self, ip: str) -> str | None:
-        # your implementation
         ...
 
 
 config = SecurityConfig(
-    geo_ip_handler=GeoIPHandler,
-    blocked_countries=["AR", "IT"],  # Block specific countries using ISO 3166-1 alpha-2 codes
-    whitelist_countries=["US", "CA"]  # Optional: Only allow specific countries
+    geo_ip_handler=CustomGeoIPHandler(),
+    blocked_countries=["AR", "IT"],
+    whitelist_countries=["US", "CA"],
 )
 ```
 

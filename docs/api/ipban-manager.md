@@ -35,11 +35,9 @@ When Redis is enabled:
 - Supports atomic ban operations
 
 ```python
-# Cluster-wide ban
-ip_ban_manager.ban_ip("192.168.1.1", 3600, distributed=True)
+ip_ban_manager.ban_ip("192.168.1.1", 3600)
 
-# Check ban status across cluster
-is_banned = ip_ban_manager.is_ip_banned("192.168.1.1", check_redis=True)
+is_banned = ip_ban_manager.is_ip_banned("192.168.1.1")
 ```
 
 ___
@@ -53,12 +51,13 @@ ban_ip
 Ban an IP address for a specified duration.
 
 ```python
-def ban_ip(ip: str, duration: int) -> None
+def ban_ip(ip: str, duration: int, reason: str = "threshold_exceeded") -> None
 ```
 
 **Parameters**:
 - `ip`: The IP address to ban
 - `duration`: Ban duration in seconds
+- `reason`: Reason for the ban (default: "threshold_exceeded")
 
 **Example**:
 
@@ -85,6 +84,24 @@ def is_ip_banned(ip: str) -> bool
 
 ```python
 is_banned = ip_ban_manager.is_ip_banned("192.168.1.1")
+```
+
+unban_ip
+--------
+
+Remove a ban on an IP address.
+
+```python
+def unban_ip(ip: str) -> None
+```
+
+**Parameters**:
+- `ip`: The IP address to unban
+
+**Example**:
+
+```python
+ip_ban_manager.unban_ip("192.168.1.1")
 ```
 
 reset

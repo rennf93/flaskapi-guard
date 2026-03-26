@@ -47,11 +47,10 @@ Option 1: Using the built-in IPInfoHandler
 
 ```python
 config = SecurityConfig(
-    geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),  # NOTE: Required when using country filtering
-    blocked_countries=["CN", "RU"],  # Block specific countries
+    geo_ip_handler=IPInfoManager("your_ipinfo_token_here"),
+    blocked_countries=["CN", "RU"],
     whitelist_countries=["US", "CA"],
-    db_path="custom/ipinfo.db",  # Optional custom database path
-    block_cloud_providers={"AWS", "GCP"}  # Case-sensitive provider names
+    block_cloud_providers={"AWS", "GCP"},
 )
 ```
 
@@ -85,10 +84,9 @@ class CustomGeoIPHandler:
 
 config = SecurityConfig(
     geo_ip_handler=CustomGeoIPHandler(),
-    blocked_countries=["CN", "RU"],  # Block specific countries
+    blocked_countries=["CN", "RU"],
     whitelist_countries=["US", "CA"],
-    db_path="custom/ipinfo.db",  # Optional custom database path
-    block_cloud_providers={"AWS", "GCP"}  # Case-sensitive provider names
+    block_cloud_providers={"AWS", "GCP"},
 )
 ```
 
