@@ -151,7 +151,7 @@ config = SecurityConfig(
     blacklist=["10.0.0.1"],
     rate_limit=100,
     auto_ban_threshold=5,
-    block_cloud_providers={"AWS", "GCP", "AZURE"},
+    block_cloud_providers={"AWS", "GCP", "Azure"},
 )
 
 guard = FlaskAPIGuard(app, config=config)
