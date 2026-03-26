@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "flask",
-    "guard-core>=0.1.0",
+    "guard-core",
     "gunicorn",
     "werkzeug",
 ]
