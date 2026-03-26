@@ -30,7 +30,7 @@ Main Decorator Class
 . SecurityDecorator
 ----------------------------
 
-::: flaskapi_guard.decorators.SecurityDecorator
+::: guard_core.sync.decorators.SecurityDecorator
 
 The main decorator class that combines all security capabilities. This is the primary class you'll use in your application.
 
@@ -61,14 +61,14 @@ Base Classes
 . BaseSecurityDecorator
 ---------------------
 
-::: flaskapi_guard.decorators.base.BaseSecurityDecorator
+::: guard_core.sync.decorators.base.BaseSecurityDecorator
 
 Base class providing core decorator functionality and route configuration management.
 
 . RouteConfig
 ---------------------
 
-::: flaskapi_guard.decorators.base.RouteConfig
+::: guard_core.sync.decorators.base.RouteConfig
 
 Configuration class that stores security settings for individual routes.
 
@@ -82,7 +82,7 @@ The decorator system uses mixins to organize different types of security feature
 . AccessControlMixin
 ---------------------
 
-::: flaskapi_guard.decorators.access_control.AccessControlMixin
+::: guard_core.sync.decorators.access_control.AccessControlMixin
 
 Provides IP-based and geographic access control decorators.
 
@@ -97,7 +97,7 @@ Provides IP-based and geographic access control decorators.
 . AuthenticationMixin
 ---------------------
 
-::: flaskapi_guard.decorators.authentication.AuthenticationMixin
+::: guard_core.sync.decorators.authentication.AuthenticationMixin
 
 Provides authentication and authorization decorators.
 
@@ -111,7 +111,7 @@ Provides authentication and authorization decorators.
 . RateLimitingMixin
 ---------------------
 
-::: flaskapi_guard.decorators.rate_limiting.RateLimitingMixin
+::: guard_core.sync.decorators.rate_limiting.RateLimitingMixin
 
 Provides rate limiting decorators.
 
@@ -123,7 +123,7 @@ Provides rate limiting decorators.
 . BehavioralMixin
 ---------------------
 
-::: flaskapi_guard.decorators.behavioral.BehavioralMixin
+::: guard_core.sync.decorators.behavioral.BehavioralMixin
 
 Provides behavioral analysis and monitoring decorators.
 
@@ -137,7 +137,7 @@ Provides behavioral analysis and monitoring decorators.
 . ContentFilteringMixin
 ---------------------
 
-::: flaskapi_guard.decorators.content_filtering.ContentFilteringMixin
+::: guard_core.sync.decorators.content_filtering.ContentFilteringMixin
 
 Provides content and request filtering decorators.
 
@@ -152,7 +152,7 @@ Provides content and request filtering decorators.
 . AdvancedMixin
 -------------
 
-::: flaskapi_guard.decorators.advanced.AdvancedMixin
+::: guard_core.sync.decorators.advanced.AdvancedMixin
 
 Provides advanced detection and time-based decorators.
 
@@ -170,7 +170,7 @@ Utility Functions
 . get_route_decorator_config
 ---------------------------
 
-::: flaskapi_guard.decorators.base.get_route_decorator_config
+::: guard_core.sync.decorators.base.get_route_decorator_config
 
 Extract route security configuration from the current Flask request.
 

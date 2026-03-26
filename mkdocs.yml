@@ -117,7 +117,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [flaskapi_guard]
+          paths: [.]
           options:
             show_source: true
             show_root_heading: true
