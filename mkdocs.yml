@@ -135,8 +135,7 @@ extra:
       link: https://pypi.org/project/flaskapi-guard/
 
   analytics:
-    provider: google
-    property: !ENV GOOGLE_ANALYTICS_KEY
+    provider: custom
     feedback:
       title: Was this page helpful?
       ratings:
