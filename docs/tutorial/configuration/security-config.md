@@ -99,7 +99,7 @@ Agent Settings
 |-------|------|---------|-------------|
 | `enable_agent` | bool | False | Enable Guard Agent telemetry and monitoring |
 | `agent_api_key` | str \| None | None | API key for agent authentication |
-| `agent_endpoint` | str | "https://api.fastapi-guard.com" | Guard Agent SaaS platform endpoint |
+| `agent_endpoint` | str | "https://api.guard-core.com" | Guard Agent SaaS platform endpoint |
 | `agent_project_id` | str \| None | None | Project ID for organizing telemetry data |
 | `agent_buffer_size` | int | 100 | Number of events to buffer before auto-flush |
 | `agent_flush_interval` | int | 30 | Interval in seconds between automatic buffer flushes |
