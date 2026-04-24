@@ -8,6 +8,8 @@ keywords: flask, security, extension, python, ip control, rate limiting, penetra
 
 # FlaskAPI Guard
 
+![FlaskAPI Guard](assets/flaskapi_guard_legend.svg)
+
 [![PyPI version](https://badge.fury.io/py/flaskapi-guard.svg?cache=none&icon=si%3Apython&icon_color=%23008cb4)](https://badge.fury.io/py/flaskapi-guard)
 [![Release](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml/badge.svg)](https://github.com/rennf93/flaskapi-guard/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -104,7 +106,7 @@ You can also download the example app as a Docker container from [GitHub Contain
 docker pull ghcr.io/rennf93/flaskapi-guard-example:latest
 
 # Or pull a specific version (matches library releases)
-docker pull ghcr.io/rennf93/flaskapi-guard-example:v2.0.0
+docker pull ghcr.io/rennf93/flaskapi-guard-example:v2.1.0
 ```
 
 ___

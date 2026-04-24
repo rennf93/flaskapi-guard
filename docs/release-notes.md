@@ -3,6 +3,22 @@ Release Notes
 
 ___
 
+v2.1.0 (2026-04-24)
+-------------------
+
+Telemetry pipeline wiring fix (v2.1.0)
+--------------------------------------
+
+Adopts guard-core 1.1.0 and fixes an extension wiring bug that prevented OpenTelemetry, Logfire, and event/metric/check-log muting from seeing anything emitted by the request-path security pipeline.
+
+- **Fixed** — `FlaskAPIGuard.init_app()` previously constructed `SecurityEventBus(agent_handler, ...)` and `MetricsCollector(agent_handler, ...)` in `_init_core_components()` using the bare `guard_agent` handler (or `None`). `_initialize_handlers()` then called `HandlerInitializer.initialize_agent_integrations()` which built a `CompositeAgentHandler` that no code path ever reached, because the event bus / metrics collector were already frozen on the bare handler. As a result, every event emitted through the request pipeline (`SecurityEventBus.send_middleware_event`) and every request metric bypassed OTel, Logfire, and the configured `muted_event_types` / `muted_metric_types` filter. This release splits construction into `_init_core_components()` (handler_initializer only), `_init_route_resolver()`, and `_build_event_bus_and_contexts()` — the last of which consults `handler_initializer.composite_handler` and uses `build_event_bus()` / `build_metrics_collector()` when the composite is available. `_initialize_handlers()` now re-invokes `_build_event_bus_and_contexts()` after `initialize_agent_integrations()` so the dependent contexts (`ResponseContext`, `ValidationContext`, `BypassContext`, `BehavioralContext`) bind to the post-init event bus.
+- **Added** — `tests/test_extension/test_extension_wiring.py` — four regression tests that pin `ext.event_bus.agent_handler` and `ext.metrics_collector.agent_handler` to `CompositeAgentHandler` after `init_app` when OTel or Logfire is enabled, and confirm all dependent contexts reference the post-init event bus.
+- **Dependencies** — `guard-core>=1.1.0,<2.0.0`.
+- **User-visible impact** — Users already setting `enable_otel=True` or `enable_logfire=True` on `SecurityConfig` were previously getting handler-path events only (ip_banned, rate_limited from `ip_ban_manager` / `rate_limit_handler`, etc.) — but never pipeline-path events (`penetration_attempt`, `authentication_failed`, `user_agent_blocked`, `https_enforced`, etc.) or request metrics (`guard.request.duration`, `guard.request.count`, `guard.error.count`). After this release, every event and every metric flows through the composite, which means OTel spans, Logfire logs, and all mute fields (`muted_event_types`, `muted_metric_types`, `muted_check_logs`) work as documented. No `SecurityConfig` changes required; existing configurations produce strictly more telemetry, not less.
+- **Tests** — `tests/test_extension/test_security_extension.py::test_request_without_client` updated: when `extract_client_ip` returns `"unknown"`, `is_ip_allowed` raises `ValueError` on the unparseable IP and the `ip_security` check correctly returns 403. The test now pins that deterministic-403 contract rather than the stale pre-1.1.0 200.
+
+___
+
 v2.0.0 (2026-03-26)
 -------------------
 
