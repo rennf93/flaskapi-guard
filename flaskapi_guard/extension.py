@@ -111,11 +111,6 @@ class FlaskAPIGuard:
         assert self.config is not None
         assert self.logger is not None
 
-        self.event_bus = SecurityEventBus(
-            self.agent_handler, self.config, self.geo_ip_handler
-        )
-        self.metrics_collector = MetricsCollector(self.agent_handler, self.config)
-
         self.handler_initializer = HandlerInitializer(
             config=self.config,
             redis_handler=self.redis_handler,
@@ -124,6 +119,34 @@ class FlaskAPIGuard:
             rate_limit_handler=self.rate_limit_handler,
             guard_decorator=self.guard_decorator,
         )
+
+    def _init_route_resolver(self) -> None:
+        assert self.config is not None
+        assert self.logger is not None
+
+        routing_context = RoutingContext(
+            config=self.config,
+            logger=self.logger,
+            guard_decorator=self.guard_decorator,
+        )
+        self.route_resolver = RouteConfigResolver(routing_context)
+
+    def _build_event_bus_and_contexts(self) -> None:
+        assert self.config is not None
+        assert self.logger is not None
+        assert self.route_resolver is not None
+        assert self.handler_initializer is not None
+
+        if self.handler_initializer.composite_handler is not None:
+            self.event_bus = self.handler_initializer.build_event_bus(
+                geo_ip_handler=self.geo_ip_handler
+            )
+            self.metrics_collector = self.handler_initializer.build_metrics_collector()
+        else:
+            self.event_bus = SecurityEventBus(
+                self.agent_handler, self.config, self.geo_ip_handler
+            )
+            self.metrics_collector = MetricsCollector(self.agent_handler, self.config)
 
         response_context = ResponseContext(
             config=self.config,
@@ -134,20 +157,6 @@ class FlaskAPIGuard:
             response_factory=self._guard_response_factory,
         )
         self.response_factory = ErrorResponseFactory(response_context)
-
-    def _init_routing_and_validation(self) -> None:
-        assert self.config is not None
-        assert self.logger is not None
-        assert self.event_bus is not None
-        assert self.route_resolver is None
-        assert self.response_factory is not None
-
-        routing_context = RoutingContext(
-            config=self.config,
-            logger=self.logger,
-            guard_decorator=self.guard_decorator,
-        )
-        self.route_resolver = RouteConfigResolver(routing_context)
 
         validation_context = ValidationContext(
             config=self.config,
@@ -191,7 +200,8 @@ class FlaskAPIGuard:
         self._init_redis_handler()
         self._init_agent_handler()
         self._init_core_components()
-        self._init_routing_and_validation()
+        self._init_route_resolver()
+        self._build_event_bus_and_contexts()
 
         self._app = app
 
@@ -212,6 +222,9 @@ class FlaskAPIGuard:
         self.handler_initializer.guard_decorator = self.guard_decorator
         self.handler_initializer.initialize_redis_handlers()
         self.handler_initializer.initialize_agent_integrations()
+
+        if self.handler_initializer.composite_handler is not None:
+            self._build_event_bus_and_contexts()
 
     def _build_security_pipeline(self) -> None:
         from guard_core.sync.core.checks import (

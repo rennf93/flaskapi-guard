@@ -1305,7 +1305,13 @@ def test_reset_method() -> None:
 
 
 def test_request_without_client() -> None:
-    """Test handling of request when extract_client_ip returns 'unknown'."""
+    """Test handling of request when extract_client_ip returns 'unknown'.
+
+    is_ip_allowed() raises ValueError on non-parseable IP strings and returns
+    False — ip_security blocks with 403. The assertion here is that the
+    middleware handles the unresolvable IP cleanly (no crash, structured
+    403 response) rather than letting such requests through.
+    """
     config = SecurityConfig(
         enable_redis=False,
         enable_penetration_detection=False,
@@ -1323,7 +1329,7 @@ def test_request_without_client() -> None:
             "flaskapi_guard.extension.extract_client_ip", return_value="unknown"
         ):
             response = client.get("/")
-            assert response.status_code == 200
+            assert response.status_code == 403
 
 
 def test_set_decorator_handler() -> None:
