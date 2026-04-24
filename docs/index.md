@@ -22,9 +22,23 @@ ___
 
 ### Installation
 
-```bash
-pip install flaskapi-guard
-```
+=== "uv"
+
+    ```bash
+    uv add flaskapi-guard
+    ```
+
+=== "poetry"
+
+    ```bash
+    poetry add flaskapi-guard
+    ```
+
+=== "pip"
+
+    ```bash
+    pip install flaskapi-guard
+    ```
 
 ### Basic Usage
 
@@ -130,12 +144,29 @@ docker run -p 8000:8000 \
 
 ### Running Locally
 
-You can also run the example app locally with gunicorn:
+You can also run the example app locally with gunicorn. Install the dependencies:
+
+=== "uv"
+
+    ```bash
+    uv add flaskapi-guard gunicorn
+    ```
+
+=== "poetry"
+
+    ```bash
+    poetry add flaskapi-guard gunicorn
+    ```
+
+=== "pip"
+
+    ```bash
+    pip install flaskapi-guard gunicorn
+    ```
+
+Then run:
 
 ```bash
-# Install dependencies
-pip install flaskapi-guard gunicorn
-
 # Run with gunicorn
 gunicorn examples.main:app --bind 0.0.0.0:8000 --reload
 

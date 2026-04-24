@@ -134,7 +134,16 @@ Complete API documentation for all classes and functions:
 
 ## Installation
 
+Primary choice is `uv`, second is `poetry`, `pip` is the fallback.
+
 ```bash
+# uv (recommended)
+uv add flaskapi-guard
+
+# poetry
+poetry add flaskapi-guard
+
+# pip
 pip install flaskapi-guard
 ```
 

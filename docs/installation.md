@@ -8,11 +8,25 @@ keywords: flaskapi guard installation, python security extension, flask security
 Installation
 ============
 
-Install `flaskapi-guard` using pip:
+Install `flaskapi-guard` with **uv** (recommended), **poetry**, or **pip**:
 
-```bash
-pip install flaskapi-guard
-```
+=== "uv"
+
+    ```bash
+    uv add flaskapi-guard
+    ```
+
+=== "poetry"
+
+    ```bash
+    poetry add flaskapi-guard
+    ```
+
+=== "pip"
+
+    ```bash
+    pip install flaskapi-guard
+    ```
 
 **Note**: Ensure you have Python 3.10 or higher installed.
 
