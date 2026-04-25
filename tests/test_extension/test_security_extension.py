@@ -8,6 +8,7 @@ import pytest
 from flask import Flask, Response
 from guard_core.decorators.base import BaseSecurityDecorator
 from guard_core.models import SecurityConfig
+from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.cloud_handler import cloud_handler
 from guard_core.sync.handlers.ipinfo_handler import IPInfoManager
 from guard_core.sync.handlers.ratelimit_handler import rate_limit_handler
@@ -637,14 +638,18 @@ def test_passive_mode_penetration_detection() -> None:
     with (
         patch(
             "guard_core.sync.core.checks.implementations.suspicious_activity.detect_penetration_patterns",
-            return_value=(True, "SQL injection attempt"),
+            return_value=DetectionResult(
+                is_threat=True, trigger_info="SQL injection attempt"
+            ),
         ),
         patch(
             "guard_core.sync.core.checks.implementations.suspicious_activity.log_activity"
         ),
         patch(
             "guard_core.sync.utils.detect_penetration_attempt",
-            return_value=(True, "SQL injection attempt"),
+            return_value=DetectionResult(
+                is_threat=True, trigger_info="SQL injection attempt"
+            ),
         ),
     ):
         with app.test_client() as client:

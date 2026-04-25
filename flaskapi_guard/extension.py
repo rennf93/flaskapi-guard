@@ -36,7 +36,7 @@ class FlaskAPIGuard:
         self.config: SecurityConfig | None = config
         self.logger: logging.Logger | None = None
         self.last_cloud_ip_refresh: int = 0
-        self.suspicious_request_counts: dict[str, int] = {}
+        self.suspicious_request_counts: dict[str, dict[str, int]] = {}
         self.last_cleanup: float = 0
         self.rate_limit_handler: RateLimitManager | None = None
         self.guard_decorator: BaseSecurityDecorator | None = None

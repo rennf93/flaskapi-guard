@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from flask import Flask, Response
 from guard_core.decorators.base import RouteConfig
+from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
@@ -545,7 +546,7 @@ def test_route_specific_extension_validations(
         use_post = "max_request_size" in test_case
         with patch(
             "guard_core.sync.core.checks.helpers.detect_penetration_attempt",
-            return_value=(False, ""),
+            return_value=DetectionResult(is_threat=False, trigger_info=""),
         ):
             if use_post:
                 body = b"x" * 200
@@ -587,7 +588,7 @@ def test_route_specific_rate_limit_with_redis() -> None:
         ) as mock_check:
             with patch(
                 "guard_core.sync.core.checks.helpers.detect_penetration_attempt",
-                return_value=(False, ""),
+                return_value=DetectionResult(is_threat=False, trigger_info=""),
             ):
                 client.get(
                     "/test",

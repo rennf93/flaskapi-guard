@@ -3,6 +3,18 @@ Changelog
 
 ___
 
+v2.2.0 (2026-04-25)
+-------------------
+
+guard-core 2.0.0 protocol-shape adjustment (v2.2.0)
+---------------------------------------------------
+
+- **Requires** — guard-core 2.0.0 or newer. guard-core's major bump migrates `suspicious_request_counts` to a per-category nested dict, replaces `detect_penetration_attempt` / `detect_penetration_patterns` 2-tuple returns with `DetectionResult`, and migrates the cloud-IP cache namespace.
+- **Updated** — `FlaskAPIGuard.suspicious_request_counts` is now typed `dict[str, dict[str, int]]` to match guard-core's per-category counter shape.
+- **User-visible impact** — User code that didn't reach into those internals continues to work unchanged.
+
+___
+
 v2.1.1 (2026-04-25)
 -------------------
 
