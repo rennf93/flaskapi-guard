@@ -67,6 +67,7 @@ nav:
         - Performance Tuning: tutorial/security/detection-engine/performance-tuning.md
       - Proxy Security: tutorial/security/proxy-security.md
       - Custom Patterns: tutorial/security/custom-patterns.md
+      - HTTP Security Headers: tutorial/security/http-security-headers.md
       - Security Monitoring: tutorial/security/monitoring.md
     - Configuration:
       - Security Config: tutorial/configuration/security-config.md
