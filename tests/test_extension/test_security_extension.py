@@ -300,10 +300,8 @@ def test_custom_response_modifier_parameterized(
         if response.status_code >= 400:
             import json
 
-            try:
-                content = response.body.decode()
-            except Exception:
-                content = str(response.body)
+            body = response.body or b""
+            content = body.decode("utf-8", errors="replace")
 
             new_response = Response(
                 json.dumps({"detail": content}),
@@ -1341,6 +1339,10 @@ def test_request_without_client() -> None:
             response = client.get("/")
             assert response.status_code == 403
 
+        baseline = client.get("/")
+        assert baseline.status_code == 200
+        assert baseline.get_json() == {"message": "Hello World"}
+
 
 def test_set_decorator_handler() -> None:
     """Test that setting decorator handler updates all components."""
@@ -1489,7 +1491,7 @@ def test_agent_init_import_blocked() -> None:
         agent_api_key="test-key-long-enough-for-validation",
         agent_model="claude-sonnet-4-20250514",
     )
-    fake_agent_config = config.to_agent_config()
+    mock_agent_config = MagicMock()
     original_import = builtins.__import__
     saved_modules = {
         k: sys.modules.pop(k) for k in list(sys.modules) if k.startswith("guard_agent")
@@ -1505,7 +1507,7 @@ def test_agent_init_import_blocked() -> None:
             patch.object(
                 SecurityConfig,
                 "to_agent_config",
-                return_value=fake_agent_config,
+                return_value=mock_agent_config,
             ),
             patch("builtins.__import__", side_effect=mock_import),
         ):
@@ -1618,6 +1620,11 @@ def test_before_request_passthrough_response() -> None:
             response = client.get("/")
             assert response.data == b"passthrough"
 
+    with app.test_client() as client:
+        baseline = client.get("/")
+        assert baseline.status_code == 200
+        assert baseline.get_json() == {"msg": "ok"}
+
 
 def test_before_request_bypass_response() -> None:
     from flaskapi_guard.adapters import FlaskGuardResponse
@@ -1642,3 +1649,8 @@ def test_before_request_bypass_response() -> None:
         with app.test_client() as client:
             response = client.get("/")
             assert response.status_code == 403
+
+    with app.test_client() as client:
+        baseline = client.get("/")
+        assert baseline.status_code == 200
+        assert baseline.get_json() == {"msg": "ok"}
