@@ -97,16 +97,23 @@ def _ensure_detection_components(self) -> None:
 ```python
 # In extension.py
 if self.config.enable_penetration_detection:
-    detection_result, trigger_info = detect_penetration_attempt(request)
-    if detection_result:
+    result = detect_penetration_attempt(request)
+    if result.is_threat:
         # Handle detected attack
+        # result.trigger_info       -> human-readable trigger
+        # result.threat_categories  -> e.g. ["sql_injection", "xss"]
+        # result.threat_scores      -> {"sql_injection": 0.92, ...}
 ```
 
 ### 2. Content Extraction
 
 ```python
 # In utils.py
-def detect_penetration_attempt(request) -> tuple[bool, str]:
+def detect_penetration_attempt(
+    request,
+    config: SecurityConfig | None = None,
+    route_config: RouteConfig | None = None,
+) -> DetectionResult:
     # Extract content from various sources
     contents_to_check = []
 
@@ -142,7 +149,9 @@ for content, context in contents_to_check:
     )
 
     if result["is_threat"]:
-        return True, format_trigger_info(result)
+        return _build_detection_hit(
+            format_trigger_info(result), result["threats"]
+        )
 ```
 
 ### 4. Detection Implementation

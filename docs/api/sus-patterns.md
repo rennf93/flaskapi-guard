@@ -105,14 +105,19 @@ def get_all_patterns(cls) -> list[str]:
     """Get all registered patterns (default + custom)."""
 
 @classmethod
-def get_all_compiled_patterns(cls) -> list[tuple[re.Pattern, frozenset[str]]]:
+def get_all_compiled_patterns(
+    cls,
+) -> list[tuple[re.Pattern, frozenset[str], str]]:
     """
-    Get all compiled regex patterns with their applicable contexts.
+    Get all compiled regex patterns with their applicable contexts and category.
 
     Returns:
-        List of (compiled_pattern, context_set) tuples.
+        List of (compiled_pattern, context_set, category) tuples.
         Context set contains applicable input sources:
-        "query_param", "url_path", "header", "request_body", "unknown"
+        "query_param", "url_path", "header", "request_body", "unknown".
+        Category is the threat label used for category-based filtering and
+        the `DetectionResult.threat_categories` field (e.g. "sql_injection",
+        "xss", "path_traversal", "command_injection", "recon").
     """
 ```
 

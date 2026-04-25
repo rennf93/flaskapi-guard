@@ -616,4 +616,4 @@ Next Steps
 
 - [API Reference](../../api/security-headers.md) - Detailed API documentation
 - [Configuration](../configuration/security-config.md) - Complete configuration options
-- [Security Extension](../../api/security-extension.md) - Extension integration
+- [Security Extension](../../api/security-middleware.md) - Extension integration

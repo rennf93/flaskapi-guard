@@ -192,4 +192,4 @@ See Also
 
 - [RateLimitManager API Reference](../../api/ratelimit-manager.md)
 - [Redis Integration](../redis-integration/caching.md)
-- [Security Extension](../../api/security-extension.md)
+- [Security Extension](../../api/security-middleware.md)

@@ -132,21 +132,27 @@ detect_penetration_attempt
 ```python
 def detect_penetration_attempt(
     request: Request,
-) -> tuple[bool, str]
+    config: SecurityConfig | None = None,
+    route_config: RouteConfig | None = None,
+) -> DetectionResult
 ```
 
-Detect potential penetration attempts in the request using the enhanced Detection Engine.
+Detect potential penetration attempts in the request using the Detection Engine.
 
 This function analyzes various parts of the request (query params, body, path, headers) using the Detection Engine's components including pattern matching, semantic analysis, and performance monitoring.
 
 Parameters:
 
 - `request`: The Flask request object to analyze
+- `config`: Optional `SecurityConfig` used to resolve global detection-exclusion lists and enabled threat categories
+- `route_config`: Optional per-route `RouteConfig` whose exclusions and category overrides take precedence over `config`
 
-Returns a tuple where:
+Returns a `DetectionResult` dataclass with the following fields:
 
-- First element is a boolean: `True` if a potential attack is detected, `False` otherwise
-- Second element is a string with details about what triggered the detection, or empty string if no attack detected
+- `is_threat` (`bool`): `True` if a potential attack is detected, `False` otherwise
+- `trigger_info` (`str`): Human-readable details about what triggered the detection, or an empty string if no attack was detected
+- `threat_categories` (`list[str]`): Distinct categories matched on this request (e.g. `"sql_injection"`, `"xss"`, `"path_traversal"`); empty when `is_threat` is `False`
+- `threat_scores` (`dict[str, float]`): Highest score observed per category in `threat_categories`
 
 The Detection Engine provides:
 - Timeout-protected pattern matching (configured via `detection_compiler_timeout` in SecurityConfig)
@@ -162,20 +168,21 @@ from guard_core.sync.utils import detect_penetration_attempt
 
 @app.route("/api/submit", methods=["POST"])
 def submit_data():
-    # Detection uses configuration from SecurityConfig
-    is_suspicious, trigger_info = detect_penetration_attempt(request)
-    if is_suspicious:
-        # Log the detection with details
-        logger.warning(f"Attack detected: {trigger_info}")
+    result = detect_penetration_attempt(request)
+    if result.is_threat:
+        logger.warning(f"Attack detected: {result.trigger_info}")
         return {"error": "Suspicious activity detected"}
     return {"success": True}
 
 @app.route("/api/critical", methods=["POST"])
 def critical_endpoint():
     # Timeout protection is configured via SecurityConfig.detection_compiler_timeout
-    is_suspicious, trigger_info = detect_penetration_attempt(request)
-    if is_suspicious:
-        return {"error": "Security check failed"}
+    result = detect_penetration_attempt(request)
+    if result.is_threat:
+        return {
+            "error": "Security check failed",
+            "categories": result.threat_categories,
+        }
     return {"success": True}
 ```
 
@@ -229,5 +236,7 @@ log_activity(
 )
 
 # Check for penetration attempts
-is_suspicious, trigger_info = detect_penetration_attempt(request)
+result = detect_penetration_attempt(request)
+if result.is_threat:
+    logger.warning(f"Attack detected: {result.trigger_info}")
 ```
