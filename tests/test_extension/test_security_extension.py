@@ -1235,7 +1235,12 @@ def test_agent_initialization_success() -> None:
     ):
         with patch.dict(sys.modules, {"guard_agent": mock_agent_module}):
             guard = FlaskAPIGuard(app, config=config)
-            assert guard.agent_handler is mock_agent_instance
+            from guard_core.sync.core.events.composite_handler import (
+                CompositeAgentHandler,
+            )
+
+            assert isinstance(guard.agent_handler, CompositeAgentHandler)
+            assert mock_agent_instance in guard.agent_handler._handlers
             mock_guard_agent_fn.assert_called_once_with(mock_agent_config)
 
 
@@ -1459,7 +1464,12 @@ def test_agent_init_with_mock_module() -> None:
         patch.dict(sys.modules, {"guard_agent": mock_module}),
     ):
         guard = FlaskAPIGuard(app, config=config)
-        assert guard.agent_handler is mock_agent
+        from guard_core.sync.core.events.composite_handler import (
+            CompositeAgentHandler,
+        )
+
+        assert isinstance(guard.agent_handler, CompositeAgentHandler)
+        assert mock_agent in guard.agent_handler._handlers
 
 
 def test_agent_init_import_blocked() -> None:

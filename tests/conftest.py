@@ -150,6 +150,14 @@ def reset_rate_limiter() -> None:
     except Exception:
         pass
 
+    import redis
+
+    client = redis.from_url(REDIS_URL)
+    try:
+        client.flushdb()
+    finally:
+        client.close()
+
 
 @pytest.fixture
 def clean_rate_limiter() -> None:

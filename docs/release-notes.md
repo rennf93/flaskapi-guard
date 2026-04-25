@@ -3,6 +3,20 @@ Release Notes
 
 ___
 
+v2.1.1 (2026-04-25)
+-------------------
+
+Integration fixes for OTel + enrichment pipeline (v2.1.1)
+---------------------------------------------------------
+
+- **Fixed** — After composite construction, `self.agent_handler` is rebound from the bare `guard-agent` client to the composite. Downstream callers that receive `extension.agent_handler` (most notably `guard_core.utils.extract_client_ip → send_agent_event`) now route through the composite, so enrichment and OTel see every event.
+- **Fixed** — `BehavioralContext` now receives `handler_initializer.behavior_tracker`, matching the guard-core 1.2.1 wiring. This closes the architectural gap so `guard.behavior.recent_event_count` populates end-to-end when `enable_enrichment=True`.
+- **Added** — `tests/test_extension_lifecycle.py` — regression tests pinning the agent_handler rebind and behavior_tracker threading.
+- **Requires** — `guard-core>=1.2.1` for the matching OTLP endpoint normalization and `BehaviorTracker` wiring fixes. Install the latest with `uv add flaskapi-guard guard-core` or `pip install -U flaskapi-guard guard-core`.
+- **User-visible impact** — Users with `enable_otel=True`, `enable_logfire=True`, or `enable_enrichment=True` previously saw silent drops on a portion of events because callers using `extension.agent_handler` directly bypassed the composite handler. After this release every downstream caller routes through the composite, so all events flow through telemetry and enrichment as configured.
+
+___
+
 v2.1.0 (2026-04-24)
 -------------------
 
