@@ -3,6 +3,21 @@ Changelog
 
 ___
 
+v3.0.0 (2026-04-26)
+-------------------
+
+Pipeline-first CORS via guard_core.cors_handler (v3.0.0)
+--------------------------------------------------------
+
+- **Breaking** — Preflight `OPTIONS` requests are now subject to the security pipeline (previously short-circuited inside the extension). Banned IPs and rate-limited clients can no longer preflight freely.
+- **Breaking** — CORS is now configured exclusively via `SecurityConfig.cors_*` fields. The extension wires `_before_request` / `_after_request` automatically; no separate `configure_cors` entry point.
+- **Fixed** — Cross-origin preflight requests to passthrough paths (e.g. `exclude_paths=["/health"]`) now receive a valid CORS response. Preflight handling runs ahead of the passthrough/bypass short-circuit so the browser permission check works for excluded paths.
+- **Fixed** — Cross-origin GETs to passthrough/bypass paths now carry CORS headers on their responses, matching the previous outer-CORSMiddleware semantics.
+- **Internal** — Both lifecycle hooks delegate to the new shared `guard_core.sync.handlers.cors_handler.CorsHandler`. Removed all `[[tool.mypy.overrides]] ignore_missing_imports = true` / `follow_imports = "skip"` blocks; replaced with proper inline-typed packages and `django-stubs`. Stripped `[tool.uv.sources] guard-core` local-path block from committed pyproject.toml. Added `guard-agent` to dev dependencies (was previously declared only in deptry's per-rule-ignores).
+- **Requires** — `guard-core>=2.2.0`.
+
+___
+
 v2.2.0 (2026-04-25)
 -------------------
 
