@@ -1,9 +1,9 @@
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import Flask, Response
-from guard_core.decorators.base import RouteConfig
+from guard_core.sync.decorators.base import RouteConfig
 from guard_core.sync.detection_result import DetectionResult
 from guard_core.sync.handlers.behavior_handler import BehaviorRule
 
@@ -60,6 +60,7 @@ def test_should_bypass_check() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
+    assert guard.route_resolver is not None
     assert not guard.route_resolver.should_bypass_check("ip", None)
 
     mock_route_config = Mock()
@@ -198,6 +199,7 @@ def test_time_window_error_handling() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
+    assert guard.validator is not None
     invalid_time_restrictions = {"invalid": "data"}
 
     with patch.object(guard.validator.context.logger, "error") as mock_error:
@@ -288,7 +290,7 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     mock_route_config.behavior_rules = [usage_rule]
 
     def mock_track_usage(*args: Any, **kwargs: Any) -> bool:
-        return False  # pragma: no cover
+        return False
 
     mock_behavior_tracker.track_endpoint_usage = mock_track_usage
 
@@ -296,10 +298,10 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     mock_behavior_tracker.apply_action.assert_not_called()
 
     def mock_track_usage_exceeded(*args: Any, **kwargs: Any) -> bool:
-        return True  # pragma: no cover
+        return True
 
     def mock_apply_action(*args: Any, **kwargs: Any) -> None:
-        return None  # pragma: no cover
+        return None
 
     mock_behavior_tracker.track_endpoint_usage = mock_track_usage_exceeded
     mock_behavior_tracker.apply_action = mock_apply_action
@@ -331,7 +333,7 @@ def test_behavioral_return_rules_with_decorator() -> None:
     mock_route_config.behavior_rules = [return_rule]
 
     def mock_track_pattern(*args: Any, **kwargs: Any) -> bool:
-        return False  # pragma: no cover
+        return False
 
     mock_behavior_tracker.track_return_pattern = mock_track_pattern
 
@@ -341,10 +343,10 @@ def test_behavioral_return_rules_with_decorator() -> None:
     mock_behavior_tracker.apply_action.assert_not_called()
 
     def mock_track_pattern_detected(*args: Any, **kwargs: Any) -> bool:
-        return True  # pragma: no cover
+        return True
 
     def mock_apply_action(*args: Any, **kwargs: Any) -> None:
-        return None  # pragma: no cover
+        return None
 
     mock_behavior_tracker.track_return_pattern = mock_track_pattern_detected
     mock_behavior_tracker.apply_action = mock_apply_action
@@ -359,6 +361,7 @@ def test_get_route_decorator_config_no_route_id() -> None:
     config = SecurityConfig()
     guard = FlaskAPIGuard(app, config=config)
 
+    assert guard.route_resolver is not None
     with app.test_request_context("/test"):
         from flask import request
 
@@ -376,6 +379,7 @@ def test_get_route_decorator_config_no_guard_decorator() -> None:
 
     guard.set_decorator_handler(None)
 
+    assert guard.route_resolver is not None
     with app.test_request_context("/test"):
         from flask import g, request
 
@@ -396,6 +400,7 @@ def test_get_route_decorator_config_fallback_to_guard_decorator() -> None:
     decorator = SecurityDecorator(config)
     guard.set_decorator_handler(decorator)
 
+    assert guard.route_resolver is not None
     with app.test_request_context("/test"):
         mock_request = Mock()
         mock_request.endpoint = "nonexistent"
@@ -413,6 +418,7 @@ def test_get_route_decorator_config_no_matching_route() -> None:
     decorator = SecurityDecorator(config)
     guard.set_decorator_handler(decorator)
 
+    assert guard.route_resolver is not None
     with app.test_request_context("/nonexistent"):
         mock_request = Mock()
         mock_request.endpoint = "nonexistent"
@@ -454,7 +460,7 @@ def test_bypass_all_security_checks_with_custom_modifier() -> None:
     def custom_modifier(response: FlaskGuardResponse) -> FlaskGuardResponse:
         return FlaskGuardResponse(Response("custom modified", status=202))
 
-    config = SecurityConfig(custom_response_modifier=custom_modifier)
+    config = SecurityConfig(custom_response_modifier=cast(Any, custom_modifier))
 
     decorator = SecurityDecorator(config)
 
@@ -533,7 +539,7 @@ def test_route_specific_extension_validations(
 
     route_id = f"{test_endpoint.__module__}.{test_endpoint.__qualname__}"
     decorator._route_configs[route_id] = route_config
-    test_endpoint._guard_route_id = route_id
+    cast(Any, test_endpoint)._guard_route_id = route_id
     app.view_functions["test_endpoint"] = test_endpoint
 
     guard = FlaskAPIGuard(app, config=config)
@@ -573,7 +579,7 @@ def test_route_specific_rate_limit_with_redis() -> None:
 
     route_id = f"{test_endpoint.__module__}.{test_endpoint.__qualname__}"
     decorator._route_configs[route_id] = route_config
-    test_endpoint._guard_route_id = route_id
+    cast(Any, test_endpoint)._guard_route_id = route_id
     app.view_functions["test_endpoint"] = test_endpoint
 
     guard = FlaskAPIGuard(app, config=config)

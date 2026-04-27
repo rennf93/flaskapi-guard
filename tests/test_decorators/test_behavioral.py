@@ -1,3 +1,4 @@
+from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -111,7 +112,7 @@ def test_behavioral_decorators_applied(
 
     guard_ext = behavioral_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id: str = cast(Any, view_func)._guard_route_id
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None, f"{description} should have route config"
@@ -176,7 +177,7 @@ def test_behavioral_rule_configuration(
 
     guard_ext = behavioral_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id: str = cast(Any, view_func)._guard_route_id
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None, f"{description} should have route config"
@@ -216,7 +217,7 @@ def test_return_monitor_patterns(
 
     guard_ext = behavioral_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id: str = cast(Any, view_func)._guard_route_id
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None, f"{description} should have route config"
@@ -235,7 +236,7 @@ def test_behavior_analysis_multiple_rules(
 
     guard_ext = behavioral_decorator_app.extensions["flaskapi_guard"]
     decorator = guard_ext["guard_decorator"]
-    route_id = view_func._guard_route_id
+    route_id: str = cast(Any, view_func)._guard_route_id
     route_config = decorator.get_route_config(route_id)
 
     assert route_config is not None

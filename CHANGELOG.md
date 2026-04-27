@@ -3,6 +3,18 @@ Changelog
 
 ___
 
+## 3.0.0 — 2026-04-26
+
+### Breaking
+- Preflight `OPTIONS` requests are now subject to the security pipeline (previously short-circuited). Banned IPs and rate-limited clients can no longer preflight freely.
+- CORS is now configured exclusively via `SecurityConfig.cors_*` fields. The extension wires `_before_request` / `_after_request` automatically; no separate `configure_cors` entry point.
+
+### Internal
+- Both lifecycle hooks delegate to the new shared `guard_core.sync.handlers.cors_handler.CorsHandler`.
+- Requires `guard-core>=2.2.0`.
+
+___
+
 v2.2.0 (2026-04-25)
 -------------------
 

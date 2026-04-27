@@ -2,7 +2,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from flask import Flask, Response
+from flask import Flask
 
 from flaskapi_guard import SecurityConfig, SecurityDecorator
 from flaskapi_guard.adapters import FlaskGuardResponse
@@ -44,10 +44,6 @@ def content_decorator_app(security_config: SecurityConfig) -> Flask:
         return {"message": "Referrer validated"}
 
     def custom_validator_func(request: Any) -> FlaskGuardResponse | None:
-        if "forbidden" in request.url_path:
-            return FlaskGuardResponse(
-                Response("Custom validation failed", status=400)
-            )  # pragma: no cover
         return None
 
     @app.route("/custom-validation")

@@ -1,5 +1,6 @@
 import sys
 import types
+from collections.abc import Generator
 from unittest.mock import Mock
 
 import pytest
@@ -18,8 +19,8 @@ def _install_mock_guard_agent() -> types.ModuleType:
             for k, v in kwargs.items():
                 setattr(self, k, v)
 
-    mock_module.SecurityEvent = MockSecurityEvent  # type: ignore[attr-defined]
     sys.modules["guard_agent"] = mock_module
+    mock_module.__dict__["SecurityEvent"] = MockSecurityEvent
     return mock_module
 
 
@@ -28,7 +29,7 @@ def _uninstall_mock_guard_agent() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _mock_guard_agent():  # type: ignore[no-untyped-def]
+def _mock_guard_agent() -> Generator[None, None, None]:
     _install_mock_guard_agent()
     yield
     _uninstall_mock_guard_agent()

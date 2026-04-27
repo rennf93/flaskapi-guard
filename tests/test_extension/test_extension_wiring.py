@@ -9,6 +9,8 @@ def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
+    assert ext.event_bus is not None
+    assert ext.metrics_collector is not None
     assert isinstance(ext.event_bus.agent_handler, CompositeAgentHandler)
     assert isinstance(ext.metrics_collector.agent_handler, CompositeAgentHandler)
 
@@ -18,6 +20,8 @@ def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
+    assert ext.event_bus is not None
+    assert ext.metrics_collector is not None
     assert isinstance(ext.event_bus.agent_handler, CompositeAgentHandler)
     assert isinstance(ext.metrics_collector.agent_handler, CompositeAgentHandler)
 
@@ -27,6 +31,8 @@ def test_event_bus_stays_bare_when_no_telemetry_configured() -> None:
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
+    assert ext.event_bus is not None
+    assert ext.metrics_collector is not None
     assert not isinstance(ext.event_bus.agent_handler, CompositeAgentHandler)
     assert not isinstance(ext.metrics_collector.agent_handler, CompositeAgentHandler)
 
@@ -36,6 +42,10 @@ def test_contexts_use_the_post_initialize_event_bus() -> None:
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
 
+    assert ext.validator is not None
+    assert ext.bypass_handler is not None
+    assert ext.behavioral_processor is not None
+    assert ext.response_factory is not None
     assert ext.validator.context.event_bus is ext.event_bus
     assert ext.bypass_handler.context.event_bus is ext.event_bus
     assert ext.behavioral_processor.context.event_bus is ext.event_bus

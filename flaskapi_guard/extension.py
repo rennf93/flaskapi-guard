@@ -1,10 +1,10 @@
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from flask import Flask, Response, g
-from guard_core.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.models import SecurityConfig
+from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
 from guard_core.sync.core.bypass import BypassContext, BypassHandler
 from guard_core.sync.core.checks.pipeline import SecurityCheckPipeline
@@ -13,9 +13,16 @@ from guard_core.sync.core.initialization import HandlerInitializer
 from guard_core.sync.core.responses import ErrorResponseFactory, ResponseContext
 from guard_core.sync.core.routing import RouteConfigResolver, RoutingContext
 from guard_core.sync.core.validation import RequestValidator, ValidationContext
+from guard_core.sync.decorators.base import BaseSecurityDecorator, RouteConfig
 from guard_core.sync.handlers.cloud_handler import cloud_handler
+from guard_core.sync.handlers.cors_handler import (
+    CorsHandler,
+    CorsPreflightResponse,
+    is_preflight,
+)
 from guard_core.sync.handlers.ratelimit_handler import RateLimitManager
 from guard_core.sync.handlers.security_headers_handler import security_headers_manager
+from guard_core.sync.protocols.middleware_protocol import SyncGuardMiddlewareProtocol
 from guard_core.sync.utils import extract_client_ip, setup_custom_logging
 
 from flaskapi_guard.adapters import (
@@ -52,6 +59,7 @@ class FlaskAPIGuard:
         self.validator: RequestValidator | None = None
         self.bypass_handler: BypassHandler | None = None
         self.behavioral_processor: BehavioralProcessor | None = None
+        self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
         self._guard_response_factory = FlaskResponseFactory()
 
@@ -214,6 +222,9 @@ class FlaskAPIGuard:
 
         self._build_security_pipeline()
         self._initialize_handlers()
+        self._cors_handler = (
+            CorsHandler(self.config) if self.config.enable_cors else None
+        )
 
         app.before_request(self._before_request)
         app.after_request(self._after_request)
@@ -250,24 +261,25 @@ class FlaskAPIGuard:
             UserAgentCheck,
         )
 
+        middleware = cast(SyncGuardMiddlewareProtocol, self)
         checks = [
-            RouteConfigCheck(self),
-            EmergencyModeCheck(self),
-            HttpsEnforcementCheck(self),
-            RequestLoggingCheck(self),
-            RequestSizeContentCheck(self),
-            RequiredHeadersCheck(self),
-            AuthenticationCheck(self),
-            ReferrerCheck(self),
-            CustomValidatorsCheck(self),
-            TimeWindowCheck(self),
-            CloudIpRefreshCheck(self),
-            IpSecurityCheck(self),
-            CloudProviderCheck(self),
-            UserAgentCheck(self),
-            RateLimitCheck(self),
-            SuspiciousActivityCheck(self),
-            CustomRequestCheck(self),
+            RouteConfigCheck(middleware),
+            EmergencyModeCheck(middleware),
+            HttpsEnforcementCheck(middleware),
+            RequestLoggingCheck(middleware),
+            RequestSizeContentCheck(middleware),
+            RequiredHeadersCheck(middleware),
+            AuthenticationCheck(middleware),
+            ReferrerCheck(middleware),
+            CustomValidatorsCheck(middleware),
+            TimeWindowCheck(middleware),
+            CloudIpRefreshCheck(middleware),
+            IpSecurityCheck(middleware),
+            CloudProviderCheck(middleware),
+            UserAgentCheck(middleware),
+            RateLimitCheck(middleware),
+            SuspiciousActivityCheck(middleware),
+            CustomRequestCheck(middleware),
         ]
 
         self.security_pipeline = SecurityCheckPipeline(checks)
@@ -377,12 +389,22 @@ class FlaskAPIGuard:
         guard_request = FlaskGuardRequest(request)
         self._populate_guard_state(guard_request)
 
-        if self.config.enable_cors and request.method == "OPTIONS":
-            return self._handle_preflight(request)
+        request_headers = dict(request.headers)
+
+        if self._cors_handler is not None and is_preflight(
+            request.method, request_headers
+        ):
+            blocking = self._execute_security_pipeline(guard_request)
+            if blocking is not None:
+                return self._attach_cors_to_blocked(blocking, request_headers)
+            preflight = self._cors_handler.build_preflight_response(request_headers)
+            return self._build_flask_preflight_response(preflight)
 
         passthrough = self.bypass_handler.handle_passthrough(guard_request)
         if passthrough is not None:
-            return unwrap_response(passthrough)
+            return self._attach_cors_to_blocked(
+                unwrap_response(passthrough), request_headers
+            )
 
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
         route_config = self.route_resolver.get_route_config(guard_request)
@@ -394,11 +416,13 @@ class FlaskAPIGuard:
             guard_request, route_config=route_config
         )
         if bypass is not None:
-            return unwrap_response(bypass)
+            return self._attach_cors_to_blocked(
+                unwrap_response(bypass), request_headers
+            )
 
         blocking = self._execute_security_pipeline(guard_request)
-        if blocking:
-            return blocking
+        if blocking is not None:
+            return self._attach_cors_to_blocked(blocking, request_headers)
 
         self._process_behavioral_usage(guard_request, client_ip, route_config)
 
@@ -423,14 +447,36 @@ class FlaskAPIGuard:
             route_config,
             process_behavioral_rules=self.behavioral_processor.process_return_rules,
         )
-        return unwrap_response(result)
+        flask_response = unwrap_response(result)
 
-    def _handle_preflight(self, request: Any) -> Response:
-        assert self.response_factory is not None
-        guard_response = self._guard_response_factory.create_response("", 204)
-        origin = request.headers.get("origin", "")
-        self.response_factory.apply_cors_headers(guard_response, origin)
-        return unwrap_response(guard_response)
+        if self._cors_handler is not None:
+            cors_headers = self._cors_handler.build_response_headers(
+                dict(request.headers)
+            )
+            for k, v in cors_headers.items():
+                flask_response.headers[k] = v
+
+        return flask_response
+
+    def _attach_cors_to_blocked(
+        self, response: Response, request_headers: dict[str, str]
+    ) -> Response:
+        if self._cors_handler is not None:
+            cors_headers = self._cors_handler.build_response_headers(request_headers)
+            for k, v in cors_headers.items():
+                response.headers[k] = v
+        return response
+
+    def _build_flask_preflight_response(
+        self, preflight: CorsPreflightResponse
+    ) -> Response:
+        flask_response = Response(
+            preflight.body,
+            status=preflight.status_code,
+        )
+        for k, v in preflight.headers.items():
+            flask_response.headers[k] = v
+        return flask_response
 
     def _check_time_window(self, time_restrictions: dict[str, str]) -> bool:
         assert self.validator is not None
@@ -488,17 +534,14 @@ class FlaskAPIGuard:
         if not self.config.block_cloud_providers:
             return
 
-        cloud_handler.refresh(
-            self.config.block_cloud_providers,
-            ttl=self.config.cloud_ip_refresh_interval,
-        )
+        cloud_handler.refresh(self.config.block_cloud_providers)
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(
         self, status_code: int, default_message: str
-    ) -> FlaskGuardResponse:
+    ) -> GuardResponse:
         assert self.response_factory is not None
-        result: FlaskGuardResponse = self.response_factory.create_error_response(
+        result: GuardResponse = self.response_factory.create_error_response(
             status_code, default_message
         )
         return result
