@@ -343,6 +343,13 @@ class FlaskAPIGuard:
     def guard_response_factory(self) -> FlaskResponseFactory:
         return self._guard_response_factory
 
+    @property
+    def agent_stats(self) -> dict[str, Any]:
+        if self.agent_handler is None:
+            return {"enabled": False}
+        handler_stats = cast(Any, self.agent_handler).get_stats()
+        return {"enabled": True, **handler_stats}
+
     def _execute_security_pipeline(
         self, guard_request: FlaskGuardRequest
     ) -> Response | None:
@@ -570,7 +577,7 @@ class FlaskAPIGuard:
         if not self.config.block_cloud_providers:
             return
 
-        cloud_handler.refresh(self.config.block_cloud_providers)
+        cloud_handler.refresh_async(self.config.block_cloud_providers)
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(

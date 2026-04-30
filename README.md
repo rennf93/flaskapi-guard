@@ -125,6 +125,72 @@ ___
 
 ___
 
+## Migration to v4.0.0
+
+flaskapi-guard 4.0.0 tracks the `guard-core >= 3.0.0` major bump. There is one
+upstream behavior change plus two additive surfaces.
+
+### Fail-secure by default (upstream)
+
+`SecurityConfig.fail_secure` now defaults to `True`. When any security check
+raises an unhandled exception, the request is now blocked with HTTP 500 instead
+of logging and falling through. Bugs in checks that previously slipped past as
+silent fail-open responses now surface immediately.
+
+Recommended migration: keep the new default, surface check exceptions in your
+monitoring, and fix them. To temporarily restore the old behavior on
+deployments that depend on it:
+
+```python
+from flaskapi_guard import FlaskAPIGuard, SecurityConfig
+
+config = SecurityConfig(fail_secure=False)
+FlaskAPIGuard(app, config=config)
+```
+
+### Monitoring agent buffer health
+
+When `enable_agent=True`, the `FlaskAPIGuard` extension exposes an `agent_stats`
+property that returns the current buffer drop counters and transport
+circuit-breaker state without needing to reach into the agent directly. Wire it
+to a Flask health endpoint:
+
+```python
+from flask import Flask, jsonify
+from flaskapi_guard import FlaskAPIGuard, SecurityConfig
+
+app = Flask(__name__)
+guard = FlaskAPIGuard(app, config=SecurityConfig(enable_agent=True))
+
+@app.route("/health/guard")
+def guard_health() -> tuple[dict, int]:
+    return jsonify(guard.agent_stats), 200
+```
+
+When the agent is disabled or failed to initialize, the property returns
+`{"enabled": False}`. Read it on each scrape — it reflects live counters and is
+not cached. The same instance is also reachable via
+`app.extensions["flaskapi_guard"]["guard"].agent_stats`.
+
+### Reporting the adapter version to the agent
+
+`from flaskapi_guard import __version__` is now exported via
+`importlib.metadata`. Pair it with `guard-core >= 3.0.0`'s
+`SecurityConfig.agent_guard_version` so the agent attributes telemetry to the
+flaskapi-guard release running in production:
+
+```python
+from flaskapi_guard import FlaskAPIGuard, SecurityConfig, __version__
+
+config = SecurityConfig(
+    enable_agent=True,
+    agent_guard_version=__version__,
+)
+FlaskAPIGuard(app, config=config)
+```
+
+___
+
 ## Installation
 
 To install `flaskapi-guard`, use pip:
