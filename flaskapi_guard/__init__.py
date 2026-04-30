@@ -1,3 +1,6 @@
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
 from guard_core import SecurityConfig
 from guard_core.sync.decorators import RouteConfig, SecurityDecorator
 from guard_core.sync.handlers.behavior_handler import BehaviorRule, BehaviorTracker
@@ -25,7 +28,13 @@ from guard_core.sync.protocols.response_protocol import GuardResponse
 
 from flaskapi_guard.extension import FlaskAPIGuard
 
+try:
+    __version__ = _pkg_version("flaskapi_guard")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
+
 __all__ = [
+    "__version__",
     "FlaskAPIGuard",
     "SecurityConfig",
     "SecurityDecorator",
