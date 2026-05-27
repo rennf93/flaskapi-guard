@@ -3,6 +3,18 @@ Changelog
 
 ___
 
+v4.0.1 (2026-05-27)
+-------------------
+
+guard-core 3.1.0 compatibility + PEP 639 license metadata (v4.0.1)
+------------------------------------------------------------------
+
+- **Fixed** — guard-core 3.1.0 narrowed `block_cloud_providers` to `set[Literal["AWS", "GCP", "Azure"]]`; `refresh_cloud_ip_ranges()` now normalizes it to `set[str]` before calling `cloud_handler.refresh_async`, resolving a `set`-invariance mypy error. Runtime behavior is unchanged.
+- **Packaging** — Migrated license metadata to PEP 639: `license = "MIT"` (SPDX expression) plus `license-files = ["LICENSE"]`, and dropped the deprecated MIT license classifier.
+- **Build** — Removed the unused `setup.py`; the release workflow now builds via `python -m build` (hatchling backend) instead of `python setup.py sdist bdist_wheel`.
+
+___
+
 v4.0.0 (2026-04-29)
 -------------------
 
