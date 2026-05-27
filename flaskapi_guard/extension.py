@@ -577,7 +577,10 @@ class FlaskAPIGuard:
         if not self.config.block_cloud_providers:
             return
 
-        cloud_handler.refresh_async(self.config.block_cloud_providers)
+        providers: set[str] = {
+            str(provider) for provider in self.config.block_cloud_providers
+        }
+        cloud_handler.refresh_async(providers)
         self.last_cloud_ip_refresh = int(time.time())
 
     def create_error_response(
