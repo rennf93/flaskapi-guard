@@ -155,6 +155,7 @@ Returns a `DetectionResult` dataclass with the following fields:
 - `threat_scores` (`dict[str, float]`): Highest score observed per category in `threat_categories`
 
 The Detection Engine provides:
+
 - Timeout-protected pattern matching (configured via `detection_compiler_timeout` in SecurityConfig)
 - Intelligent content preprocessing that preserves attack patterns
 - Semantic analysis for obfuscated attacks (when enabled)

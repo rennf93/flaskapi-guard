@@ -55,6 +55,7 @@ def ban_ip(ip: str, duration: int, reason: str = "threshold_exceeded") -> None
 ```
 
 **Parameters**:
+
 - `ip`: The IP address to ban
 - `duration`: Ban duration in seconds
 - `reason`: Reason for the ban (default: "threshold_exceeded")
@@ -75,9 +76,11 @@ def is_ip_banned(ip: str) -> bool
 ```
 
 **Parameters**:
+
 - `ip`: The IP address to check
 
 **Returns**:
+
 - `bool`: True if the IP is banned, False otherwise
 
 **Example**:
@@ -96,6 +99,7 @@ def unban_ip(ip: str) -> None
 ```
 
 **Parameters**:
+
 - `ip`: The IP address to unban
 
 **Example**:

@@ -108,6 +108,7 @@ class SecurityCheckPipeline:
 ```
 
 **Features**:
+
 - Sequential execution with early termination
 - Error handling with fail-secure option
 - Logging of blocking checks
@@ -337,6 +338,7 @@ class ErrorResponseFactory:
 ```
 
 **Features**:
+
 - Custom error message support
 - Security header application
 - CORS header handling
@@ -472,6 +474,7 @@ class BypassHandler:
 ```
 
 **Features**:
+
 - No client IP detection (passthrough)
 - Excluded path handling
 - Decorator bypass support
@@ -549,6 +552,7 @@ class ResponseContext:
 ```
 
 **Benefits**:
+
 - Explicit dependencies
 - Easy testing with mocks
 - Prevents tight coupling

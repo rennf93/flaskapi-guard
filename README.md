@@ -388,6 +388,7 @@ config = SecurityConfig(
 ```
 
 Key security headers supported:
+
 - **Content Security Policy (CSP)**: Prevent XSS attacks by controlling resource loading
 - **HTTP Strict Transport Security (HSTS)**: Force HTTPS connections
 - **X-Frame-Options**: Prevent clickjacking attacks
@@ -481,33 +482,39 @@ def restricted_endpoint():
 ### Available Decorators
 
 Access Control
+
 - `@guard_deco.require_ip(whitelist=[], blacklist=[])` - IP address filtering
 - `@guard_deco.block_countries(["CN", "RU"])` - Block specific countries
 - `@guard_deco.allow_countries(["US", "CA"])` - Allow only specific countries
 - `@guard_deco.block_clouds(["AWS", "GCP"])` - Block cloud provider IPs
 
 Rate Limiting
+
 - `@guard_deco.rate_limit(requests=10, window=60)` - Basic rate limiting
 - `@guard_deco.geo_rate_limit(limits={"US": 100, "default": 50})` - Geographic rate limiting
 
 Authentication & Headers
+
 - `@guard_deco.require_https()` - Force HTTPS
 - `@guard_deco.require_auth(type="bearer")` - Require authentication
 - `@guard_deco.api_key_auth(header_name="X-API-Key")` - API key authentication
 - `@guard_deco.require_headers({"X-Custom": "required"})` - Require specific headers
 
 Content Filtering
+
 - `@guard_deco.block_user_agents(["curl", "wget"])` - Block user agent patterns
 - `@guard_deco.content_type_filter(["application/json"])` - Filter content types
 - `@guard_deco.max_request_size(1048576)` - Limit request size (1MB)
 - `@guard_deco.require_referrer(["myapp.com"])` - Require specific referrers
 
 Behavioral Analysis
+
 - `@guard_deco.usage_monitor(max_calls=50, window=3600, action="ban")` - Monitor endpoint usage
 - `@guard_deco.return_monitor("rare_item", max_occurrences=3, window=86400, action="alert")` - Monitor return patterns
 - `@guard_deco.suspicious_frequency(max_frequency=0.1, window=300, action="log")` - Detect suspicious frequency
 
 Advanced Controls
+
 - `@guard_deco.time_window("09:00", "17:00", "UTC")` - Time-based access control
 - `@guard_deco.honeypot_detection(trap_fields=["hidden_field"])` - Detect bots using honeypot fields
 - `@guard_deco.bypass(checks=["rate_limit"])` - Bypass specific security checks
@@ -565,6 +572,7 @@ config = SecurityConfig(
 ```
 
 When `trusted_proxies` is configured, FlaskAPI Guard will:
+
 1. Only trust X-Forwarded-For headers from these IPs
 2. Extract the appropriate client IP based on proxy depth
 3. Prevent IP spoofing attacks through header manipulation
@@ -665,6 +673,7 @@ config = SecurityConfig(
 ```
 
 The example above shows how to:
+
 1. Add custom headers to all responses
 2. Convert plain text error responses to JSON format with a "detail" field
 
@@ -683,6 +692,7 @@ config = SecurityConfig(
 ```
 
 The Redis integration provides:
+
 - Atomic increment operations for rate limiting
 - Distributed IP ban tracking
 - Cloud provider IP range caching
@@ -723,6 +733,7 @@ def rewards_endpoint():
 ```
 
 Behavioral actions include:
+
 - `"log"` - Log the anomaly
 - `"alert"` - Generate an alert event
 - `"ban"` - Automatically ban the offending IP

@@ -205,6 +205,7 @@ flaskapi_guard                    # Root logger for all FlaskAPI Guard component
 ```
 
 This namespace isolation ensures:
+
 - FlaskAPI Guard logs are separate from your application logs
 - You can configure log levels for specific components
 - Test frameworks can capture logs via propagation

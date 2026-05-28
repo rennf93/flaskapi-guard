@@ -295,6 +295,7 @@ config = SecurityConfig(
 ```
 
 The extension automatically initializes:
+
 - CloudManager cloud provider IP ranges
 - IPBanManager distributed banning
 - IPInfoManager IP geolocation

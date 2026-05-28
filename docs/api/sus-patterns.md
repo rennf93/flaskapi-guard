@@ -438,6 +438,7 @@ Error Handling
 --------------
 
 The manager handles various error conditions gracefully:
+
 - Invalid regex patterns are logged and skipped
 - Component initialization failures fall back to basic detection
 - Pattern timeouts are logged and don't stop detection
@@ -449,6 +450,7 @@ Thread Safety
 -------------
 
 The SusPatternsManager uses:
+
 - Thread-safe singleton pattern
 - Thread-safe operations
 - Thread pool for pattern execution

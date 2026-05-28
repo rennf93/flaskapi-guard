@@ -17,6 +17,7 @@ The Detection Engine is an evolution of FlaskAPI Guard's suspicious patterns sys
 ### 1. Pattern Matching with Timeout Protection
 
 The engine protects against Regular Expression Denial of Service (ReDoS) by:
+
 - Wrapping pattern execution in thread-based timeouts
 - Configurable timeout via `detection_compiler_timeout` (default: 2.0 seconds)
 - Graceful handling of timeout events
@@ -25,6 +26,7 @@ The engine protects against Regular Expression Denial of Service (ReDoS) by:
 ### 2. Content Preprocessing
 
 The `ContentPreprocessor` component:
+
 - Truncates content to `detection_max_content_length` (default: 10,000 characters)
 - Preserves attack patterns when `detection_preserve_attack_patterns` is True
 - Uses a sliding window approach to retain potential threats
@@ -33,6 +35,7 @@ The `ContentPreprocessor` component:
 ### 3. Optional Semantic Analysis
 
 When enabled, provides heuristic-based detection:
+
 - Pattern-based heuristics for SQL injection, XSS, path traversal, etc.
 - Configurable threshold via `detection_semantic_threshold` (default: 0.7)
 - Returns probability scores and detected attack types
@@ -45,6 +48,7 @@ Patterns are tagged with applicable input contexts (e.g., `query_param`, `url_pa
 ### 4. Performance Monitoring
 
 Tracks execution metrics:
+
 - Records pattern execution times
 - Identifies slow patterns exceeding `detection_slow_pattern_threshold`
 - Maintains rolling statistics with configurable history size
@@ -112,6 +116,7 @@ FlaskAPIGuard(app, config=config)
 ### 1. Request Analysis
 
 When a request arrives, `detect_penetration_attempt()` extracts content from:
+
 - Query parameters
 - Request body (JSON, form data)
 - Path parameters
@@ -197,6 +202,7 @@ Components are initialized only when needed:
 ### Default Patterns
 
 The engine loads patterns from:
+
 1. Built-in YAML files in the package
 2. Custom patterns added via API
 
@@ -255,6 +261,7 @@ except TimeoutError:
 ### Redis Integration
 
 When Redis is enabled:
+
 - Custom patterns can be shared across instances
 - Performance metrics can be aggregated
 - Pattern effectiveness can be tracked globally
@@ -262,6 +269,7 @@ When Redis is enabled:
 ### Agent Integration
 
 When Agent is enabled:
+
 - Detection events are sent with full context
 - Performance metrics are reported
 - Pattern effectiveness is tracked

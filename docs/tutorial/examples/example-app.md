@@ -72,6 +72,7 @@ docker compose up
 ```
 
 The Docker Compose file does the following:
+
 - Builds the FlaskAPI Guard example app
 - Runs Redis with persistent data volume
 - Connects the application to Redis

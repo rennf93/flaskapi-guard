@@ -300,6 +300,7 @@ config.detection_slow_pattern_threshold # Performance threshold
 ### 2. Redis Integration (Optional)
 
 When Redis is enabled:
+
 - Custom patterns can be stored/retrieved
 - Performance metrics can be aggregated
 - Pattern effectiveness can be tracked
@@ -307,6 +308,7 @@ When Redis is enabled:
 ### 3. Agent Integration (Optional)
 
 When Agent is enabled:
+
 - Detection events are sent with full context
 - Performance metrics are reported
 - Pattern effectiveness is tracked
@@ -344,6 +346,7 @@ def safe_matcher(content: str) -> dict[str, Any] | None:
 ### 3. Error Isolation
 
 Each component handles errors independently:
+
 - Pattern compilation errors don't crash the system
 - Timeout errors are logged but don't stop detection
 - Component initialization failures fall back gracefully
