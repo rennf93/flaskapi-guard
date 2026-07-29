@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Send Initial Slack Message
         id: send_initial_slack_lint
@@ -40,7 +40,7 @@ jobs:
           COLOR: warning
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
 
@@ -100,7 +100,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # - name: Send Initial Slack Message
       #   id: send_initial_slack_docs_lint
@@ -126,7 +126,7 @@ jobs:
       #     COLOR: warning
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
 
