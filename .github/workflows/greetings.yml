@@ -12,7 +12,7 @@ jobs:
     - uses: actions/first-interaction@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        issue-message: |
+        issue_message: |
             Thanks for opening your first issue on **flaskapi-guard**!
 
             To help us triage quickly, please make sure your report includes:
@@ -29,7 +29,7 @@ jobs:
             - **Security vulnerability?** Do **not** open a public issue — please follow [SECURITY.md](../blob/master/SECURITY.md) and use GitHub's private vulnerability reporting.
 
             Thanks again — a maintainer will be with you soon.
-        pr-message: |
+        pr_message: |
             Thanks for opening your first pull request on **flaskapi-guard**!
 
             Quick checklist before review (most of these are enforced by CI, but worth a glance):

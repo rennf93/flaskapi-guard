@@ -38,6 +38,7 @@ Core Security Settings
 | `auto_ban_threshold` | int | 10 | Number of suspicious requests before auto-ban |
 | `auto_ban_duration` | int | 3600 | Auto-ban duration in seconds |
 | `exclude_paths` | list[str] | ["/docs", "/redoc", "/openapi.json", "/openapi.yaml", "/favicon.ico", "/static"] | Paths excluded from security checks |
+| `route_resolution_strict` | bool | False | Block with 500 when Flask matched no rule for the request, instead of running the pipeline with no per-route config. Also turns unmatched paths into 500s rather than 404s. Requires guard-core >= 3.7.0 |
 
 Detection Engine Settings
 -------------------------

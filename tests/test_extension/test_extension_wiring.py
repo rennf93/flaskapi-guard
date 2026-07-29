@@ -50,3 +50,46 @@ def test_contexts_use_the_post_initialize_event_bus() -> None:
     assert ext.bypass_handler.context.event_bus is ext.event_bus
     assert ext.behavioral_processor.context.event_bus is ext.event_bus
     assert ext.response_factory.context.metrics_collector is ext.metrics_collector
+
+
+def test_populate_guard_state_marks_unmatched_request() -> None:
+    from flask import request as flask_request
+
+    from flaskapi_guard.adapters import FlaskGuardRequest
+
+    app = Flask(__name__)
+    ext = FlaskAPIGuard(app, config=SecurityConfig())
+
+    @app.get("/known")
+    def known() -> str:
+        return "ok"
+
+    with app.test_request_context("/no-such-path"):
+        guard_request = FlaskGuardRequest(flask_request)
+        ext._populate_guard_state(guard_request)
+        assert guard_request.state.guard_route_unresolved is True
+
+    with app.test_request_context("/known"):
+        guard_request = FlaskGuardRequest(flask_request)
+        ext._populate_guard_state(guard_request)
+        assert not hasattr(guard_request.state, "guard_route_unresolved")
+        assert not hasattr(guard_request.state, "guard_route_id")
+
+
+def test_populate_guard_state_marks_endpoint_without_view_function() -> None:
+    from flask import request as flask_request
+
+    from flaskapi_guard.adapters import FlaskGuardRequest
+
+    app = Flask(__name__)
+    ext = FlaskAPIGuard(app, config=SecurityConfig())
+
+    @app.get("/known")
+    def known() -> str:
+        return "ok"
+
+    with app.test_request_context("/known"):
+        app.view_functions.pop("known")
+        guard_request = FlaskGuardRequest(flask_request)
+        ext._populate_guard_state(guard_request)
+        assert guard_request.state.guard_route_unresolved is True
