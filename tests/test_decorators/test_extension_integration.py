@@ -263,10 +263,13 @@ def test_behavioral_rules_without_guard_decorator() -> None:
     mock_route_config = Mock()
     mock_route_config.behavior_rules = [BehaviorRule("usage", threshold=5, window=3600)]
 
-    guard._process_decorator_usage_rules(mock_request, "127.0.0.1", mock_route_config)
-    guard._process_decorator_return_rules(
-        mock_request, Mock(), "127.0.0.1", mock_route_config
-    )
+    with app.app_context():
+        guard._process_decorator_usage_rules(
+            mock_request, "127.0.0.1", mock_route_config
+        )
+        guard._process_decorator_return_rules(
+            mock_request, Mock(), "127.0.0.1", mock_route_config
+        )
 
 
 def test_behavioral_usage_rules_with_decorator() -> None:
@@ -278,7 +281,7 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     mock_guard_decorator = Mock()
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
-    guard.guard_decorator = mock_guard_decorator
+    guard.set_decorator_handler(mock_guard_decorator)
 
     mock_request = Mock()
     mock_request.endpoint = "test_endpoint"
@@ -294,7 +297,10 @@ def test_behavioral_usage_rules_with_decorator() -> None:
 
     mock_behavior_tracker.track_endpoint_usage = mock_track_usage
 
-    guard._process_decorator_usage_rules(mock_request, "127.0.0.1", mock_route_config)
+    with app.app_context():
+        guard._process_decorator_usage_rules(
+            mock_request, "127.0.0.1", mock_route_config
+        )
     mock_behavior_tracker.apply_action.assert_not_called()
 
     def mock_track_usage_exceeded(*args: Any, **kwargs: Any) -> bool:
@@ -306,7 +312,10 @@ def test_behavioral_usage_rules_with_decorator() -> None:
     mock_behavior_tracker.track_endpoint_usage = mock_track_usage_exceeded
     mock_behavior_tracker.apply_action = mock_apply_action
 
-    guard._process_decorator_usage_rules(mock_request, "127.0.0.1", mock_route_config)
+    with app.app_context():
+        guard._process_decorator_usage_rules(
+            mock_request, "127.0.0.1", mock_route_config
+        )
 
 
 def test_behavioral_return_rules_with_decorator() -> None:
@@ -318,7 +327,7 @@ def test_behavioral_return_rules_with_decorator() -> None:
     mock_guard_decorator = Mock()
     mock_behavior_tracker = Mock()
     mock_guard_decorator.behavior_tracker = mock_behavior_tracker
-    guard.guard_decorator = mock_guard_decorator
+    guard.set_decorator_handler(mock_guard_decorator)
 
     mock_request = Mock()
     mock_request.endpoint = "test_endpoint"
@@ -337,9 +346,10 @@ def test_behavioral_return_rules_with_decorator() -> None:
 
     mock_behavior_tracker.track_return_pattern = mock_track_pattern
 
-    guard._process_decorator_return_rules(
-        mock_request, mock_response, "127.0.0.1", mock_route_config
-    )
+    with app.app_context():
+        guard._process_decorator_return_rules(
+            mock_request, mock_response, "127.0.0.1", mock_route_config
+        )
     mock_behavior_tracker.apply_action.assert_not_called()
 
     def mock_track_pattern_detected(*args: Any, **kwargs: Any) -> bool:
@@ -351,9 +361,10 @@ def test_behavioral_return_rules_with_decorator() -> None:
     mock_behavior_tracker.track_return_pattern = mock_track_pattern_detected
     mock_behavior_tracker.apply_action = mock_apply_action
 
-    guard._process_decorator_return_rules(
-        mock_request, mock_response, "127.0.0.1", mock_route_config
-    )
+    with app.app_context():
+        guard._process_decorator_return_rules(
+            mock_request, mock_response, "127.0.0.1", mock_route_config
+        )
 
 
 def test_get_route_decorator_config_no_route_id() -> None:
