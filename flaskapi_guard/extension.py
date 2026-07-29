@@ -375,11 +375,16 @@ class FlaskAPIGuard:
         from flask import current_app, request
 
         if not request.endpoint:
+            guard_request.state.guard_route_unresolved = True
             return
         view_func = current_app.view_functions.get(request.endpoint)
-        if not view_func or not hasattr(view_func, "_guard_route_id"):
+        if not view_func:
+            guard_request.state.guard_route_unresolved = True
             return
-        guard_request.state.guard_route_id = view_func._guard_route_id
+        route_id = getattr(view_func, "_guard_route_id", None)
+        if route_id is None:
+            return
+        guard_request.state.guard_route_id = route_id
         guard_request.state.guard_endpoint_id = (
             f"{view_func.__module__}.{view_func.__qualname__}"
         )

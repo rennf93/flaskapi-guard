@@ -3,6 +3,16 @@ Release Notes
 
 ___
 
+v4.1.0 (2026-07-29)
+-------------------
+
+Unmatched requests are reported to guard-core (v4.1.0)
+-------------------------------------------------------
+
+- **Added** — `_populate_guard_state()` returned silently when Flask matched no rule, which is indistinguishable from a view that simply carries no decorators. guard-core reads both as "nothing to enforce", so a resolution failure silently skips every per-route check — the fail-open half of [GHSA-f2vm-w8gq-h378](https://github.com/rennf93/fastapi-guard/security/advisories/GHSA-f2vm-w8gq-h378), reported against the Starlette adapter. Flask routes requests itself, so this adapter has no equivalent matching bug, but it now reports the failure by setting `request.state.guard_route_unresolved` when `request.endpoint` is unset or its view function is missing. A matched view without `_guard_route_id` is left alone, since an undecorated view legitimately has no per-route config. With guard-core >= 3.7.0 and `SecurityConfig.route_resolution_strict=True`, unmatched requests are logged, emit a `route_unresolved` event, and are blocked with `500`. Behaviour is unchanged by default and on older guard-core, which ignores the attribute.
+
+___
+
 v4.0.1 (2026-05-27)
 -------------------
 
