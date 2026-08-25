@@ -460,6 +460,7 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
     app = Flask(__name__)
 
     security_config_redis.block_cloud_providers = frozenset({"AWS"})
+    security_config_redis.lazy_init = False
 
     with (
         patch(
@@ -497,6 +498,8 @@ def test_redis_initialization_without_ipinfo_and_cloud(
     app = Flask(__name__)
 
     security_config_redis.blocked_countries = frozenset({})
+    security_config_redis.lazy_init = False
+    security_config_redis.geo_ip_handler = None
 
     with (
         patch(

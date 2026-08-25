@@ -3,6 +3,17 @@ Changelog
 
 ___
 
+Unreleased
+----------
+
+Fix a CI thread race in the Redis initialization tests under guard-core 3.13.0 lazy_init
+----------------------------------------------------------------------------------------
+
+- **Fixed (tests)** - guard-core 3.13.0 changed `SecurityConfig.lazy_init` to default to `True`, so `HandlerInitializer.initialize_redis_handlers` runs `cloud_handler.initialize_redis` and `geo_ip_handler.initialize_redis` on a daemon thread (`_run_lazy_init`) instead of calling them synchronously. `test_redis_initialization` asserted those calls synchronously right after `FlaskAPIGuard(app, config=...)`, so on Linux/CI the main thread asserted before the daemon thread ran and saw zero calls, failing the test, while on macOS the thread won the race and the test passed. The test now sets `lazy_init=False` to force the synchronous path so the assertions hold deterministically on every platform. `test_redis_initialization_without_ipinfo_and_cloud` additionally clears `geo_ip_handler` so its `assert_not_called` for the IPInfo manager holds deterministically and the config matches the test's stated intent. No source code in this adapter changed.
+- **Compatibility** - Requires guard-core 3.13.0. No public API of this adapter changed; this is a test-only fix with no version bump. The published 4.2.0 wheel is unaffected (tests are not shipped). Lockstep with djangoapi-guard 4.2.0 and fastapi-guard 7.7.0 on the guard-core 3.13.0 line.
+
+___
+
 v4.2.0 (2026-08-25)
 -------------------
 
