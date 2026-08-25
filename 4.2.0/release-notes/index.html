@@ -2321,6 +2321,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-a-ci-thread-race-in-the-redis-initialization-tests-under-guard-core-3130-lazy_init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix a CI thread race in the Redis initialization tests under guard-core 3.13.0 lazy_init
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v420-2026-08-25" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2619,6 +2641,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fix-a-ci-thread-race-in-the-redis-initialization-tests-under-guard-core-3130-lazy_init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fix a CI thread race in the Redis initialization tests under guard-core 3.13.0 lazy_init
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#v420-2026-08-25" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2903,6 +2947,13 @@
 
 
 <h1 id="release-notes">Release Notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
+<hr />
+<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="fix-a-ci-thread-race-in-the-redis-initialization-tests-under-guard-core-3130-lazy_init">Fix a CI thread race in the Redis initialization tests under guard-core 3.13.0 lazy_init<a class="headerlink" href="#fix-a-ci-thread-race-in-the-redis-initialization-tests-under-guard-core-3130-lazy_init" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Fixed (tests)</strong> - guard-core 3.13.0 changed <code>SecurityConfig.lazy_init</code> to default to <code>True</code>, so <code>HandlerInitializer.initialize_redis_handlers</code> runs <code>cloud_handler.initialize_redis</code> and <code>geo_ip_handler.initialize_redis</code> on a daemon thread (<code>_run_lazy_init</code>) instead of calling them synchronously. <code>test_redis_initialization</code> asserted those calls synchronously right after <code>FlaskAPIGuard(app, config=...)</code>, so on Linux/CI the main thread asserted before the daemon thread ran and saw zero calls, failing the test, while on macOS the thread won the race and the test passed. The test now sets <code>lazy_init=False</code> to force the synchronous path so the assertions hold deterministically on every platform. <code>test_redis_initialization_without_ipinfo_and_cloud</code> additionally clears <code>geo_ip_handler</code> so its <code>assert_not_called</code> for the IPInfo manager holds deterministically and the config matches the test's stated intent. No source code in this adapter changed.</li>
+<li><strong>Compatibility</strong> - Requires guard-core 3.13.0. No public API of this adapter changed; this is a test-only fix with no version bump. The published 4.2.0 wheel is unaffected (tests are not shipped). Lockstep with djangoapi-guard 4.2.0 and fastapi-guard 7.7.0 on the guard-core 3.13.0 line.</li>
+</ul>
 <hr />
 <h2 id="v420-2026-08-25">v4.2.0 (2026-08-25)<a class="headerlink" href="#v420-2026-08-25" title="Permanent link">&para;</a></h2>
 <h2 id="guard-core-3130-compatibility-inline-bypass-replication-bounded-body-readers-behavior-scan-and-auth-verifier-lockstep-v420">guard-core 3.13.0 compatibility: inline bypass replication, bounded body readers, behavior-scan and auth-verifier lockstep (v4.2.0)<a class="headerlink" href="#guard-core-3130-compatibility-inline-bypass-replication-bounded-body-readers-behavior-scan-and-auth-verifier-lockstep-v420" title="Permanent link">&para;</a></h2>
