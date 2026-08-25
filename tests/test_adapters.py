@@ -73,6 +73,25 @@ def test_flask_guard_request_body() -> None:
         assert guard_request.body() == b"hello"
 
 
+def test_flask_guard_request_read_body_prefix() -> None:
+    app = Flask(__name__)
+    with app.test_request_context("/", data=b"hello world"):
+        from flask import request
+
+        guard_request = FlaskGuardRequest(request)
+        assert guard_request.read_body_prefix(5) == b"hello"
+        assert guard_request.read_body_prefix(0) == b""
+        assert guard_request.read_body_prefix(-1) == b""
+
+
+def test_flask_guard_response_read_body_prefix() -> None:
+    response = Response("test body", status=200)
+    guard_response = FlaskGuardResponse(response)
+    assert guard_response.read_body_prefix(4) == b"test"
+    assert guard_response.read_body_prefix(0) == b""
+    assert guard_response.read_body_prefix(-2) == b""
+
+
 def test_flask_guard_response_properties() -> None:
     response = Response("test", status=200)
     guard_response = FlaskGuardResponse(response)

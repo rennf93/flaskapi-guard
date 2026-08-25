@@ -408,29 +408,39 @@ class FlaskAPIGuard:
     def _check_passthrough(
         self,
         guard_request: FlaskGuardRequest,
-        request_headers: dict[str, str],
-    ) -> Response | None:
-        assert self.bypass_handler is not None
-        passthrough = self.bypass_handler.handle_passthrough(guard_request)
-        if passthrough is None:
-            return None
-        return self._attach_cors_to_blocked(
-            unwrap_response(passthrough), request_headers
-        )
+    ) -> None:
+        assert self.validator is not None
+        if not guard_request.client_host:
+            g.guard_passthrough = True
+            return
+        if self.validator.is_path_excluded(guard_request):
+            guard_request.state.guard_exclusion_scoped = True
+        return
 
     def _check_security_bypass(
         self,
         guard_request: FlaskGuardRequest,
         route_config: RouteConfig | None,
-        request_headers: dict[str, str],
-    ) -> Response | None:
+    ) -> None:
         assert self.bypass_handler is not None
-        bypass = self.bypass_handler.handle_security_bypass(
-            guard_request, route_config=route_config
+        assert self.route_resolver is not None
+        assert self.event_bus is not None
+        assert self.config is not None
+        if not route_config:
+            return
+        if not self.route_resolver.should_bypass_check("all", route_config):
+            return
+        self.event_bus.send_middleware_event(
+            event_type="security_bypass",
+            request=guard_request,
+            action_taken="all_checks_bypassed",
+            reason="Route configured to bypass all security checks",
+            bypassed_checks=list(route_config.bypassed_checks),
+            endpoint=str(guard_request.url_path),
         )
-        if bypass is None:
-            return None
-        return self._attach_cors_to_blocked(unwrap_response(bypass), request_headers)
+        if not self.config.passive_mode:
+            g.guard_passthrough = True
+        return
 
     def _before_request(self) -> Response | None:
         from flask import request
@@ -452,9 +462,10 @@ class FlaskAPIGuard:
         if preflight_response is not None:
             return preflight_response
 
-        passthrough_response = self._check_passthrough(guard_request, request_headers)
-        if passthrough_response is not None:
-            return passthrough_response
+        self._check_passthrough(guard_request)
+
+        if getattr(g, "guard_passthrough", False):
+            return None
 
         client_ip = extract_client_ip(guard_request, self.config, self.agent_handler)
         route_config = self.route_resolver.get_route_config(guard_request)
@@ -462,11 +473,10 @@ class FlaskAPIGuard:
         g.client_ip = client_ip
         g.route_config = route_config
 
-        bypass_response = self._check_security_bypass(
-            guard_request, route_config, request_headers
-        )
-        if bypass_response is not None:
-            return bypass_response
+        self._check_security_bypass(guard_request, route_config)
+
+        if getattr(g, "guard_passthrough", False):
+            return None
 
         blocking = self._execute_security_pipeline(guard_request)
         if blocking is not None:

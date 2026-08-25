@@ -14,10 +14,10 @@ def decorator_app(security_config: SecurityConfig) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.trusted_proxies = ("127.0.0.1",)
     security_config.enable_penetration_detection = False
-    security_config.whitelist = []
-    security_config.blacklist = []
+    security_config.whitelist = ()
+    security_config.blacklist = ()
 
     decorator = SecurityDecorator(security_config)
 

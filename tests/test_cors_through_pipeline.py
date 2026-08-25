@@ -24,8 +24,8 @@ def app() -> Flask:
         cors_allow_headers=["X-Custom"],
         cors_allow_credentials=True,
         cors_max_age=600,
-        blacklist=["10.0.0.99"],
-        trusted_proxies=["127.0.0.1"],
+        blacklist=("10.0.0.99",),
+        trusted_proxies=("127.0.0.1",),
         enable_redis=False,
     )
     FlaskAPIGuard(app, config=config)
@@ -85,7 +85,7 @@ def app_with_passthrough() -> Flask:
         cors_allow_credentials=True,
         cors_max_age=600,
         exclude_paths=["/health"],
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
         enable_redis=False,
     )
     FlaskAPIGuard(app, config=config)

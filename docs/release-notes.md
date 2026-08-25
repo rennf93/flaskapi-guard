@@ -3,6 +3,19 @@ Release Notes
 
 ___
 
+v4.2.0 (2026-08-25)
+-------------------
+
+guard-core 3.13.0 compatibility: inline bypass replication, bounded body readers, behavior-scan and auth-verifier lockstep (v4.2.0)
+----------------------------------------------------------------------------------------------------------------------------------
+
+- **Fixed** - guard-core 3.12.0 (commit 30f43944) made `BypassHandler.handle_passthrough` and `handle_security_bypass` require a `call_next` callable, so this adapter's calls without it raised `TypeError` on every request and cascaded to HTTP 500. Flask's `before_request` hook cannot invoke the downstream view, so unlike the Django and Starlette adapters it cannot supply a real `call_next`; `_check_passthrough` and `_check_security_bypass` now replicate the bypass decision inline instead of calling `handle_passthrough` / `handle_security_bypass`. A falsy `client_host` (no-client passthrough) or a non-passive `@security.bypass_all()` route sets `flask.g.guard_passthrough`, and `_before_request` skips the security pipeline when that flag is set, letting the view run and `_after_request` apply the response modifier through `process_response`. The `security_bypass` event is emitted with the same arguments guard-core uses, and the no-client-host passthrough short-circuits before the bypass check, matching fastapi-guard.
+- **Added** - `FlaskGuardRequest.read_body_prefix(max_bytes)` and `FlaskGuardResponse.read_body_prefix(max_bytes)` implement guard-core 3.12.0's `SyncBoundedBodyReader` / `SyncBoundedResponseBodyReader` protocols, so response-body `return_pattern` rules (`json:`, `regex:`, bare substring) and bounded request-body inspection actually match for the first time in this adapter.
+- **Fixed (tests)** - The behavioral decorator fixture now sets `behavior_scan_response_body=True` before applying `return_monitor` / `behavior_analysis` decorators, since guard-core 3.12.0 rejects body-reading `return_pattern` rules at decorator-apply time when that flag is off. The auth fixture supplies an `auth_verifier` callable, since guard-core 3.13.0 fail-closes `require_auth` / `api_key_auth` with HTTP 401 when no verifier is resolvable. The stale `mock.patch` of `guard_core.sync.core.checks.implementations.suspicious_activity.detect_penetration_patterns` (removed in guard-core 3.12.0's detection-cache seam) is replaced with a patch of `guard_core.sync.core.checks.helpers.detect_penetration_attempt`. The honeypot tests feed `read_body_prefix` on their mocked request because guard-core 3.12.0's body reader calls it when no `content-length` header is present. The `test_before_request_passthrough_response` and `test_before_request_bypass_response` tests were rewritten to exercise the inline replication directly instead of mocking the now-removed bypass-handler calls, and `test_before_request_bypass_passive_mode` covers the passive-mode branch. Seventy-two pre-existing mypy errors across the test suite (list literals passed to `SecurityConfig` fields that are now `tuple` / `frozenset`) are fixed.
+- **Compatibility** - Requires guard-core 3.13.0. No public API of this adapter changed: `FlaskAPIGuard`, `FlaskGuardRequest`, `FlaskGuardResponse` and the re-exported decorators keep their signatures; the new `read_body_prefix` methods are additive. Lockstep with djangoapi-guard and fastapi-guard 7.7.0 on the guard-core 3.13.0 line.
+
+___
+
 v4.1.0 (2026-07-29)
 -------------------
 

@@ -13,13 +13,16 @@ def auth_decorator_app(security_config: SecurityConfig) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    security_config.trusted_proxies = ["127.0.0.1"]
-    security_config.whitelist = []
-    security_config.blacklist = []
-    security_config.blocked_countries = []
+    security_config.trusted_proxies = ("127.0.0.1",)
+    security_config.whitelist = ()
+    security_config.blacklist = ()
+    security_config.blocked_countries = frozenset({})
     security_config.trust_x_forwarded_proto = True
     security_config.enforce_https = False
     security_config.enable_penetration_detection = False
+    security_config.auth_verifier = lambda request, credential: (
+        {"user": "ok"} if credential else None
+    )
 
     decorator = SecurityDecorator(security_config)
 
@@ -400,10 +403,10 @@ def test_auth_passive_mode(security_config: SecurityConfig) -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
     security_config.passive_mode = True
-    security_config.trusted_proxies = ["127.0.0.1"]
-    security_config.whitelist = []
-    security_config.blacklist = []
-    security_config.blocked_countries = []
+    security_config.trusted_proxies = ("127.0.0.1",)
+    security_config.whitelist = ()
+    security_config.blacklist = ()
+    security_config.blocked_countries = frozenset({})
 
     decorator = SecurityDecorator(security_config)
 

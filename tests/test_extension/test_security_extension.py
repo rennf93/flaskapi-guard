@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from typing import Any, cast
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
 from flask import Flask, Response
@@ -66,10 +66,10 @@ def test_ip_whitelist_blacklist() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
-        whitelist=["127.0.0.1"],
-        blacklist=["192.168.1.1"],
+        whitelist=("127.0.0.1",),
+        blacklist=("192.168.1.1",),
         enable_penetration_detection=False,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
     )
 
     FlaskAPIGuard(app, config=config)
@@ -126,10 +126,10 @@ def test_rate_limiting_multiple_ips(reset_state: None) -> None:
         rate_limit=2,
         rate_limit_window=1,
         enable_rate_limiting=True,
-        whitelist=[],
-        blacklist=[],
+        whitelist=(),
+        blacklist=(),
         enable_penetration_detection=False,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
     )
 
     FlaskAPIGuard(app, config=config)
@@ -194,7 +194,7 @@ def test_custom_error_responses() -> None:
     app = Flask(__name__)
     config = SecurityConfig(
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
-        blacklist=["192.168.1.3"],
+        blacklist=("192.168.1.3",),
         custom_error_responses={
             403: "Custom Forbidden",
             429: "Custom Too Many Requests",
@@ -203,7 +203,7 @@ def test_custom_error_responses() -> None:
         rate_limit_window=1,
         auto_ban_threshold=10,
         enable_penetration_detection=False,
-        trusted_proxies=["127.0.0.1"],
+        trusted_proxies=("127.0.0.1",),
     )
 
     FlaskAPIGuard(app, config=config)
@@ -360,7 +360,7 @@ def test_cloud_ip_blocking() -> None:
     config = SecurityConfig(
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         enable_penetration_detection=False,
-        block_cloud_providers={"AWS", "GCP", "Azure"},
+        block_cloud_providers=frozenset({"AWS", "GCP", "Azure"}),
     )
 
     FlaskAPIGuard(app, config=config)
@@ -459,7 +459,7 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
     """Test Redis initialization in FlaskAPIGuard"""
     app = Flask(__name__)
 
-    security_config_redis.block_cloud_providers = {"AWS"}
+    security_config_redis.block_cloud_providers = frozenset({"AWS"})
 
     with (
         patch(
@@ -496,7 +496,7 @@ def test_redis_initialization_without_ipinfo_and_cloud(
     """Test Redis initialization in FlaskAPIGuard"""
     app = Flask(__name__)
 
-    security_config_redis.blocked_countries = []
+    security_config_redis.blocked_countries = frozenset({})
 
     with (
         patch(
@@ -566,7 +566,7 @@ def test_rate_limiting_with_redis(security_config_redis: SecurityConfig) -> None
     app = Flask(__name__)
     security_config_redis.rate_limit = 2
     security_config_redis.rate_limit_window = 10
-    security_config_redis.whitelist = []
+    security_config_redis.whitelist = ()
 
     rate_handler = rate_limit_handler(security_config_redis)
     rate_handler.reset()
@@ -626,7 +626,7 @@ def test_passive_mode_penetration_detection() -> None:
     config = SecurityConfig(
         geo_ip_handler=cast(GeoIPHandler, IPInfoManager(IPINFO_TOKEN)),
         passive_mode=True,
-        whitelist=[],
+        whitelist=(),
     )
     FlaskAPIGuard(app, config=config)
 
@@ -636,16 +636,10 @@ def test_passive_mode_penetration_detection() -> None:
 
     with (
         patch(
-            "guard_core.sync.core.checks.implementations.suspicious_activity.detect_penetration_patterns",
-            return_value=DetectionResult(
-                is_threat=True, trigger_info="SQL injection attempt"
-            ),
-        ),
-        patch(
             "guard_core.sync.core.checks.implementations.suspicious_activity.log_activity"
         ),
         patch(
-            "guard_core.sync.utils.detect_penetration_attempt",
+            "guard_core.sync.core.checks.helpers.detect_penetration_attempt",
             return_value=DetectionResult(
                 is_threat=True, trigger_info="SQL injection attempt"
             ),
@@ -973,9 +967,9 @@ def test_ipv6_rate_limiting(
     config.rate_limit = 2
     config.rate_limit_window = 1
     config.enable_rate_limiting = True
-    config.trusted_proxies = ["127.0.0.1"]
-    config.whitelist = []
-    config.blocked_countries = []
+    config.trusted_proxies = ("127.0.0.1",)
+    config.whitelist = ()
+    config.blocked_countries = frozenset({})
     config.enable_penetration_detection = False
 
     FlaskAPIGuard(app, config=config)
@@ -1011,10 +1005,10 @@ def test_ipv6_whitelist_blacklist(security_config_redis: SecurityConfig) -> None
     """
     app = Flask(__name__)
     config = security_config_redis
-    config.whitelist = ["::1", "2001:db8::1"]
-    config.blacklist = ["2001:db8::dead:beef"]
+    config.whitelist = ("::1", "2001:db8::1")
+    config.blacklist = ("2001:db8::dead:beef",)
     config.enable_penetration_detection = False
-    config.trusted_proxies = ["127.0.0.1", "::1"]
+    config.trusted_proxies = ("127.0.0.1", "::1")
 
     FlaskAPIGuard(app, config=config)
 
@@ -1044,10 +1038,10 @@ def test_ipv6_cidr_whitelist_blacklist(
     """
     app = Flask(__name__)
     config = security_config_redis
-    config.whitelist = ["2001:db8::/32"]
-    config.blacklist = ["2001:db8:dead::/48"]
+    config.whitelist = ("2001:db8::/32",)
+    config.blacklist = ("2001:db8:dead::/48",)
     config.enable_penetration_detection = False
-    config.trusted_proxies = ["127.0.0.1", "::1"]
+    config.trusted_proxies = ("127.0.0.1", "::1")
 
     FlaskAPIGuard(app, config=config)
 
@@ -1076,10 +1070,10 @@ def test_mixed_ipv4_ipv6_handling(security_config_redis: SecurityConfig) -> None
     """
     app = Flask(__name__)
     config = security_config_redis
-    config.whitelist = ["127.0.0.1", "::1", "192.168.1.0/24", "2001:db8::/32"]
-    config.blacklist = ["192.168.1.100", "2001:db8:dead::beef"]
+    config.whitelist = ("127.0.0.1", "::1", "192.168.1.0/24", "2001:db8::/32")
+    config.blacklist = ("192.168.1.100", "2001:db8:dead::beef")
     config.enable_penetration_detection = False
-    config.trusted_proxies = ["127.0.0.1", "::1"]
+    config.trusted_proxies = ("127.0.0.1", "::1")
 
     FlaskAPIGuard(app, config=config)
 
@@ -1114,7 +1108,7 @@ def test_emergency_mode_passive(security_config: SecurityConfig) -> None:
     app = Flask(__name__)
     security_config.emergency_mode = True
     security_config.passive_mode = True
-    security_config.trusted_proxies = ["127.0.0.1"]
+    security_config.trusted_proxies = ("127.0.0.1",)
 
     @app.route("/test")
     def test_endpoint() -> dict[str, str]:
@@ -1612,7 +1606,7 @@ def test_refresh_cloud_ip_ranges_updates_timestamp() -> None:
     config = SecurityConfig(
         enable_redis=False,
         enable_penetration_detection=False,
-        block_cloud_providers={"AWS"},
+        block_cloud_providers=frozenset({"AWS"}),
     )
     guard = FlaskAPIGuard(app, config=config)
     guard.last_cloud_ip_refresh = 0
@@ -1632,55 +1626,83 @@ def test_adapter_url_replace_scheme_no_protocol() -> None:
 
 
 def test_before_request_passthrough_response() -> None:
-    from flaskapi_guard.adapters import FlaskGuardResponse
-
     app = Flask(__name__)
-    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
-    guard = FlaskAPIGuard(app, config=config)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        blacklist=("127.0.0.1",),
+    )
+    FlaskAPIGuard(app, config=config)
 
     @app.route("/")
     def root() -> dict[str, str]:
         return {"msg": "ok"}
 
-    mock_resp = FlaskGuardResponse(Response("passthrough", status=200))
     with patch.object(
-        guard.bypass_handler, "handle_passthrough", return_value=mock_resp
+        FlaskGuardRequest, "client_host", new_callable=PropertyMock, return_value=None
     ):
         with app.test_client() as client:
             response = client.get("/")
-            assert response.data == b"passthrough"
+            assert response.status_code == 200
+            assert response.get_json() == {"msg": "ok"}
 
     with app.test_client() as client:
         baseline = client.get("/")
-        assert baseline.status_code == 200
-        assert baseline.get_json() == {"msg": "ok"}
+        assert baseline.status_code == 403
 
 
 def test_before_request_bypass_response() -> None:
-    from flaskapi_guard.adapters import FlaskGuardResponse
+    from flaskapi_guard import SecurityDecorator
 
     app = Flask(__name__)
-    config = SecurityConfig(enable_redis=False, enable_penetration_detection=False)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        blacklist=("127.0.0.1",),
+    )
     guard = FlaskAPIGuard(app, config=config)
+    decorator = SecurityDecorator(config)
+    guard.set_decorator_handler(decorator)
 
     @app.route("/")
+    @decorator.bypass(["all"])
     def root() -> dict[str, str]:
         return {"msg": "ok"}
 
-    mock_resp = FlaskGuardResponse(Response("bypassed", status=403))
-    with (
-        patch.object(guard.bypass_handler, "handle_passthrough", return_value=None),
-        patch.object(
-            guard.bypass_handler,
-            "handle_security_bypass",
-            return_value=mock_resp,
-        ),
-    ):
-        with app.test_client() as client:
-            response = client.get("/")
-            assert response.status_code == 403
+    @app.route("/locked")
+    def locked() -> dict[str, str]:
+        return {"msg": "locked"}
 
     with app.test_client() as client:
-        baseline = client.get("/")
-        assert baseline.status_code == 200
-        assert baseline.get_json() == {"msg": "ok"}
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.get_json() == {"msg": "ok"}
+
+    with app.test_client() as client:
+        baseline = client.get("/locked")
+        assert baseline.status_code == 403
+
+
+def test_before_request_bypass_passive_mode() -> None:
+    from flaskapi_guard import SecurityDecorator
+
+    app = Flask(__name__)
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        blacklist=("127.0.0.1",),
+        passive_mode=True,
+    )
+    guard = FlaskAPIGuard(app, config=config)
+    decorator = SecurityDecorator(config)
+    guard.set_decorator_handler(decorator)
+
+    @app.route("/")
+    @decorator.bypass(["all"])
+    def root() -> dict[str, str]:
+        return {"msg": "ok"}
+
+    with app.test_client() as client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert response.get_json() == {"msg": "ok"}

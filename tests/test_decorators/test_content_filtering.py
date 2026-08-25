@@ -15,10 +15,10 @@ def content_decorator_app(security_config: SecurityConfig) -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    security_config.trusted_proxies = ["127.0.0.1"]
-    security_config.whitelist = []
-    security_config.blacklist = []
-    security_config.blocked_countries = []
+    security_config.trusted_proxies = ("127.0.0.1",)
+    security_config.whitelist = ()
+    security_config.blacklist = ()
+    security_config.blocked_countries = frozenset({})
     security_config.enable_penetration_detection = False
 
     decorator = SecurityDecorator(security_config)
@@ -258,10 +258,10 @@ def test_referrer_passive_mode(security_config: SecurityConfig) -> None:
     app = Flask(__name__)
     app.config["TESTING"] = True
     security_config.passive_mode = True
-    security_config.trusted_proxies = ["127.0.0.1"]
-    security_config.whitelist = []
-    security_config.blacklist = []
-    security_config.blocked_countries = []
+    security_config.trusted_proxies = ("127.0.0.1",)
+    security_config.whitelist = ()
+    security_config.blacklist = ()
+    security_config.blocked_countries = frozenset({})
 
     decorator = SecurityDecorator(security_config)
 

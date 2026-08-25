@@ -55,6 +55,12 @@ class FlaskGuardRequest:
         result: bytes = self._request.get_data()
         return result
 
+    def read_body_prefix(self, max_bytes: int) -> bytes:
+        if max_bytes <= 0:
+            return b""
+        result: bytes = self._request.get_data()[:max_bytes]
+        return result
+
     @property
     def state(self) -> Any:
         from flask import g
@@ -81,6 +87,12 @@ class FlaskGuardResponse:
     @property
     def body(self) -> bytes | None:
         return self._response.get_data()
+
+    def read_body_prefix(self, max_bytes: int) -> bytes:
+        if max_bytes <= 0:
+            return b""
+        result: bytes = self._response.get_data()[:max_bytes]
+        return result
 
 
 class FlaskResponseFactory:
