@@ -8,6 +8,7 @@ def test_event_bus_routes_through_composite_when_otel_enabled() -> None:
     config = SecurityConfig(enable_otel=True, otel_service_name="wire-test")
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
+    ext._ensure_initialized()
 
     assert ext.event_bus is not None
     assert ext.metrics_collector is not None
@@ -19,6 +20,7 @@ def test_event_bus_routes_through_composite_when_logfire_enabled() -> None:
     config = SecurityConfig(enable_logfire=True, logfire_service_name="wire-test")
     app = Flask(__name__)
     ext = FlaskAPIGuard(app, config=config)
+    ext._ensure_initialized()
 
     assert ext.event_bus is not None
     assert ext.metrics_collector is not None

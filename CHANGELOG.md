@@ -3,14 +3,16 @@ Changelog
 
 ___
 
-Unreleased
-----------
+v4.3.0 (2026-08-31)
+-------------------
 
-Fix a CI thread race in the Redis initialization tests under guard-core 3.13.0 lazy_init
-----------------------------------------------------------------------------------------
+guard-core 3.15.0 lockstep: lazy Redis initialization, unknown-identity access change (v4.3.0)
+------------------------------------------------------------------------------------------------
 
-- **Fixed (tests)** - guard-core 3.13.0 changed `SecurityConfig.lazy_init` to default to `True`, so `HandlerInitializer.initialize_redis_handlers` runs `cloud_handler.initialize_redis` and `geo_ip_handler.initialize_redis` on a daemon thread (`_run_lazy_init`) instead of calling them synchronously. `test_redis_initialization` asserted those calls synchronously right after `FlaskAPIGuard(app, config=...)`, so on Linux/CI the main thread asserted before the daemon thread ran and saw zero calls, failing the test, while on macOS the thread won the race and the test passed. The test now sets `lazy_init=False` to force the synchronous path so the assertions hold deterministically on every platform. `test_redis_initialization_without_ipinfo_and_cloud` additionally clears `geo_ip_handler` so its `assert_not_called` for the IPInfo manager holds deterministically and the config matches the test's stated intent. No source code in this adapter changed.
-- **Compatibility** - Requires guard-core 3.13.0. No public API of this adapter changed; this is a test-only fix with no version bump. The published 4.2.0 wheel is unaffected (tests are not shipped). Lockstep with djangoapi-guard 4.2.0 and fastapi-guard 7.7.0 on the guard-core 3.13.0 line.
+- **Fixed** - `FlaskAPIGuard.init_app()` called `_initialize_handlers()` eagerly at construction, so an unreachable Redis raised `GuardRedisError` straight out of `FlaskAPIGuard(app, config=...)` and the app object never finished constructing; recovering needed a process restart. Initialization is now lazy, running at the top of `_before_request()` guarded by an `_initialized` flag: a `GuardRedisError` raised there is caught and logged, and the request returns `503` with a `Retry-After: 5` header instead of crashing the app, leaving the flag unset so the next request retries. `redis_fail_open` and `fail_secure` semantics are unchanged; guard-core still owns that policy (guard-core #76).
+- **Fixed (tests)** - `test_request_without_client` asserted the pre-3.14.0 behavior (403) for a request that resolves to the "unknown" client identity. guard-core 3.14.0 changed `check_ip_access` to treat "unknown" as no address available and allow the request unless `whitelist` or `whitelist_countries` is configured, since the blacklist, `blocked_countries`, and cloud-provider checks cannot match without an address (GHSA-634g-4wr8-xwxv); the test now asserts `200`, and a new `test_request_without_client_unknown_identity_with_whitelist_is_blocked` covers the other half of the rule: an unknown identity is still blocked when a whitelist is configured. `test_rate_limiter_redis_errors` asserted the old silent in-memory fallback on a Redis failure; guard-core's rate limiter now honors `redis_fail_open` like every other check and raises `GuardRedisError` when it is `False` (the default), so the test now asserts the raise and adds a `redis_fail_open=True` case for the fallback. Tests that inspected state built by `_initialize_handlers()` (composite agent handler wiring, behavior tracker threading, the rate limiter's Redis handler, Lua script loading, Redis handler call assertions) now call the extension's `_ensure_initialized()` explicitly, since that state no longer exists immediately after construction; `test_redis_initialization` and `test_redis_initialization_without_ipinfo_and_cloud` keep their existing `lazy_init=False` (guard-core 3.13.0's daemon-thread race) alongside the explicit call.
+- **Added (tests)** - `test_redis_unavailable_at_first_request_returns_503_and_retries` covers the new lazy-init path end to end: a first request with Redis unreachable gets `503` with `Retry-After: 5` and leaves the extension uninitialized, and a second request against a reachable Redis succeeds and completes initialization.
+- **Compatibility** - Requires guard-core 3.15.0 (`guard-core>=3.15.0`, previously unconstrained). No public API of this adapter changed. Lockstep with fastapi-guard 7.8.2 on the guard-core 3.15.0 line.
 
 ___
 

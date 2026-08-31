@@ -1,6 +1,6 @@
 [project]
 name = "flaskapi_guard"
-version = "4.2.0"
+version = "4.3.0"
 description = "A security library for Flask to control IPs, log requests, and detect penetration attempts."
 authors = [
     {name = "Renzo Franceschini", email = "rennf93@users.noreply.github.com"}
@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "flask",
-    "guard-core",
+    "guard-core>=3.15.0",
     "gunicorn",
     "werkzeug",
 ]

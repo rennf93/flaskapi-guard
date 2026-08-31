@@ -3,6 +3,7 @@ import time
 from typing import Any, cast
 
 from flask import Flask, Response, g
+from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.response_protocol import GuardResponse
 from guard_core.sync.core.behavioral import BehavioralContext, BehavioralProcessor
@@ -61,6 +62,7 @@ class FlaskAPIGuard:
         self.behavioral_processor: BehavioralProcessor | None = None
         self._cors_handler: CorsHandler | None = None
         self._app: Flask | None = None
+        self._initialized: bool = False
         self._guard_response_factory = FlaskResponseFactory()
 
         if app is not None:
@@ -203,6 +205,7 @@ class FlaskAPIGuard:
         self.suspicious_request_counts = {}
         self.last_cleanup = time.time()
         self.rate_limit_handler = RateLimitManager(self.config)
+        self._initialized = False
 
         self._configure_security_headers(self.config)
         self._init_geo_ip_handler()
@@ -221,7 +224,6 @@ class FlaskAPIGuard:
         }
 
         self._build_security_pipeline()
-        self._initialize_handlers()
         self._cors_handler = (
             CorsHandler(self.config) if self.config.enable_cors else None
         )
@@ -238,6 +240,25 @@ class FlaskAPIGuard:
         if self.handler_initializer.composite_handler is not None:
             self.agent_handler = self.handler_initializer.composite_handler
             self._build_event_bus_and_contexts()
+
+    def _redis_unavailable_response(self) -> Response:
+        guard_response = self.create_error_response(
+            503, "Service temporarily unavailable"
+        )
+        guard_response.headers["Retry-After"] = "5"
+        return unwrap_response(guard_response)
+
+    def _ensure_initialized(self) -> Response | None:
+        if self._initialized:
+            return None
+        assert self.logger is not None
+        try:
+            self._initialize_handlers()
+        except GuardRedisError as e:
+            self.logger.error("Redis unavailable during initialization: %s", e)
+            return self._redis_unavailable_response()
+        self._initialized = True
+        return None
 
     def _build_security_pipeline(self) -> None:
         from guard_core.sync.core.checks import (
@@ -449,6 +470,10 @@ class FlaskAPIGuard:
         assert self.bypass_handler is not None
         assert self.route_resolver is not None
         assert self.behavioral_processor is not None
+
+        init_failure = self._ensure_initialized()
+        if init_failure is not None:
+            return self._attach_cors_to_blocked(init_failure, dict(request.headers))
 
         g.request_start_time = time.time()
         guard_request = FlaskGuardRequest(request)

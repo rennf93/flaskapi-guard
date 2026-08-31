@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 import pytest
 from flask import Flask
+from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
+from guard_core.sync.handlers.redis_handler import RedisManager
 
 from flaskapi_guard import FlaskAPIGuard
 
@@ -14,6 +18,7 @@ def test_init_rebinds_agent_handler_to_composite() -> None:
     )
     app = Flask(__name__)
     extension = FlaskAPIGuard(app, config=config)
+    extension._ensure_initialized()
 
     assert extension.handler_initializer is not None
     assert extension.handler_initializer.composite_handler is not None
@@ -41,6 +46,7 @@ def test_behavior_tracker_threaded_through_behavioral_context() -> None:
     )
     app = Flask(__name__)
     extension = FlaskAPIGuard(app, config=config)
+    extension._ensure_initialized()
 
     assert extension.handler_initializer is not None
     assert extension.handler_initializer.behavior_tracker is not None
@@ -104,3 +110,35 @@ def test_set_decorator_handler_skips_app_extension_when_entry_not_dict() -> None
     extension.set_decorator_handler(None)
 
     assert app.extensions["flaskapi_guard"] == "not-a-dict"
+
+
+def test_redis_unavailable_at_first_request_returns_503_and_retries() -> None:
+    config = SecurityConfig(enable_penetration_detection=False)
+    app = Flask(__name__)
+
+    @app.route("/")
+    def read_root() -> dict[str, str]:
+        return {"message": "Hello World"}
+
+    guard = FlaskAPIGuard(app, config=config)
+
+    original_initialize = RedisManager.initialize
+    calls = {"count": 0}
+
+    def flaky_initialize(self: RedisManager) -> None:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise GuardRedisError(503, "Redis connection failed")
+        original_initialize(self)
+
+    with patch.object(RedisManager, "initialize", flaky_initialize):
+        with app.test_client() as client:
+            response = client.get("/")
+            assert response.status_code == 503
+            assert response.headers["Retry-After"] == "5"
+            assert guard._initialized is False
+
+            response = client.get("/")
+            assert response.status_code == 200
+            assert response.get_json() == {"message": "Hello World"}
+            assert guard._initialized is True

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
 from flask import Flask, Response
+from guard_core.exceptions import GuardRedisError
 from guard_core.models import SecurityConfig
 from guard_core.protocols.geo_ip_protocol import GeoIPHandler
 from guard_core.sync.decorators.base import BaseSecurityDecorator
@@ -480,7 +481,8 @@ def test_redis_initialization(security_config_redis: SecurityConfig) -> None:
             "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
         ) as rate_init,
     ):
-        FlaskAPIGuard(app, config=security_config_redis)
+        guard = FlaskAPIGuard(app, config=security_config_redis)
+        guard._ensure_initialized()
 
         redis_init.assert_called_once()
 
@@ -519,7 +521,8 @@ def test_redis_initialization_without_ipinfo_and_cloud(
             "guard_core.sync.handlers.ratelimit_handler.RateLimitManager.initialize_redis"
         ) as rate_init,
     ):
-        FlaskAPIGuard(app, config=security_config_redis)
+        guard = FlaskAPIGuard(app, config=security_config_redis)
+        guard._ensure_initialized()
 
         redis_init.assert_called_once()
 
@@ -752,6 +755,7 @@ def test_lua_script_execution(security_config_redis: SecurityConfig) -> None:
     config.enable_rate_limiting = True
 
     guard = FlaskAPIGuard(app, config=config)
+    guard._ensure_initialized()
     handler = guard.rate_limit_handler
     assert handler is not None
 
@@ -799,6 +803,7 @@ def test_fallback_to_pipeline(security_config_redis: SecurityConfig) -> None:
     config.enable_rate_limiting = True
 
     guard = FlaskAPIGuard(app, config=config)
+    guard._ensure_initialized()
     handler = guard.rate_limit_handler
     assert handler is not None
 
@@ -877,6 +882,7 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
     config.enable_rate_limiting = True
 
     guard = FlaskAPIGuard(app, config=config)
+    guard._ensure_initialized()
     handler = guard.rate_limit_handler
     assert handler is not None
 
@@ -890,7 +896,6 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
     with (
         patch.object(handler.redis_handler, "get_connection") as mock_get_connection,
         patch.object(logging.Logger, "error") as mock_error,
-        patch.object(logging.Logger, "info") as mock_info,
     ):
         mock_conn = MagicMock()
         mock_conn.__enter__ = MagicMock(
@@ -903,15 +908,25 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
         with app.test_request_context("/"):
             from flask import request
 
+            with pytest.raises(GuardRedisError):
+                handler.check_rate_limit(
+                    FlaskGuardRequest(request), "192.168.1.1", create_error_response
+                )
+
+            mock_error.assert_called_once()
+            assert "Redis rate limiting error" in mock_error.call_args[0][0]
+
+            mock_error.reset_mock()
+            config.redis_fail_open = True
+
             result = handler.check_rate_limit(
                 FlaskGuardRequest(request), "192.168.1.1", create_error_response
             )
 
             assert result is None
+            mock_error.assert_not_called()
 
-            mock_error.assert_called_once()
-            assert "Redis rate limiting error" in mock_error.call_args[0][0]
-            mock_info.assert_called_once_with("Falling back to in-memory rate limiting")
+            config.redis_fail_open = False
 
     with (
         patch.object(handler.redis_handler, "get_connection") as mock_get_connection,
@@ -924,14 +939,23 @@ def test_rate_limiter_redis_errors(security_config_redis: SecurityConfig) -> Non
         with app.test_request_context("/"):
             from flask import request
 
+            with pytest.raises(GuardRedisError):
+                handler.check_rate_limit(
+                    FlaskGuardRequest(request), "192.168.1.1", create_error_response
+                )
+
+            mock_error.assert_called_once()
+            assert "Unexpected error in rate limiting" in mock_error.call_args[0][0]
+
+            mock_error.reset_mock()
+            config.redis_fail_open = True
+
             result = handler.check_rate_limit(
                 FlaskGuardRequest(request), "192.168.1.1", create_error_response
             )
 
             assert result is None
-
-            mock_error.assert_called_once()
-            assert "Unexpected error in rate limiting" in mock_error.call_args[0][0]
+            mock_error.assert_not_called()
 
 
 def test_rate_limiter_init_redis_exception(
@@ -1263,6 +1287,7 @@ def test_agent_initialization_success() -> None:
     ):
         with patch.dict(sys.modules, {"guard_agent": mock_agent_module}):
             guard = FlaskAPIGuard(app, config=config)
+            guard._ensure_initialized()
             from guard_core.sync.core.events.composite_handler import (
                 CompositeAgentHandler,
             )
@@ -1338,12 +1363,11 @@ def test_reset_method() -> None:
 
 
 def test_request_without_client() -> None:
-    """Test handling of request when extract_client_ip returns 'unknown'.
-
-    is_ip_allowed() raises ValueError on non-parseable IP strings and returns
-    False — ip_security blocks with 403. The assertion here is that the
-    middleware handles the unresolvable IP cleanly (no crash, structured
-    403 response) rather than letting such requests through.
+    """A request with no resolvable client address resolves to the "unknown"
+    identity, which is allowed when neither whitelist nor whitelist_countries
+    is configured, because the address-dependent checks (blacklist,
+    blocked_countries, cloud-provider) cannot match without an address.
+    Detection and rate limiting still apply.
     """
     config = SecurityConfig(
         enable_redis=False,
@@ -1362,11 +1386,35 @@ def test_request_without_client() -> None:
             "flaskapi_guard.extension.extract_client_ip", return_value="unknown"
         ):
             response = client.get("/")
-            assert response.status_code == 403
+            assert response.status_code == 200
+            assert response.get_json() == {"message": "Hello World"}
 
         baseline = client.get("/")
         assert baseline.status_code == 200
         assert baseline.get_json() == {"message": "Hello World"}
+
+
+def test_request_without_client_unknown_identity_with_whitelist_is_blocked() -> None:
+    """An unknown identity is still blocked when a whitelist is configured."""
+    config = SecurityConfig(
+        enable_redis=False,
+        enable_penetration_detection=False,
+        whitelist=("127.0.0.1",),
+    )
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    FlaskAPIGuard(app, config=config)
+
+    @app.route("/")
+    def read_root() -> dict[str, str]:
+        return {"message": "Hello World"}
+
+    with app.test_client() as client:
+        with patch(
+            "flaskapi_guard.extension.extract_client_ip", return_value="unknown"
+        ):
+            response = client.get("/")
+            assert response.status_code == 403
 
 
 def test_set_decorator_handler() -> None:
@@ -1501,6 +1549,7 @@ def test_agent_init_with_mock_module() -> None:
         patch.dict(sys.modules, {"guard_agent": mock_module}),
     ):
         guard = FlaskAPIGuard(app, config=config)
+        guard._ensure_initialized()
         from guard_core.sync.core.events.composite_handler import (
             CompositeAgentHandler,
         )
