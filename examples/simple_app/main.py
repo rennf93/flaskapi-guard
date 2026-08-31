@@ -266,7 +266,7 @@ def access_no_aws():
 
 
 @access_bp.route("/bypass-demo")
-@guard_decorator.bypass(["rate_limit", "geo_check"])
+@guard_decorator.bypass(["rate_limit", "ip"])
 def access_bypass_demo():
     return jsonify(
         {
@@ -274,7 +274,7 @@ def access_bypass_demo():
             "details": {
                 "bypassed_checks": [
                     "rate_limit",
-                    "geo_check",
+                    "ip",
                 ]
             },
         }

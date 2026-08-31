@@ -43,13 +43,13 @@ def block_aws_only():
 
 
 @bp.route("/bypass-demo")
-@guard.bypass(["rate_limit", "geo_check"])
+@guard.bypass(["rate_limit", "ip"])
 def bypass_specific_checks():
     return jsonify(
         message_response(
-            "This endpoint bypasses rate limiting and geo checks",
+            "This endpoint bypasses rate limiting and IP/country/cloud checks",
             details={
-                "bypassed_checks": ["rate_limit", "geo_check"],
+                "bypassed_checks": ["rate_limit", "ip"],
             },
         )
     )
