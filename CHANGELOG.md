@@ -3,6 +3,17 @@ Changelog
 
 ___
 
+v4.3.1 (2026-09-23)
+-------------------
+
+guard-core 4.0.x tracking: dependency floor to >=4.0.0, agent docs (v4.3.1)
+---------------------------------------------------------------------------
+
+- **Compatibility** - The `guard-core` floor moves from `>=3.15.0` to `>=4.0.0` in `pyproject.toml` (no upper bound), so this adapter tracks the guard-core 4.0.x engine line and is verified against guard-core 4.0.4. No adapter code changed: the delta since 4.3.0 is docs and CI only, hence the patch bump. Since the adapter delegates all security behavior to the engine, no other change is required for the 4.0.x line; guard-core 4.0.0's own breaking changes (grammar-based secret redaction, exact-value `require_headers()` enforcement, `excluded_detection_headers` semantics) are documented in the guard-core changelog.
+- **Documentation** - Added `AGENTS.md`/`CLAUDE.md` agent guidance and the flaskapi-guard package skill, and noted in the access-control decorator docs that an unknown bypass token now warns.
+
+___
+
 v4.3.0 (2026-08-31)
 -------------------
 
