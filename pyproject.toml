@@ -126,6 +126,10 @@ warn_unreachable = true
 exclude = ["vulture_whitelist.py", ".venv"]
 
 
+[tool.pymarkdown.extensions]
+# Enable YAML front matter parsing (agent skill files use front matter)
+front-matter = {enabled = true}
+
 [tool.pymarkdown.plugins.md007]
 # MD007 - Unordered list indentation (set to 2 spaces)
 enabled = true
