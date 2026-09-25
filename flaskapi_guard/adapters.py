@@ -97,7 +97,9 @@ class FlaskGuardResponse:
 
 class FlaskResponseFactory:
     def create_response(self, content: str, status_code: int) -> FlaskGuardResponse:
-        return FlaskGuardResponse(Response(content, status=status_code))
+        return FlaskGuardResponse(
+            Response(content, status=status_code, mimetype="text/plain")
+        )
 
     def create_redirect_response(
         self, url: str, status_code: int
