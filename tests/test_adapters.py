@@ -110,6 +110,7 @@ def test_flask_response_factory_create() -> None:
     factory = FlaskResponseFactory()
     guard_resp = factory.create_response("error", 403)
     assert guard_resp.status_code == 403
+    assert guard_resp.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 def test_flask_response_factory_redirect() -> None:
