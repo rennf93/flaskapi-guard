@@ -16,29 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
-      # - name: Send Initial Slack Message
-      #   id: send_initial_slack_release
-      #   uses: rennf93/good-comms@master
-      #   with:
-      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
-      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
-      #     STATUS: 'Started'
-      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-      #     AUTHOR_NAME: 'Flask API Guard - Pypi Release'
-      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
-      #     AUTHOR_ICON: ':rocket:'
-      #     TITLE: 'Pypi Release Started'
-      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
-      #     MESSAGE: |
-      #       .
-      #       *NEW VERSION v${{ github.event.release.tag_name }} TRIGGERED PYPI RELEASE!*
-
-      #       Commit:
-      #         ${{ github.event.head_commit.message }}
-      #       .
-      #     COLOR: warning
-
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -99,56 +76,3 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.PAT_TOKEN }}
           SECRET_NAME: DOCS_VERSION
           SECRET_VALUE: ${{ github.event.release.tag_name }}
-
-      # - name: Notify Success on Slack Channel
-      #   uses: rennf93/good-comms@master
-      #   with:
-      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
-      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
-      #     STATUS: 'Success'
-      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-      #     AUTHOR_NAME: 'Flask API Guard - Pypi Release'
-      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
-      #     AUTHOR_ICON: ':gem:'
-      #     TITLE: 'Pypi Release Successful'
-      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
-      #     MESSAGE: |
-      #       .
-      #       *Pypi Release v${{ github.event.release.tag_name }} Successful!*
-      #       .
-      #       Commit message:
-      #         ${{ github.event.head_commit.message }}
-
-      #       Commit URL:
-      #         ${{ github.event.head_commit.url }}
-      #       .
-      #     COLOR: good
-      #     SLACK_THREAD_TS: ${{ steps.send_initial_slack_release.outputs.SLACK_THREAD_TS }}
-
-      # - name: Send Failure Notification to Slack
-      #   if: failure()
-      #   uses: rennf93/good-comms@master
-      #   with:
-      #     SLACK_WEBHOOK: '${{ secrets.SLACK_WEBHOOK }}'
-      #     SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
-      #     STATUS: 'Failed'
-      #     CHANNEL_ID: '${{ secrets.SLACK_CHANNEL }}'
-      #     AUTHOR_NAME: 'Flask API Guard - Pypi Release'
-      #     AUTHOR_LINK: 'https://github.com/rennf93/flaskapi-guard'
-      #     AUTHOR_ICON: ':skull:'
-      #     TITLE: 'Pypi Release Failed'
-      #     TITLE_LINK: 'https://github.com/rennf93/flaskapi-guard/actions'
-      #     MESSAGE: |
-      #       .
-      #       *Pypi Release v${{ github.event.release.tag_name }} Failed!*
-      #       .
-      #       Pypi Release failed for commit:
-      #         ${{ github.event.head_commit.message }}
-
-      #       Commit URL:
-      #         ${{ github.event.head_commit.url }}
-
-      #       Please check the logs for more details.
-      #       .
-      #     COLOR: danger
-      #     SLACK_THREAD_TS: ${{ steps.send_initial_slack_release.outputs.SLACK_THREAD_TS }}
