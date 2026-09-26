@@ -3,6 +3,17 @@ Changelog
 
 ___
 
+v4.3.2 (2026-09-26)
+-------------------
+
+Block response Content-Type, guard-core 4.1.0 tracking (v4.3.2)
+---------------------------------------------------------------
+
+- **Fixed** - Blocked responses now declare `Content-Type: text/plain` (#25): the Flask response factory left Flask's default mimetype in place, so middleware-generated 403/429/400 pages went out without an explicit content type and clients were left guessing. The factory now passes `mimetype="text/plain"`, matching the engine's reference response factory and the fastapi-guard fix (#144).
+- **Compatibility** - The `guard-core` floor moves from `>=4.0.0` to `>=4.1.0` in `pyproject.toml` (no upper bound), so this adapter tracks the guard-core 4.1.0 engine (the exempt_ips skip-list, the recon leading-separator gate, the raw-view recon scan, the cross-engine interop harness). The adapter delegates all security behavior to the engine through the unasync-generated sync mirror; no sync API flaskapi-guard uses changed shape.
+
+___
+
 v4.3.1 (2026-09-23)
 -------------------
 
