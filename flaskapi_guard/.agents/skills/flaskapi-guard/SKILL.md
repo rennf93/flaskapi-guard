@@ -56,13 +56,16 @@ from flaskapi_guard import RouteConfig, SecurityDecorator
 
 security = SecurityDecorator()
 
+
 @app.route("/api/sensitive")
-@security.configure(RouteConfig(
-    rate_limit=5,
-    rate_limit_window=60,
-    require_https=True,
-    blocked_countries=["XX"],
-))
+@security.configure(
+    RouteConfig(
+        rate_limit=5,
+        rate_limit_window=60,
+        require_https=True,
+        blocked_countries=["XX"],
+    )
+)
 def sensitive_endpoint():
     return {"data": "restricted"}
 ```
